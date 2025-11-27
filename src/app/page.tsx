@@ -60,13 +60,13 @@ export default async function LandingPage() {
             {/* Main Heading with Premium Gradient */}
             <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100">
               Tu Universo de{' '}
-              <span className="text-gradient-premium inline-block">Cine</span>
+              <span className="text-gradient-premium inline-block">Películas</span>
             </h1>
 
             <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200">
               Descubre, organiza y disfruta de miles de películas.
               <br />
-              <span className="text-primary font-semibold">Tu colección personal de cine</span> en un solo lugar.
+              <span className="text-primary font-semibold">Tu colección personal de películas</span> en un solo lugar.
             </p>
 
             {/* CTA Buttons with Premium Effects */}
