@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* FilmiFy Brand Theme Configuration */
+@theme inline {
+  /* Brand Colors */
+  --color-primary: #00c2ff;
+  --color-primary-hover: #00a8e1;
+  --color-accent: #ff0a16;
+  --color-accent-hover: #e50914;
+
+  /* Background Colors */
+  --color-background: #0b0e11;
+  --color-surface: #15181c;
+  --color-surface-light: #1e2125;
+  --color-surface-hover: #252a2f;
+
+  /* Text Colors */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  /* Utility Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+}
+
+/* Base Styles */
+@layer base {
+  body {
+    @apply bg-background text-text-primary antialiased;
+  }
+
+  * {
+    @apply border-surface-light;
+  }
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  .card {
+    @apply bg-surface rounded-lg border border-surface-light;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:bg-surface-hover hover:border-primary/30;
+  }
+}
