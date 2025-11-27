@@ -1,17 +1,42 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Film, Heart, Search } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
+import TrendingScroller from '@/components/features/TrendingScroller';
+import { getTrending, getBackdropUrl } from '@/lib/tmdb/service';
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Fetch trending movies for the day
+  const trendingData = await getTrending('movie', 'day');
+  const trendingMovies = trendingData.results;
+
+  // Select a random movie for the hero backdrop
+  const randomMovie = trendingMovies[Math.floor(Math.random() * trendingMovies.length)];
+  const backdropUrl = getBackdropUrl(randomMovie?.backdrop_path);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero Section */}
+      {/* Hero Section with Cinematic Background */}
       <section className="relative overflow-hidden">
-        {/* Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        {/* Dynamic Backdrop Image */}
+        {backdropUrl && (
+          <div className="absolute inset-0">
+            <Image
+              src={backdropUrl}
+              alt={randomMovie.title}
+              fill
+              className="object-cover"
+              priority
+              quality={85}
+            />
+          </div>
+        )}
+
+        {/* Strong Gradient Overlay for Text Readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/80 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/50 to-background/95" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
@@ -46,6 +71,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Trending Movies Scroller */}
+      <TrendingScroller movies={trendingMovies} />
 
       {/* Features Section */}
       <section className="py-24 bg-surface/50">
