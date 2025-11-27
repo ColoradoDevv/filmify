@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Film } from 'lucide-react';
+import { Mail, Lock, Film, AlertCircle, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -11,11 +12,33 @@ export default function LoginPage() {
         email: '',
         password: '',
     });
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const supabase = createClient();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement actual authentication
-        router.push('/browse');
+        setError(null);
+        setLoading(true);
+
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: formData.email,
+                password: formData.password,
+            });
+
+            if (error) {
+                setError('Email o contraseña incorrectos');
+                return;
+            }
+
+            router.push('/browse');
+            router.refresh();
+        } catch (err) {
+            setError('Ocurrió un error inesperado');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +62,14 @@ export default function LoginPage() {
                 <p className="text-text-secondary">Inicia sesión para continuar</p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg mb-6 flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email Field */}
@@ -56,7 +87,7 @@ export default function LoginPage() {
                             onChange={handleChange}
                             required
                             className="w-full pl-10 pr-4 py-3 bg-surface-light border border-surface-light rounded-lg focus:outline-none focus:border-primary transition-colors"
-                            placeholder="tu@email.com"
+                            placeholder="tu_correo@email.com"
                         />
                     </div>
                 </div>
@@ -84,9 +115,17 @@ export default function LoginPage() {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    className="w-full px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors"
+                    disabled={loading}
+                    className="w-full px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                    Entrar
+                    {loading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Entrando...
+                        </>
+                    ) : (
+                        'Entrar'
+                    )}
                 </button>
             </form>
 

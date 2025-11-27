@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, Film } from 'lucide-react';
+import { Mail, Lock, User, Film, AlertCircle, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -12,11 +13,38 @@ export default function RegisterPage() {
         email: '',
         password: '',
     });
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const supabase = createClient();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement actual registration
-        router.push('/browse');
+        setError(null);
+        setLoading(true);
+
+        try {
+            const { error } = await supabase.auth.signUp({
+                email: formData.email,
+                password: formData.password,
+                options: {
+                    data: {
+                        full_name: formData.name,
+                    },
+                },
+            });
+
+            if (error) {
+                setError('Error al crear la cuenta. Intenta con otro email.');
+                return;
+            }
+
+            router.push('/browse');
+            router.refresh();
+        } catch (err) {
+            setError('Ocurrió un error inesperado');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +67,14 @@ export default function RegisterPage() {
                 <h1 className="text-2xl font-bold mb-2">Crear cuenta</h1>
                 <p className="text-text-secondary">Únete a la comunidad de FilmiFy</p>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg mb-6 flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                </div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -109,9 +145,17 @@ export default function RegisterPage() {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    className="w-full px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors"
+                    disabled={loading}
+                    className="w-full px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                    Crear Cuenta
+                    {loading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Creando cuenta...
+                        </>
+                    ) : (
+                        'Crear Cuenta'
+                    )}
                 </button>
             </form>
 
