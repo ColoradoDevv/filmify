@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Film, Heart, Search, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Heart, Search, Sparkles, Zap } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import { getTrending, getBackdropUrl } from '@/lib/tmdb/service';
 
@@ -15,7 +16,7 @@ export default async function LandingPage() {
   const backdropUrl = getBackdropUrl(randomMovie?.backdrop_path);
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background overflow-hidden flex flex-col">
       <Navbar />
 
       {/* Hero Section with Cinematic Background */}
@@ -175,30 +176,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Footer with Glass Effect */}
-      <footer className="glass-effect border-t border-surface-light/50 py-12 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 group">
-              <Film className="w-6 h-6 text-primary group-hover:animate-pulse" />
-              <span className="text-xl font-bold text-gradient-premium">FilmiFy</span>
-            </div>
-
-            <div className="flex items-center gap-6">
-              <Link href="/contact" className="text-text-secondary hover:text-primary transition-colors">
-                Contacto
-              </Link>
-              <Link href="/login" className="text-text-secondary hover:text-primary transition-colors">
-                Iniciar Sesión
-              </Link>
-            </div>
-
-            <p className="text-text-muted text-sm">
-              © 2024 FilmiFy. Todos los derechos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Footer Component */}
+      <Footer />
     </div>
   );
 }
