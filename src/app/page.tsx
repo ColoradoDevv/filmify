@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Film, Heart, Search, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Film, Heart, Search, Sparkles, Zap, Star, Clapperboard } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
@@ -320,22 +320,59 @@ export default async function LandingPage() {
               </div>
             </div>
 
-            {/* Bottom CTA Banner */}
-            <div className="relative group animate-fade-in-up delay-300">
-              <div className="relative bg-gradient-to-r from-surface via-surface-light to-surface rounded-3xl p-8 sm:p-12 text-center border border-primary/20 hover:border-primary/40 transition-all duration-300">
-                <h3 className="text-3xl sm:text-4xl font-bold mb-4">
-                  Únete a la <span className="text-gradient-premium">Revolución Cinematográfica</span>
-                </h3>
-                <p className="text-text-secondary text-lg mb-8 max-w-2xl mx-auto">
-                  Miles de usuarios ya disfrutan de la mejor experiencia de cine digital. ¿Qué esperas?
-                </p>
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20"
-                >
-                  Comenzar Gratis
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+            {/* Bottom CTA Banner - Redesigned (Compact) */}
+            <div className="relative group animate-fade-in-up delay-300 mt-20 mb-16">
+              <div className="relative overflow-hidden rounded-[2rem] p-8 sm:p-12 text-center border border-white/10 shadow-2xl">
+                {/* Dynamic Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-surface to-accent/20 opacity-90 transition-all duration-500 group-hover:opacity-100" />
+                <div className="absolute inset-0 backdrop-blur-3xl" />
+
+                {/* Floating Icons (Smaller) */}
+                <div className="absolute top-6 left-6 animate-float delay-100 opacity-20 group-hover:opacity-40 transition-opacity hidden sm:block">
+                  <Film className="w-16 h-16 text-primary rotate-12" />
+                </div>
+                <div className="absolute bottom-6 right-6 animate-float delay-300 opacity-20 group-hover:opacity-40 transition-opacity hidden sm:block">
+                  <Clapperboard className="w-20 h-20 text-accent -rotate-12" />
+                </div>
+
+                {/* Content */}
+                <div className="relative z-10 max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full mb-6 border border-white/10 animate-fade-in-up">
+                    <Sparkles className="w-3 h-3 text-yellow-400" />
+                    <span className="text-xs font-medium text-white/90">Únete a miles de cinéfilos</span>
+                  </div>
+
+                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight">
+                    Únete a la <br />
+                    <span className="text-gradient-premium relative inline-block">
+                      Revolución Cinematográfica
+                    </span>
+                  </h3>
+
+                  <p className="text-lg text-text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
+                    Deja de perder tiempo buscando qué ver. <br />
+                    <span className="text-white font-medium">Descubre, organiza y comparte</span> tu pasión por el cine.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Link
+                      href="/register"
+                      className="group relative px-8 py-3 bg-white text-black rounded-xl font-bold text-base transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                    >
+                      <span className="relative z-10 flex items-center gap-2">
+                        Comenzar Gratis
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </Link>
+
+                    <Link
+                      href="/browse"
+                      className="px-8 py-3 glass-effect rounded-xl font-semibold text-base text-white transition-all duration-300 hover:bg-white/10 hover:scale-105"
+                    >
+                      Explorar Catálogo
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -343,7 +380,7 @@ export default async function LandingPage() {
 
         {/* Footer Component */}
         <Footer />
-      </main>
+      </main >
     </>
   );
 }

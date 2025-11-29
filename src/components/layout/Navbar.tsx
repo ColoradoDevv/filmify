@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Film, LogOut, User, Menu, X, Search, Heart, Settings, Sparkles } from 'lucide-react';
+import { Film, LogOut, User, Menu, X, Search, Heart, Settings, Sparkles, Bell, Clapperboard, Star, Newspaper, Gift } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { getGeminiRecommendations, getNewReleasesNotifications, getMovieNewsNotifications, getSpecialOffersNotifications } from '@/lib/gemini';
+import { useFavorites } from '@/lib/store/useStore';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -16,7 +18,13 @@ export default function Navbar() {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
+    const [newReleasesNotifs, setNewReleasesNotifs] = useState<any[]>([]);
+    const [newsNotifs, setNewsNotifs] = useState<any[]>([]);
+    const [offersNotifs, setOffersNotifs] = useState<any[]>([]);
     const supabase = createClient();
+    const favorites = useFavorites();
 
     const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/register');
 
@@ -41,10 +49,129 @@ export default function Navbar() {
         const handleScroll = () => {
             setScrolled(window.scrollY > 20);
         };
-
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // Cache helpers
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    const getCachedNotifications = (key: string) => {
+        try {
+            const cached = localStorage.getItem(key);
+            if (!cached) return null;
+
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < ONE_HOUR) return data;
+
+            localStorage.removeItem(key);
+            return null;
+        } catch {
+            return null;
+        }
+    };
+
+    const setCachedNotifications = (key: string, data: any[]) => {
+        try {
+            localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+        } catch (e) {
+            console.warn('Failed to cache notifications:', e);
+        }
+    };
+
+    // Fetch Recommendations
+    useEffect(() => {
+        const fetchRecommendations = async () => {
+            if (!user || favorites.length === 0) return;
+
+            const cached = getCachedNotifications('filmify-ai-recommendations');
+            if (cached) {
+                setAiRecommendations(cached);
+                return;
+            }
+
+            const recs = await getGeminiRecommendations(favorites.map(f => f.title));
+            if (recs.length > 0) {
+                const formattedRecs = recs.map((rec, i) => ({
+                    id: `rec-${i}`,
+                    type: 'recommendations',
+                    title: rec.title,
+                    message: rec.reason,
+                    time: 'Basado en tus favoritos',
+                    read: false
+                }));
+                setAiRecommendations(formattedRecs);
+                setCachedNotifications('filmify-ai-recommendations', formattedRecs);
+            }
+        };
+        fetchRecommendations();
+    }, [user, favorites]);
+
+    // Fetch New Releases
+    useEffect(() => {
+        const fetchNewReleases = async () => {
+            if (!user) return;
+
+            const cached = getCachedNotifications('filmify-notifs-releases');
+            if (cached) {
+                setNewReleasesNotifs(cached);
+                return;
+            }
+
+            const notifs = await getNewReleasesNotifications();
+            if (notifs.length > 0) {
+                setNewReleasesNotifs(notifs);
+                setCachedNotifications('filmify-notifs-releases', notifs);
+            }
+        };
+        fetchNewReleases();
+    }, [user]);
+
+    // Fetch News
+    useEffect(() => {
+        const fetchNews = async () => {
+            if (!user) return;
+
+            const cached = getCachedNotifications('filmify-notifs-news');
+            if (cached) {
+                setNewsNotifs(cached);
+                return;
+            }
+
+            const notifs = await getMovieNewsNotifications();
+            if (notifs.length > 0) {
+                setNewsNotifs(notifs);
+                setCachedNotifications('filmify-notifs-news', notifs);
+            }
+        };
+        fetchNews();
+    }, [user]);
+
+    // Fetch Offers
+    useEffect(() => {
+        const fetchOffers = async () => {
+            if (!user) return;
+
+            const cached = getCachedNotifications('filmify-notifs-offers');
+            if (cached) {
+                setOffersNotifs(cached);
+                return;
+            }
+
+            const notifs = await getSpecialOffersNotifications(favorites.map(f => f.title));
+            if (notifs.length > 0) {
+                setOffersNotifs(notifs);
+                setCachedNotifications('filmify-notifs-offers', notifs);
+            }
+        };
+        fetchOffers();
+    }, [user, favorites]);
+
+    const handleNotificationClick = (title: string) => {
+        setNotificationsOpen(false);
+        const searchTitle = title.replace('Recomendación: ', '');
+        router.push(`/browse?search=${encodeURIComponent(searchTitle)}`);
+    };
 
     const handleLogoutClick = () => {
         setShowLogoutConfirm(true);
@@ -57,6 +184,8 @@ export default function Navbar() {
         router.refresh();
         router.push('/');
     };
+
+
 
     return (
         <>
@@ -116,6 +245,103 @@ export default function Navbar() {
                                                     )}
                                                     <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </Link>
+                                            </div>
+
+                                            {/* Notification Center */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => setNotificationsOpen(!notificationsOpen)}
+                                                    className="relative p-2 text-text-secondary hover:text-text-primary hover:bg-surface-light/50 rounded-xl transition-all"
+                                                >
+                                                    <Bell className="w-5 h-5" />
+                                                    {/* Badge logic */}
+                                                    {(aiRecommendations.length + newReleasesNotifs.length + newsNotifs.length + offersNotifs.length) > 0 && (
+                                                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background"></span>
+                                                    )}
+                                                </button>
+
+                                                {notificationsOpen && (
+                                                    <>
+                                                        <div
+                                                            className="fixed inset-0 z-40"
+                                                            onClick={() => setNotificationsOpen(false)}
+                                                        />
+                                                        <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-scale-in">
+                                                            <div className="p-3 border-b border-surface-light flex items-center justify-between">
+                                                                <h3 className="font-semibold text-sm">Notificaciones</h3>
+                                                                <Link href="/settings" className="text-xs text-primary hover:underline" onClick={() => setNotificationsOpen(false)}>
+                                                                    Configurar
+                                                                </Link>
+                                                            </div>
+
+                                                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                                {(() => {
+                                                                    const preferences = user?.user_metadata?.notifications || {
+                                                                        newReleases: true,
+                                                                        recommendations: true,
+                                                                        friendActivity: true,
+                                                                        offers: false
+                                                                    };
+
+                                                                    const allNotifications = [
+                                                                        ...aiRecommendations,
+                                                                        ...newReleasesNotifs,
+                                                                        ...newsNotifs,
+                                                                        ...offersNotifs
+                                                                    ];
+
+                                                                    const filteredNotifications = allNotifications.filter(n => preferences[n.type as keyof typeof preferences]);
+
+                                                                    if (filteredNotifications.length === 0) {
+                                                                        return (
+                                                                            <div className="p-8 text-center text-text-secondary">
+                                                                                <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                                                <p className="text-xs">No tienes notificaciones nuevas</p>
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    const getNotificationIcon = (type: string) => {
+                                                                        switch (type) {
+                                                                            case 'newReleases':
+                                                                                return <Clapperboard className="w-4 h-4 text-blue-400" />;
+                                                                            case 'recommendations':
+                                                                                return <Star className="w-4 h-4 text-yellow-400" />;
+                                                                            case 'friendActivity':
+                                                                                return <Newspaper className="w-4 h-4 text-green-400" />;
+                                                                            case 'offers':
+                                                                                return <Gift className="w-4 h-4 text-purple-400" />;
+                                                                            default:
+                                                                                return <Bell className="w-4 h-4 text-gray-400" />;
+                                                                        }
+                                                                    };
+
+                                                                    return filteredNotifications.map(notification => (
+                                                                        <div
+                                                                            key={notification.id}
+                                                                            onClick={() => handleNotificationClick(notification.title)}
+                                                                            className="p-3 hover:bg-surface-light/50 transition-colors border-b border-surface-light/50 last:border-0 cursor-pointer group"
+                                                                        >
+                                                                            <div className="flex items-start gap-3">
+                                                                                <div className="mt-0.5 p-1.5 bg-surface-light/50 rounded-lg">
+                                                                                    {getNotificationIcon(notification.type)}
+                                                                                </div>
+                                                                                <div className="flex-1">
+                                                                                    <p className="text-sm font-medium text-white leading-none mb-1 group-hover:text-primary transition-colors">{notification.title}</p>
+                                                                                    <p className="text-xs text-text-secondary mb-1.5">{notification.message}</p>
+                                                                                    <p className="text-[10px] text-text-muted">{notification.time}</p>
+                                                                                </div>
+                                                                                {!notification.read && (
+                                                                                    <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-primary flex-shrink-0" />
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ));
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
 
                                             {/* User Menu */}

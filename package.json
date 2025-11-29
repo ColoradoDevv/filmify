@@ -9,11 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@hcaptcha/react-hcaptcha": "^1.16.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.0",
     "@vercel/speed-insights": "^1.2.0",
     "clsx": "^2.1.1",
+    "groq-sdk": "^0.37.0",
     "lucide-react": "^0.555.0",
     "next": "16.0.5",
     "react": "19.2.0",
