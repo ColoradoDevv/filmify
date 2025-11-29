@@ -16,19 +16,12 @@ export default function Footer() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
                             {/* Brand Section */}
                             <div className="lg:col-span-2">
-                                <Link href="/" className="flex items-center gap-3 group mb-6">
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-primary/20 rounded-xl blur-xl group-hover:bg-primary/30 transition-all" />
-                                        <Film className="relative w-10 h-10 text-primary group-hover:scale-110 transition-transform duration-300" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-2xl font-bold text-gradient-premium">
-                                            FilmiFy
-                                        </span>
-                                        <span className="text-[10px] text-text-muted -mt-1 tracking-wider uppercase">
-                                            Premium Cinema
-                                        </span>
-                                    </div>
+                                <Link href="/" className="inline-flex items-center gap-2 group mb-6">
+                                    <img
+                                        src="/logo-full.svg"
+                                        alt="FilmiFy Logo"
+                                        className="h-12 w-auto group-hover:scale-105 transition-transform duration-300"
+                                    />
                                 </Link>
 
                                 <p className="text-text-secondary leading-relaxed mb-6 max-w-md">

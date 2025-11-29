@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hcaptcha/react-hcaptcha": "^1.16.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.0",
     "clsx": "^2.1.1",

@@ -234,7 +234,7 @@ export const getPosterUrl = (path: string | null): string | null => {
 };
 
 export const getBackdropUrl = (path: string | null): string | null => {
-    return getImageUrl(path, 'w780');
+    return getImageUrl(path, 'original');
 };
 
 export const getProfileUrl = (path: string | null): string | null => {

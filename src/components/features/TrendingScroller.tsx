@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Movie } from '@/types/tmdb';
 import { getPosterUrl } from '@/lib/tmdb/service';
-import { Star } from 'lucide-react';
+import { Star, TrendingUp } from 'lucide-react';
 
 interface TrendingScrollerProps {
     movies: Movie[];
@@ -15,37 +15,44 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
     const duplicatedMovies = [...movies, ...movies];
 
     return (
-        <section className="py-16 bg-gradient-to-b from-background via-surface/20 to-background relative overflow-hidden">
-            {/* Decorative background elements */}
-            <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary rounded-full blur-3xl" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent rounded-full blur-3xl" />
-            </div>
+        <section className="py-20 relative overflow-hidden">
+            {/* Subtle background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background via-surface/10 to-background" />
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+            {/* Section Header */}
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-4xl font-bold mb-2">
-                            En <span className="text-gradient-premium">Tendencia</span> Hoy
+                        <div className="inline-flex items-center gap-2 mb-3">
+                            <TrendingUp className="w-5 h-5 text-primary" />
+                            <span className="text-sm font-semibold text-primary uppercase tracking-wider">
+                                Tendencias
+                            </span>
+                        </div>
+                        <h2 className="text-5xl font-bold mb-2">
+                            Lo Más <span className="text-gradient-premium">Popular</span>
                         </h2>
-                        <p className="text-text-secondary">Las películas más populares del momento</p>
+                        <p className="text-text-secondary text-lg">
+                            Las películas que todos están viendo ahora
+                        </p>
                     </div>
                     <Link
                         href="/browse"
-                        className="text-primary hover:text-accent transition-colors font-semibold flex items-center gap-2 group"
+                        className="hidden md:flex items-center gap-2 px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group"
                     >
-                        Ver todas
+                        Explorar Todo
                         <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </Link>
                 </div>
             </div>
 
+            {/* Scrolling Movies Container */}
             <div className="relative">
-                {/* Enhanced gradient overlays for fade effect */}
-                <div className="absolute left-0 top-0 bottom-0 w-40 bg-gradient-to-r from-background via-background/80 to-transparent z-10 pointer-events-none" />
-                <div className="absolute right-0 top-0 bottom-0 w-40 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none" />
+                {/* Gradient fade edges */}
+                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 
-                {/* Scrolling container */}
+                {/* Movie cards scroll */}
                 <div className="flex gap-6 animate-scroll hover:pause">
                     {duplicatedMovies.map((movie, index) => {
                         const posterUrl = getPosterUrl(movie.poster_path);
@@ -58,15 +65,17 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                 href={`/movie/${movie.id}`}
                                 className="flex-shrink-0 group relative"
                             >
-                                <div className="relative w-48 h-72 rounded-2xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:shadow-primary/30 group-hover:z-20">
-                                    {/* Movie Poster */}
+                                {/* Movie Card */}
+                                <div className="relative w-52 h-80 rounded-2xl overflow-hidden bg-surface border border-surface-light/30 transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50 group-hover:shadow-2xl group-hover:shadow-primary/20">
+                                    {/* Poster Image */}
                                     {posterUrl ? (
                                         <Image
                                             src={posterUrl}
                                             alt={movie.title}
                                             fill
-                                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                            sizes="192px"
+                                            className="object-cover"
+                                            sizes="208px"
+                                            quality={95}
                                         />
                                     ) : (
                                         <div className="w-full h-full bg-gradient-to-br from-surface to-surface-light flex items-center justify-center">
@@ -76,38 +85,48 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                         </div>
                                     )}
 
-                                    {/* Rating Badge */}
-                                    <div className="absolute top-3 right-3 glass-effect px-2 py-1 rounded-lg flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                        <span className="text-xs font-bold text-white">{rating}</span>
-                                    </div>
+                                    {/* Hover Overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                                    {/* Gradient Overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
-
-                                    {/* Movie Info Overlay */}
-                                    <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                                        <h3 className="text-sm font-bold line-clamp-2 mb-2 text-white drop-shadow-lg">
+                                    {/* Movie Info */}
+                                    <div className="absolute inset-x-0 bottom-0 p-5 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                                        <h3 className="text-base font-bold line-clamp-2 mb-3 text-white">
                                             {movie.title}
                                         </h3>
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-text-secondary font-medium">{year}</span>
-                                            <div className="flex items-center gap-1 glass-effect px-2 py-0.5 rounded">
-                                                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                                <span className="text-white font-semibold">{rating}</span>
+
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-text-secondary font-medium">
+                                                {year}
+                                            </span>
+
+                                            {/* Rating */}
+                                            <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-surface-light/30">
+                                                <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                                                <span className="text-sm font-bold text-white">{rating}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Shimmer effect on hover */}
-                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    {/* Subtle shine effect */}
+                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                                     </div>
                                 </div>
                             </Link>
                         );
                     })}
                 </div>
+            </div>
+
+            {/* Mobile "Ver todo" button */}
+            <div className="md:hidden relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+                <Link
+                    href="/browse"
+                    className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300"
+                >
+                    Explorar Todo
+                    <span>→</span>
+                </Link>
             </div>
         </section>
     );

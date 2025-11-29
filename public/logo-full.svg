@@ -1,0 +1,14 @@
+<svg width="220" height="50" viewBox="0 0 150 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="scale(0.08) translate(0, 20)">
+    <path d="M120 100 H220 V412 H120 V100 Z" fill="#00c2ff"/>
+    <circle cx="170" cy="160" r="18" fill="#0b0e11"/>
+    <circle cx="170" cy="256" r="18" fill="#0b0e11"/>
+    <circle cx="170" cy="352" r="18" fill="#0b0e11"/>
+    <path d="M220 100 H392 C403 100 412 109 412 120 V180 H220 V100 Z" fill="#00c2ff"/>
+    <path d="M220 236 H340 C351 236 360 245 360 256 V316 H220 V236 Z" fill="#ff0a16"/>
+  </g>
+  
+  <text x="45" y="36" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="28" fill="#ffffff" letter-spacing="-0.5">
+    Filmi<tspan fill="#00c2ff">Fy</tspan>
+  </text>
+</svg>

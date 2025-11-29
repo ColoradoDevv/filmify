@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Heart, Search, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Film, Heart, Search, Sparkles, Zap } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
@@ -15,169 +15,335 @@ export default async function LandingPage() {
   const randomMovie = trendingMovies[Math.floor(Math.random() * trendingMovies.length)];
   const backdropUrl = getBackdropUrl(randomMovie?.backdrop_path);
 
+  // JSON-LD Structured Data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://filmify.com/#organization",
+        name: "FilmiFy",
+        url: "https://filmify.com",
+        logo: {
+          "@type": "ImageObject",
+          url: "https://filmify.com/logo-icon.svg",
+          width: 512,
+          height: 512
+        },
+        description: "Plataforma premium para descubrir, organizar y disfrutar de películas y series",
+        sameAs: [
+          "https://twitter.com/filmify",
+          "https://facebook.com/filmify"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://filmify.com/#website",
+        url: "https://filmify.com",
+        name: "FilmiFy",
+        description: "Tu universo de películas - Descubre, organiza y disfruta",
+        publisher: {
+          "@id": "https://filmify.com/#organization"
+        },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: "https://filmify.com/browse?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        },
+        inLanguage: "es-ES"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://filmify.com/#webapp",
+        name: "FilmiFy",
+        url: "https://filmify.com",
+        applicationCategory: "EntertainmentApplication",
+        operatingSystem: "Web Browser",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD"
+        },
+        description: "Aplicación web para gestionar tu colección de películas con búsqueda inteligente, listas personalizadas y catálogo actualizado",
+        featureList: [
+          "Búsqueda inteligente de películas",
+          "Listas personalizadas",
+          "Catálogo actualizado diariamente",
+          "Sincronización en la nube"
+        ],
+        screenshot: "https://filmify.com/screenshot.jpg"
+      }
+    ]
+  };
+
   return (
-    <div className="min-h-screen bg-background overflow-hidden flex flex-col">
-      <Navbar />
+    <>
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
 
-      {/* Hero Section with Cinematic Background */}
-      <section className="relative overflow-hidden min-h-[90vh] flex items-center">
-        {/* Dynamic Backdrop Image */}
-        {backdropUrl && (
-          <div className="absolute inset-0">
-            <Image
-              src={backdropUrl}
-              alt={randomMovie.title}
-              fill
-              className="object-cover scale-110 animate-[scale_20s_ease-in-out_infinite]"
-              priority
-              quality={90}
-            />
-          </div>
-        )}
+      <main className="min-h-screen bg-background overflow-hidden flex flex-col">
+        <Navbar />
 
-        {/* Animated Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-transparent to-background/95" />
-
-        {/* Animated particles effect */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-float" />
-          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-accent rounded-full animate-float delay-200" />
-          <div className="absolute bottom-1/3 left-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-float delay-300" />
-          <div className="absolute top-2/3 right-1/4 w-1 h-1 bg-accent rounded-full animate-float delay-500" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 z-10">
-          <div className="text-center">
-            {/* Animated Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 glass-effect rounded-full mb-8 animate-fade-in-up">
-              <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-              <span className="text-sm font-medium text-text-secondary">
-                Miles de películas al alcance de tu mano
-              </span>
+        {/* Hero Section with Cinematic Background */}
+        <section className="relative overflow-hidden min-h-[90vh] flex items-center" aria-label="Sección principal de bienvenida">
+          {/* Dynamic Backdrop Image */}
+          {backdropUrl && (
+            <div className="absolute inset-0">
+              <Image
+                src={backdropUrl}
+                alt={`Imagen de fondo de la película ${randomMovie.title}`}
+                fill
+                className="object-cover scale-110 animate-[scale_20s_ease-in-out_infinite]"
+                priority
+                quality={100}
+                unoptimized
+              />
             </div>
+          )}
 
-            {/* Main Heading with Premium Gradient */}
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100">
-              Tu Universo de{' '}
-              <span className="text-gradient-premium inline-block">Películas</span>
-            </h1>
+          {/* Animated Gradient Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-transparent to-background/95" />
 
-            <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200">
-              Descubre, organiza y disfruta de miles de películas.
-              <br />
-              <span className="text-primary font-semibold">Tu colección personal de películas</span> en un solo lugar.
-            </p>
+          {/* Animated particles effect */}
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-float" />
+            <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-accent rounded-full animate-float delay-200" />
+            <div className="absolute bottom-1/3 left-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-float delay-300" />
+            <div className="absolute top-2/3 right-1/4 w-1 h-1 bg-accent rounded-full animate-float delay-500" />
+          </div>
 
-            {/* CTA Buttons with Premium Effects */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
-              <Link
-                href="/browse"
-                className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative z-10">Explorar Ahora</span>
-                <ArrowRight className="relative z-10 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                <div className="absolute inset-0 animate-shimmer" />
-              </Link>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 z-10">
+            <div className="text-center">
+              {/* Animated Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 glass-effect rounded-full mb-8 animate-fade-in-up">
+                <Film className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-text-secondary">
+                  Miles de películas al alcance de tu mano
+                </span>
+              </div>
 
-              <Link
-                href="/register"
-                className="group px-8 py-4 glass-effect text-text-primary rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 border border-surface-light/50 hover:border-primary/50"
-              >
-                Crear Cuenta
-              </Link>
+              {/* Main Heading with Premium Gradient */}
+              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100">
+                Tu Universo de{' '}
+                <span className="text-gradient-premium inline-block">Películas</span>
+              </h1>
+
+              <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200">
+                Descubre, organiza y disfruta de miles de películas.
+                <br />
+                <span className="text-primary font-semibold">Tu colección personal de películas</span> en un solo lugar.
+              </p>
+
+              {/* CTA Buttons with Premium Effects */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
+                <Link
+                  href="/browse"
+                  className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="relative z-10">Explorar Ahora</span>
+                  <ArrowRight className="relative z-10 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <div className="absolute inset-0 animate-shimmer" />
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="group px-8 py-4 glass-effect text-text-primary rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 border border-surface-light/50 hover:border-primary/50"
+                >
+                  Crear Cuenta
+                </Link>
+              </div>
+
+              {/* Stats Section - Minimalist Design */}
+              <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto mt-16 animate-fade-in-up delay-400">
+                <div className="group relative p-6 text-center transition-all duration-300">
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">10K+</div>
+                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">Películas</div>
+                </div>
+
+                <div className="group relative p-6 text-center transition-all duration-300">
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">4K</div>
+                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">En HD</div>
+                </div>
+
+                <div className="group relative p-6 text-center transition-all duration-300">
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">24/7</div>
+                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">Actualizado</div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* Stats Section */}
-            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto mt-16 animate-fade-in-up delay-400">
-              <div className="card-premium p-4 text-center">
-                <div className="text-3xl font-bold text-gradient mb-1">10K+</div>
-                <div className="text-sm text-text-secondary">Películas</div>
-              </div>
-              <div className="card-premium p-4 text-center">
-                <div className="text-3xl font-bold text-gradient mb-1">4K</div>
-                <div className="text-sm text-text-secondary">En HD</div>
-              </div>
-              <div className="card-premium p-4 text-center">
-                <div className="text-3xl font-bold text-gradient mb-1">24/7</div>
-                <div className="text-sm text-text-secondary">Actualizado</div>
-              </div>
+          {/* Scroll Indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+            <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex items-start justify-center p-2">
+              <div className="w-1 h-2 bg-primary rounded-full animate-pulse" />
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex items-start justify-center p-2">
-            <div className="w-1 h-2 bg-primary rounded-full animate-pulse" />
-          </div>
-        </div>
-      </section>
+        {/* Trending Movies Scroller */}
+        <TrendingScroller movies={trendingMovies} />
 
-      {/* Trending Movies Scroller */}
-      <TrendingScroller movies={trendingMovies} />
+        {/* Features Section - Clean Premium Design */}
+        <section className="py-32 relative overflow-hidden" aria-label="Características principales de FilmiFy">
+          {/* Subtle Background Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-surface/20 to-background" />
 
-      {/* Features Section with Premium Cards */}
-      <section className="py-24 relative">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-surface/30 to-background" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-              ¿Por qué <span className="text-gradient-premium">FilmiFy</span>?
-            </h2>
-            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              La plataforma definitiva para los amantes del cine
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="card-premium p-8 text-center group hover:scale-105 transition-all duration-300 animate-scale-in">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl mb-6 group-hover:animate-pulse-glow transition-all">
-                <Search className="w-10 h-10 text-primary" />
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Section Header */}
+            <div className="text-center mb-20 animate-fade-in-up">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-surface/50 backdrop-blur-sm rounded-full mb-6 border border-surface-light/30">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-text-secondary">
+                  Experiencia Premium
+                </span>
               </div>
-              <h3 className="text-2xl font-semibold mb-3 group-hover:text-gradient transition-all">
-                Búsqueda Inteligente
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Encuentra cualquier película al instante con nuestra potente búsqueda impulsada por IA.
+
+              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
+                ¿Por qué <span className="text-gradient-premium">FilmiFy</span>?
+              </h2>
+
+              <p className="text-xl text-text-secondary max-w-3xl mx-auto leading-relaxed">
+                Descubre la plataforma de cine más avanzada y elegante.
+                <br />
+                <span className="text-primary font-semibold">Diseñada para verdaderos cinéfilos.</span>
               </p>
             </div>
 
-            {/* Feature 2 */}
-            <div className="card-premium p-8 text-center group hover:scale-105 transition-all duration-300 animate-scale-in delay-100">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-accent/20 to-accent/5 rounded-2xl mb-6 group-hover:animate-pulse-glow transition-all">
-                <Heart className="w-10 h-10 text-accent" />
+            {/* Feature Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+              {/* Feature 1 - Smart Search */}
+              <div className="group relative">
+                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in border-l-2 border-l-primary/30">
+                  {/* Icon Container */}
+                  <div className="relative mb-8">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-all">
+                      <Search className="w-10 h-10 text-primary group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <h3 className="text-3xl font-bold mb-4 group-hover:text-primary transition-colors duration-300">
+                    Búsqueda Inteligente
+                  </h3>
+                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                    Encuentra cualquier película al instante con nuestra potente búsqueda impulsada por IA y filtros avanzados.
+                  </p>
+
+                  {/* Feature Highlights */}
+                  <ul className="space-y-2 text-sm text-text-secondary">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Resultados instantáneos
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Filtros personalizables
+                    </li>
+                  </ul>
+                </div>
               </div>
-              <h3 className="text-2xl font-semibold mb-3 group-hover:text-gradient transition-all">
-                Tus Favoritos
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Guarda y organiza tus películas favoritas en listas personalizadas y compártelas.
-              </p>
+
+              {/* Feature 2 - Favorites */}
+              <div className="group relative">
+                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-100 border-l-2 border-l-accent/30">
+                  {/* Icon Container */}
+                  <div className="relative mb-8">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-accent/15 to-accent/5 rounded-2xl border border-accent/20 group-hover:border-accent/40 transition-all">
+                      <Heart className="w-10 h-10 text-accent group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <h3 className="text-3xl font-bold mb-4 group-hover:text-accent transition-colors duration-300">
+                    Colección Personal
+                  </h3>
+                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                    Crea y organiza tus listas personalizadas. Guarda favoritos, marca vistas y comparte con amigos.
+                  </p>
+
+                  {/* Feature Highlights */}
+                  <ul className="space-y-2 text-sm text-text-secondary">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                      Listas ilimitadas
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                      Sincronización en la nube
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Feature 3 - Infinite Catalog */}
+              <div className="group relative">
+                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-200 border-l-2 border-l-primary/30">
+                  {/* Icon Container */}
+                  <div className="relative mb-8">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-all">
+                      <Zap className="w-10 h-10 text-primary group-hover:scale-110 transition-transform duration-300" />
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <h3 className="text-3xl font-bold mb-4 group-hover:text-primary transition-colors duration-300">
+                    Catálogo Infinito
+                  </h3>
+                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                    Accede a una biblioteca masiva de películas y series, actualizada diariamente con los últimos estrenos.
+                  </p>
+
+                  {/* Feature Highlights */}
+                  <ul className="space-y-2 text-sm text-text-secondary">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Actualizaciones diarias
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Contenido en 4K/HD
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
-            {/* Feature 3 */}
-            <div className="card-premium p-8 text-center group hover:scale-105 transition-all duration-300 animate-scale-in delay-200">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/20 to-accent/10 rounded-2xl mb-6 group-hover:animate-pulse-glow transition-all">
-                <Zap className="w-10 h-10 text-primary" />
+            {/* Bottom CTA Banner */}
+            <div className="relative group animate-fade-in-up delay-300">
+              <div className="relative bg-gradient-to-r from-surface via-surface-light to-surface rounded-3xl p-8 sm:p-12 text-center border border-primary/20 hover:border-primary/40 transition-all duration-300">
+                <h3 className="text-3xl sm:text-4xl font-bold mb-4">
+                  Únete a la <span className="text-gradient-premium">Revolución Cinematográfica</span>
+                </h3>
+                <p className="text-text-secondary text-lg mb-8 max-w-2xl mx-auto">
+                  Miles de usuarios ya disfrutan de la mejor experiencia de cine digital. ¿Qué esperas?
+                </p>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20"
+                >
+                  Comenzar Gratis
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
               </div>
-              <h3 className="text-2xl font-semibold mb-3 group-hover:text-gradient transition-all">
-                Catálogo Infinito
-              </h3>
-              <p className="text-text-secondary leading-relaxed">
-                Accede a miles de películas actualizadas diariamente desde nuestra base de datos.
-              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer Component */}
-      <Footer />
-    </div>
+        {/* Footer Component */}
+        <Footer />
+      </main>
+    </>
   );
 }

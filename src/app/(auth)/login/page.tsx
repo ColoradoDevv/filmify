@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Film, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -14,28 +15,57 @@ export default function LoginPage() {
     });
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const captchaRef = useRef<HCaptcha>(null);
     const supabase = createClient();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+
+        if (!captchaToken) {
+            setError('Por favor, completa el captcha para continuar.');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email: formData.email,
                 password: formData.password,
+                options: {
+                    captchaToken,
+                },
             });
 
             if (error) {
-                setError('Email o contraseña incorrectos');
+                console.error('Supabase login error:', error);
+
+                // Reset captcha on error
+                captchaRef.current?.resetCaptcha();
+                setCaptchaToken(null);
+
+                // Provide specific error messages
+                if (error.message.includes('Email not confirmed')) {
+                    setError('Por favor, confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
+                } else if (error.message.includes('Invalid login credentials')) {
+                    setError('Email o contraseña incorrectos. Verifica tus datos.');
+                } else {
+                    setError(error.message || 'Email o contraseña incorrectos');
+                }
                 return;
             }
 
+            // Successful login
             router.push('/browse');
             router.refresh();
         } catch (err) {
+            console.error('Unexpected login error:', err);
             setError('Ocurrió un error inesperado');
+            captchaRef.current?.resetCaptcha();
+            setCaptchaToken(null);
         } finally {
             setLoading(false);
         }
@@ -49,101 +79,158 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="card p-8">
-            {/* Logo */}
-            <div className="flex items-center justify-center gap-2 mb-8">
-                <Film className="w-10 h-10 text-primary" />
-                <span className="text-3xl font-bold text-gradient">FilmiFy</span>
-            </div>
+        <div className="relative">
+            {/* Back to home button */}
+            <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
+            >
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">Volver al inicio</span>
+            </Link>
 
-            {/* Header */}
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold mb-2">Bienvenido de vuelta</h1>
-                <p className="text-text-secondary">Inicia sesión para continuar</p>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg mb-6 flex items-center gap-2 text-sm">
-                    <AlertCircle className="w-4 h-4" />
-                    {error}
-                </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email Field */}
-                <div>
-                    <label htmlFor="email" className="block text-sm font-medium mb-2">
-                        Email
-                    </label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            className="w-full pl-10 pr-4 py-3 bg-surface-light border border-surface-light rounded-lg focus:outline-none focus:border-primary transition-colors"
-                            placeholder="tu_correo@email.com"
+            {/* Login Card */}
+            <div className="card-premium p-6 sm:p-8 border border-surface-light/50 backdrop-blur-xl bg-surface/95">
+                {/* Logo */}
+                <div className="flex justify-center mb-4">
+                    <Link href="/" className="group">
+                        <img
+                            src="/logo-full.svg"
+                            alt="FilmiFy Logo"
+                            className="h-10 w-auto group-hover:scale-105 transition-transform duration-300"
                         />
-                    </div>
-                </div>
-
-                {/* Password Field */}
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium mb-2">
-                        Contraseña
-                    </label>
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            className="w-full pl-10 pr-4 py-3 bg-surface-light border border-surface-light rounded-lg focus:outline-none focus:border-primary transition-colors"
-                            placeholder="••••••••"
-                        />
-                    </div>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    {loading ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Entrando...
-                        </>
-                    ) : (
-                        'Entrar'
-                    )}
-                </button>
-            </form>
-
-            {/* Footer */}
-            <div className="mt-6 text-center">
-                <p className="text-text-secondary">
-                    ¿No tienes cuenta?{' '}
-                    <Link href="/register" className="text-primary hover:text-primary-hover font-medium">
-                        Regístrate
                     </Link>
-                </p>
-            </div>
+                </div>
 
-            {/* Back to Home */}
-            <div className="mt-4 text-center">
-                <Link href="/" className="text-text-muted hover:text-text-secondary text-sm">
-                    ← Volver al inicio
-                </Link>
+                {/* Header */}
+                <div className="text-center mb-5">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                        Bienvenido de <span className="text-gradient-premium">vuelta</span>
+                    </h1>
+                    <p className="text-text-secondary">
+                        Inicia sesión para continuar tu experiencia cinematográfica
+                    </p>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2.5 rounded-xl mb-4 flex items-center gap-3 animate-fade-in-up">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium">{error}</span>
+                    </div>
+                )}
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Email Field */}
+                    <div>
+                        <label
+                            htmlFor="email"
+                            className="block text-sm font-semibold mb-1.5 text-text-primary"
+                        >
+                            Correo Electrónico
+                        </label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                                autoComplete="email"
+                                className="w-full pl-12 pr-4 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                placeholder="tu@email.com"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div>
+                        <label
+                            htmlFor="password"
+                            className="block text-sm font-semibold mb-1.5 text-text-primary"
+                        >
+                            Contraseña
+                        </label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                                autoComplete="current-password"
+                                className="w-full pl-12 pr-12 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                placeholder="••••••••"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="w-5 h-5" />
+                                ) : (
+                                    <Eye className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* hCaptcha */}
+                    <div className="flex justify-center py-2">
+                        <HCaptcha
+                            sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
+                            onVerify={(token) => setCaptchaToken(token)}
+                            ref={captchaRef}
+                            theme="dark"
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-5"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Iniciando sesión...
+                            </>
+                        ) : (
+                            'Iniciar Sesión'
+                        )}
+                    </button>
+                </form>
+
+                {/* Divider */}
+                <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-surface-light/50" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-surface text-text-muted">o</span>
+                    </div>
+                </div>
+
+                {/* Sign up link */}
+                <div className="text-center">
+                    <p className="text-text-secondary text-sm">
+                        ¿No tienes cuenta?{' '}
+                        <Link
+                            href="/register"
+                            className="text-primary hover:text-accent font-semibold transition-colors"
+                        >
+                            Crear cuenta gratis
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );
