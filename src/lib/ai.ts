@@ -1,29 +1,45 @@
+'use server';
+
 import Groq from 'groq-sdk';
 
-const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+const apiKey = process.env.GROQ_API_KEY;
 
 // Initialize Groq
-const groq = apiKey ? new Groq({ apiKey, dangerouslyAllowBrowser: true }) : null;
+const groq = apiKey ? new Groq({ apiKey }) : null;
 
 export interface Recommendation {
     title: string;
     reason: string;
 }
 
-export async function getGeminiRecommendations(favorites: string[]): Promise<Recommendation[]> {
-    console.log('🔑 Groq API Key status:', apiKey ? '✅ Configured' : '❌ Missing');
+export interface Notification {
+    id: string;
+    type: 'newReleases' | 'friendActivity' | 'offers';
+    title: string;
+    message: string;
+    time: string;
+    read: boolean;
+}
 
+interface AIRecommendationResponse {
+    title: string;
+    reason: string;
+}
+
+interface AINotificationResponse {
+    title: string;
+    message: string;
+    time: string;
+}
+
+export async function getGeminiRecommendations(favorites: string[]): Promise<Recommendation[]> {
     if (!groq) {
-        console.warn('⚠️ Groq API Key not found. Please set NEXT_PUBLIC_GROQ_API_KEY in .env.local');
         return [];
     }
 
     if (favorites.length === 0) {
-        console.log('📭 No favorites provided, skipping recommendations');
         return [];
     }
-
-    console.log('🎬 Generating recommendations based on:', favorites);
 
     const prompt = `Act as a movie recommendation expert.
 Based on these favorite movies: ${favorites.join(', ')}.
@@ -36,7 +52,6 @@ Return ONLY a JSON array with this format:
 Do not include markdown formatting or explanations.`;
 
     try {
-        console.log('📡 Sending request to Groq API...');
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
             model: 'llama-3.3-70b-versatile',
@@ -45,34 +60,14 @@ Do not include markdown formatting or explanations.`;
         });
 
         const text = completion.choices[0]?.message?.content || '';
-        console.log('📥 Raw Groq response:', text);
 
         // Clean up markdown if present
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        const recommendations = JSON.parse(jsonStr);
-        console.log('✨ Parsed recommendations:', recommendations);
+        const recommendations: AIRecommendationResponse[] = JSON.parse(jsonStr);
 
         return recommendations;
-    } catch (error: any) {
-        // Handle specific error types
-        if (error?.message?.includes('429') || error?.message?.includes('quota')) {
-            console.warn('⚠️ Groq API quota exceeded. Please wait or check your limits.');
-            console.info('ℹ️ Visit: https://console.groq.com');
-        } else if (error?.message?.includes('401') || error?.message?.includes('API_KEY_INVALID')) {
-            console.warn('⚠️ Groq API key invalid. Please generate a new API key.');
-            console.info('ℹ️ Visit: https://console.groq.com/keys');
-        } else {
-            console.error('❌ Error fetching recommendations from Groq:', error?.message || error);
-        }
-
-        if (error instanceof Error) {
-            console.debug('Error details:', {
-                message: error.message,
-                name: error.name
-            });
-        }
-
+    } catch (error) {
         return [];
     }
 }
@@ -82,7 +77,6 @@ Do not include markdown formatting or explanations.`;
  */
 export async function getMovieRecommendationsJSON(prompt: string): Promise<string[]> {
     if (!groq) {
-        console.warn('⚠️ Groq API Key not found');
         return [];
     }
 
@@ -109,7 +103,6 @@ export async function getMovieRecommendationsJSON(prompt: string): Promise<strin
 
         return Array.isArray(titles) ? titles : [];
     } catch (error) {
-        console.error('❌ Error getting movie recommendations:', error);
         return [];
     }
 }
@@ -119,7 +112,6 @@ export async function getMovieRecommendationsJSON(prompt: string): Promise<strin
  */
 export async function generateAIResponse(prompt: string): Promise<string> {
     if (!groq) {
-        console.warn('⚠️ Groq API Key not found');
         return 'Lo siento, la IA no está configurada correctamente.';
     }
 
@@ -133,7 +125,6 @@ export async function generateAIResponse(prompt: string): Promise<string> {
 
         return completion.choices[0]?.message?.content || '';
     } catch (error) {
-        console.error('❌ Error generating AI response:', error);
         return 'Lo siento, hubo un error al procesar tu solicitud.';
     }
 }
@@ -141,9 +132,8 @@ export async function generateAIResponse(prompt: string): Promise<string> {
 /**
  * Get AI-generated notifications for new movie releases
  */
-export async function getNewReleasesNotifications(): Promise<any[]> {
+export async function getNewReleasesNotifications(): Promise<Notification[]> {
     if (!groq) {
-        console.warn('⚠️ Groq API Key not found');
         return [];
     }
 
@@ -171,9 +161,9 @@ export async function getNewReleasesNotifications(): Promise<any[]> {
 
         const text = completion.choices[0]?.message?.content || '';
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const notifications = JSON.parse(jsonStr);
+        const notifications: AINotificationResponse[] = JSON.parse(jsonStr);
 
-        return notifications.map((n: any, i: number) => ({
+        return notifications.map((n, i) => ({
             id: `release-${i}`,
             type: 'newReleases',
             title: n.title,
@@ -181,12 +171,7 @@ export async function getNewReleasesNotifications(): Promise<any[]> {
             time: n.time,
             read: false
         }));
-    } catch (error: any) {
-        if (error?.message?.includes('429') || error?.message?.includes('quota')) {
-            console.warn('⚠️ Groq API quota exceeded for new releases');
-        } else if (error?.message?.includes('401') || error?.message?.includes('API_KEY_INVALID')) {
-            console.warn('⚠️ Groq API key invalid');
-        }
+    } catch (error) {
         return [];
     }
 }
@@ -194,7 +179,7 @@ export async function getNewReleasesNotifications(): Promise<any[]> {
 /**
  * Get AI-generated movie industry news notifications
  */
-export async function getMovieNewsNotifications(): Promise<any[]> {
+export async function getMovieNewsNotifications(): Promise<Notification[]> {
     if (!groq) {
         return [];
     }
@@ -223,9 +208,9 @@ export async function getMovieNewsNotifications(): Promise<any[]> {
 
         const text = completion.choices[0]?.message?.content || '';
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const notifications = JSON.parse(jsonStr);
+        const notifications: AINotificationResponse[] = JSON.parse(jsonStr);
 
-        return notifications.map((n: any, i: number) => ({
+        return notifications.map((n, i) => ({
             id: `news-${i}`,
             type: 'friendActivity',
             title: n.title,
@@ -233,12 +218,7 @@ export async function getMovieNewsNotifications(): Promise<any[]> {
             time: n.time,
             read: false
         }));
-    } catch (error: any) {
-        if (error?.message?.includes('429') || error?.message?.includes('quota')) {
-            console.warn('⚠️ Groq API quota exceeded for news');
-        } else if (error?.message?.includes('401') || error?.message?.includes('API_KEY_INVALID')) {
-            console.warn('⚠️ Groq API key invalid');
-        }
+    } catch (error) {
         return [];
     }
 }
@@ -246,7 +226,7 @@ export async function getMovieNewsNotifications(): Promise<any[]> {
 /**
  * Get AI-generated special offers notifications
  */
-export async function getSpecialOffersNotifications(favorites: string[]): Promise<any[]> {
+export async function getSpecialOffersNotifications(favorites: string[]): Promise<Notification[]> {
     if (!groq) {
         return [];
     }
@@ -280,9 +260,9 @@ export async function getSpecialOffersNotifications(favorites: string[]): Promis
 
         const text = completion.choices[0]?.message?.content || '';
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const notifications = JSON.parse(jsonStr);
+        const notifications: AINotificationResponse[] = JSON.parse(jsonStr);
 
-        return notifications.map((n: any, i: number) => ({
+        return notifications.map((n, i) => ({
             id: `offer-${i}`,
             type: 'offers',
             title: n.title,
@@ -290,12 +270,7 @@ export async function getSpecialOffersNotifications(favorites: string[]): Promis
             time: n.time,
             read: false
         }));
-    } catch (error: any) {
-        if (error?.message?.includes('429') || error?.message?.includes('quota')) {
-            console.warn('⚠️ Groq API quota exceeded for offers');
-        } else if (error?.message?.includes('401') || error?.message?.includes('API_KEY_INVALID')) {
-            console.warn('⚠️ Groq API key invalid');
-        }
+    } catch (error) {
         return [];
     }
 }
@@ -333,7 +308,6 @@ export async function getSearchCorrection(query: string): Promise<string | null>
         // Remove quotes if present
         return text.replace(/^["']|["']$/g, '');
     } catch (error) {
-        console.error('❌ Error getting search correction:', error);
         return null;
     }
 }
@@ -380,13 +354,12 @@ export async function getYouTubeTrailerId(title: string, year: string, type: 'mo
 
         // Validate ID format (11 characters, alphanumeric, -, _)
         if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-            console.warn('⚠️ Invalid YouTube ID returned by AI:', videoId);
             return null;
         }
 
         return videoId;
     } catch (error) {
-        console.error('❌ Error getting trailer ID:', error);
         return null;
     }
 }
+

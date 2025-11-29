@@ -84,7 +84,9 @@ export default async function LandingPage() {
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c')
+        }}
       />
 
       <main className="min-h-screen bg-background overflow-hidden flex flex-col">
