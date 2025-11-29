@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -69,16 +69,17 @@ export const metadata: Metadata = {
     images: ["/logo-icon.svg"],
     creator: "@filmify",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-  },
+  category: "entertainment",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0b0e11" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
   ],
-  category: "entertainment",
 };
 
 
