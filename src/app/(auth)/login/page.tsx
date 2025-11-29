@@ -1,81 +1,39 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useActionState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Mail, Lock, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { loginAction } from './actions';
+
+const initialState = {
+    error: '',
+};
 
 export default function LoginPage() {
-    const router = useRouter();
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-    });
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [state, formAction, isPending] = useActionState(loginAction, initialState);
     const [showPassword, setShowPassword] = useState(false);
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const captchaRef = useRef<HCaptcha>(null);
-    const supabase = createClient();
+    const formRef = useRef<HTMLFormElement>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-
-        if (!captchaToken) {
-            setError('Por favor, completa el captcha para continuar.');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: formData.email,
-                password: formData.password,
-                options: {
-                    captchaToken,
-                },
-            });
-
-            if (error) {
-                console.error('Supabase login error:', error);
-
-                // Reset captcha on error
-                captchaRef.current?.resetCaptcha();
-                setCaptchaToken(null);
-
-                // Provide specific error messages
-                if (error.message.includes('Email not confirmed')) {
-                    setError('Por favor, confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
-                } else if (error.message.includes('Invalid login credentials')) {
-                    setError('Email o contraseña incorrectos. Verifica tus datos.');
-                } else {
-                    setError(error.message || 'Email o contraseña incorrectos');
-                }
-                return;
-            }
-
-            // Successful login
-            router.push('/browse');
-            router.refresh();
-        } catch (err) {
-            console.error('Unexpected login error:', err);
-            setError('Ocurrió un error inesperado');
+    // Reset captcha when error occurs
+    useEffect(() => {
+        if (state?.error) {
             captchaRef.current?.resetCaptcha();
             setCaptchaToken(null);
-        } finally {
-            setLoading(false);
         }
-    };
+    }, [state?.error]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
+    const handleSubmit = (formData: FormData) => {
+        if (!captchaToken) {
+            // We can't block the action here easily without custom logic, 
+            // but the action also checks for captchaToken.
+            // Ideally we prevent submission or add token to formData.
+            return;
+        }
+        formData.set('captchaToken', captchaToken);
+        formAction(formData);
     };
 
     return (
@@ -113,35 +71,35 @@ export default function LoginPage() {
                 </div>
 
                 {/* Error Message */}
-                {error && (
+                {(state?.error || (!captchaToken && isPending)) && (
                     <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2.5 rounded-xl mb-4 flex items-center gap-3 animate-fade-in-up">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <span className="text-sm font-medium">{error}</span>
+                        <span className="text-sm font-medium">
+                            {!captchaToken && isPending ? 'Por favor completa el captcha' : state.error}
+                        </span>
                     </div>
                 )}
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Email Field */}
+                <form action={handleSubmit} className="space-y-4" ref={formRef}>
+                    {/* Email/Nickname Field */}
                     <div>
                         <label
                             htmlFor="email"
                             className="block text-sm font-semibold mb-1.5 text-text-primary"
                         >
-                            Correo Electrónico
+                            Correo o Nickname
                         </label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
                             <input
-                                type="email"
+                                type="text"
                                 id="email"
                                 name="email"
-                                value={formData.email}
-                                onChange={handleChange}
                                 required
-                                autoComplete="email"
+                                autoComplete="username"
                                 className="w-full pl-12 pr-4 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                                placeholder="tu@email.com"
+                                placeholder="tu@email.com o tu_nickname"
                             />
                         </div>
                     </div>
@@ -160,8 +118,6 @@ export default function LoginPage() {
                                 type={showPassword ? 'text' : 'password'}
                                 id="password"
                                 name="password"
-                                value={formData.password}
-                                onChange={handleChange}
                                 required
                                 autoComplete="current-password"
                                 className="w-full pl-12 pr-12 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
@@ -195,10 +151,10 @@ export default function LoginPage() {
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={isPending}
                         className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-5"
                     >
-                        {loading ? (
+                        {isPending ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
                                 Iniciando sesión...

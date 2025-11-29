@@ -1,6 +1,7 @@
 import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import MovieHero from '@/components/features/MovieHero';
+import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -37,11 +38,9 @@ export default async function TVDetailsPage({ params }: PageProps) {
     if (!tvShow) notFound();
 
     // Map TV show data to match Movie structure for MovieHero
-    // TV shows have 'name' instead of 'title', but our MovieDetails type (reused for TV) might have gaps
-    // We ensure the object passed to MovieHero has the expected properties
     const heroData = {
         ...tvShow,
-        title: tvShow.name || tvShow.title, // Ensure title is present
+        title: tvShow.name || tvShow.title,
         original_title: tvShow.original_name || tvShow.original_title,
         release_date: tvShow.first_air_date || tvShow.release_date,
     };
@@ -73,15 +72,8 @@ export default async function TVDetailsPage({ params }: PageProps) {
         }
     }
 
-    // Get creator/showrunner (often in created_by for TV, but we'll check crew for now as per current type)
-    // For TV shows, 'Director' might not be the main role, usually 'Executive Producer' or 'Creator'
-    // We'll look for 'Executive Producer' or just take the first crew member for now if specific roles aren't found
     const creator = tvShow.credits?.crew.find((person) => person.job === 'Executive Producer' || person.job === 'Creator');
-
-    // Get top cast (limit to 10)
     const cast = tvShow.credits?.cast.slice(0, 10) || [];
-
-    // Get watch providers
     const providers = tvShow['watch/providers']?.results?.MX ||
         tvShow['watch/providers']?.results?.US ||
         Object.values(tvShow['watch/providers']?.results || {})[0];
@@ -141,7 +133,6 @@ export default async function TVDetailsPage({ params }: PageProps) {
                                 <span className="block text-gray-400 mb-1">Estado</span>
                                 <span className="text-white font-medium">{tvShow.status}</span>
                             </div>
-                            {/* TV shows usually don't have budget/revenue in the same way, or it's per episode */}
                             {tvShow.number_of_seasons && (
                                 <div>
                                     <span className="block text-gray-400 mb-1">Temporadas</span>
@@ -229,6 +220,9 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         )}
                     </div>
                 </section>
+
+                {/* Reviews Section */}
+                <ReviewsSection mediaId={tvId} mediaType="tv" />
             </div>
         </div>
     );

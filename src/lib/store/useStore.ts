@@ -64,7 +64,7 @@ const initialState = {
         isMenuOpen: false,
         isLoading: false,
         searchQuery: '',
-        isSidebarCollapsed: false,
+        isSidebarCollapsed: true,
     },
 };
 
@@ -207,9 +207,13 @@ export const useStore = create<StoreState>()(
         {
             name: 'filmify-storage', // localStorage key
             storage: createJSONStorage(() => localStorage),
-            // Only persist user data, not UI state
+            // Persist user data and sidebar state
             partialize: (state) => ({
                 user: state.user,
+                ui: {
+                    ...initialState.ui,
+                    isSidebarCollapsed: state.ui.isSidebarCollapsed,
+                },
             }),
         }
     )

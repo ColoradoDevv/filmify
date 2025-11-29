@@ -2,6 +2,7 @@ import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getProviderLink } from '@/lib/referrals';
 import MovieHero from '@/components/features/MovieHero';
+import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
 import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -352,6 +353,9 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         )}
                     </div>
                 </section>
+
+                {/* Reviews Section */}
+                <ReviewsSection mediaId={movieId} mediaType="movie" />
             </div>
         </div>
     );
