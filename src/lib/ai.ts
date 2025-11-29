@@ -78,6 +78,67 @@ Do not include markdown formatting or explanations.`;
 }
 
 /**
+ * Get movie recommendations as a JSON array of titles
+ */
+export async function getMovieRecommendationsJSON(prompt: string): Promise<string[]> {
+    if (!groq) {
+        console.warn('⚠️ Groq API Key not found');
+        return [];
+    }
+
+    const systemPrompt = `Act as a movie recommendation engine.
+    Based on the user's request, recommend 4-5 specific movies.
+    Return ONLY a JSON array of strings with the exact movie titles.
+    Example: ["Inception", "The Matrix", "Interstellar"]
+    Do not include any other text, markdown, or explanations.`;
+
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt }
+            ],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.5,
+            max_tokens: 200,
+        });
+
+        const text = completion.choices[0]?.message?.content || '[]';
+        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const titles = JSON.parse(jsonStr);
+
+        return Array.isArray(titles) ? titles : [];
+    } catch (error) {
+        console.error('❌ Error getting movie recommendations:', error);
+        return [];
+    }
+}
+
+/**
+ * Generate a generic AI response based on a prompt
+ */
+export async function generateAIResponse(prompt: string): Promise<string> {
+    if (!groq) {
+        console.warn('⚠️ Groq API Key not found');
+        return 'Lo siento, la IA no está configurada correctamente.';
+    }
+
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.7,
+            max_tokens: 500,
+        });
+
+        return completion.choices[0]?.message?.content || '';
+    } catch (error) {
+        console.error('❌ Error generating AI response:', error);
+        return 'Lo siento, hubo un error al procesar tu solicitud.';
+    }
+}
+
+/**
  * Get AI-generated notifications for new movie releases
  */
 export async function getNewReleasesNotifications(): Promise<any[]> {
@@ -87,18 +148,18 @@ export async function getNewReleasesNotifications(): Promise<any[]> {
     }
 
     const prompt = `Act as a movie news expert.
-Generate 2 exciting notifications about recent movie releases or upcoming blockbusters.
-Make them feel timely and engaging, as if they just happened.
-IMPORTANT: Respond in Spanish.
-Return ONLY a JSON array with this format:
-[
-    { 
-        "title": "Movie Title", 
-        "message": "Brief exciting description (max 60 chars)",
-        "time": "Hace X min/horas"
-    }
-]
-Do not include markdown formatting or explanations.`;
+    Generate 2 exciting notifications about recent movie releases or upcoming blockbusters.
+    Make them feel timely and engaging, as if they just happened.
+    IMPORTANT: Respond in Spanish.
+    Return ONLY a JSON array with this format:
+    [
+        { 
+            "title": "Movie Title", 
+            "message": "Brief exciting description (max 60 chars)",
+            "time": "Hace X min/horas"
+        }
+    ]
+    Do not include markdown formatting or explanations.`;
 
     try {
         const completion = await groq.chat.completions.create({
@@ -139,18 +200,18 @@ export async function getMovieNewsNotifications(): Promise<any[]> {
     }
 
     const prompt = `Act as a movie industry news reporter.
-Generate 2 interesting news items about the film industry, awards, or trending topics in cinema.
-Make them feel current and newsworthy.
-IMPORTANT: Respond in Spanish.
-Return ONLY a JSON array with this format:
-[
-    { 
-        "title": "News Headline", 
-        "message": "Brief news summary (max 60 chars)",
-        "time": "Hace X horas/días"
-    }
-]
-Do not include markdown formatting or explanations.`;
+    Generate 2 interesting news items about the film industry, awards, or trending topics in cinema.
+    Make them feel current and newsworthy.
+    IMPORTANT: Respond in Spanish.
+    Return ONLY a JSON array with this format:
+    [
+        { 
+            "title": "News Headline", 
+            "message": "Brief news summary (max 60 chars)",
+            "time": "Hace X horas/días"
+        }
+    ]
+    Do not include markdown formatting or explanations.`;
 
     try {
         const completion = await groq.chat.completions.create({
@@ -195,19 +256,19 @@ export async function getSpecialOffersNotifications(favorites: string[]): Promis
         : '';
 
     const prompt = `Act as a streaming service marketing expert.
-${favoritesContext}
-Generate 1 personalized special offer or promotion for a movie streaming service.
-Make it feel exclusive and valuable.
-IMPORTANT: Respond in Spanish.
-Return ONLY a JSON array with this format:
-[
-    { 
-        "title": "Offer Title", 
-        "message": "Offer description (max 60 chars)",
-        "time": "Válido por X días"
-    }
-]
-Do not include markdown formatting or explanations.`;
+    ${favoritesContext}
+    Generate 1 personalized special offer or promotion for a movie streaming service.
+    Make it feel exclusive and valuable.
+    IMPORTANT: Respond in Spanish.
+    Return ONLY a JSON array with this format:
+    [
+        { 
+            "title": "Offer Title", 
+            "message": "Offer description (max 60 chars)",
+            "time": "Válido por X días"
+        }
+    ]
+    Do not include markdown formatting or explanations.`;
 
     try {
         const completion = await groq.chat.completions.create({

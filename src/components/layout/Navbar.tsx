@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Film, LogOut, User, Menu, X, Search, Heart, Settings, Sparkles, Bell, Clapperboard, Star, Newspaper, Gift } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { getGeminiRecommendations, getNewReleasesNotifications, getMovieNewsNotifications, getSpecialOffersNotifications } from '@/lib/gemini';
+import { getGeminiRecommendations, getNewReleasesNotifications, getMovieNewsNotifications, getSpecialOffersNotifications } from '@/lib/ai';
 import { useFavorites } from '@/lib/store/useStore';
 
 export default function Navbar() {

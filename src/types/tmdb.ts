@@ -152,6 +152,31 @@ export interface MovieDetails extends Movie {
     credits?: Credits;
     similar?: PaginatedResponse<Movie>;
     recommendations?: PaginatedResponse<Movie>;
+    'watch/providers'?: {
+        results: {
+            [key: string]: {
+                link: string;
+                flatrate?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+                rent?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+                buy?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+            };
+        };
+    };
 }
 
 /**

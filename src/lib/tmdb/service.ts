@@ -33,6 +33,7 @@ const getApiKey = (): string => {
 const buildUrl = (endpoint: string, params: Record<string, string | number> = {}): string => {
     const url = new URL(`${BASE_URL}${endpoint}`);
     url.searchParams.append('api_key', getApiKey());
+    url.searchParams.append('language', 'es-MX');
 
     Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -126,7 +127,7 @@ export const searchMovies = async (
  */
 export const getMovieDetails = async (movieId: number): Promise<MovieDetails> => {
     return fetchFromTMDB(`/movie/${movieId}`, {
-        append_to_response: 'videos,credits,similar,recommendations',
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
     });
 };
 
