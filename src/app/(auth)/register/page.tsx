@@ -62,6 +62,7 @@ export default function RegisterPage() {
                         full_name: formData.name,
                     },
                     captchaToken,
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
                 },
             });
 
@@ -76,7 +77,7 @@ export default function RegisterPage() {
             // Check if email confirmation is required
             if (data?.user && !data.session) {
                 // Email confirmation required - redirect to confirmation page
-                router.push('/confirm-email');
+                router.push(`/confirm-email?email=${encodeURIComponent(formData.email)}`);
                 return;
             }
 

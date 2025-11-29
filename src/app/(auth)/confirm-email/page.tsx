@@ -2,14 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ConfirmEmailPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const email = searchParams.get('email');
     const [checking, setChecking] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [resendSuccess, setResendSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [resendError, setResendError] = useState<string | null>(null);
     const supabase = createClient();
 
     const handleCheckConfirmation = async () => {
@@ -42,6 +47,39 @@ export default function ConfirmEmailPage() {
         }
     };
 
+    const handleResend = async () => {
+        if (!email) {
+            setResendError('No se encontró el email para reenviar.');
+            return;
+        }
+
+        setResending(true);
+        setResendError(null);
+        setResendSuccess(false);
+
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                },
+            });
+
+            if (error) {
+                console.error('Resend error:', error);
+                setResendError(error.message || 'Error al reenviar el correo.');
+            } else {
+                setResendSuccess(true);
+            }
+        } catch (err) {
+            console.error('Unexpected resend error:', err);
+            setResendError('Ocurrió un error inesperado al reenviar.');
+        } finally {
+            setResending(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <div className="w-full max-w-md">
@@ -62,7 +100,7 @@ export default function ConfirmEmailPage() {
                         ¡Cuenta <span className="text-gradient-premium">Creada</span>!
                     </h1>
                     <p className="text-text-secondary text-lg mb-8">
-                        Revisa tu correo electrónico
+                        Revisa tu correo electrónico {email && <span className="font-semibold text-text-primary block mt-1">{email}</span>}
                     </p>
 
                     {/* Instructions */}
@@ -142,13 +180,29 @@ export default function ConfirmEmailPage() {
 
                     {/* Additional Info */}
                     <div className="text-sm text-text-muted space-y-2">
-                        <p>
-                            ¿No recibiste el correo?{' '}
-                            <button className="text-primary hover:text-accent font-semibold transition-colors">
-                                Reenviar
+                        <div className="flex flex-col items-center gap-2">
+                            <p>¿No recibiste el correo?</p>
+                            <button
+                                onClick={handleResend}
+                                disabled={resending || !email || resendSuccess}
+                                className="text-primary hover:text-accent font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {resending ? (
+                                    <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Reenviando...
+                                    </>
+                                ) : resendSuccess ? (
+                                    <span className="text-green-500">¡Correo reenviado!</span>
+                                ) : (
+                                    'Reenviar correo'
+                                )}
                             </button>
-                        </p>
-                        <p>
+                            {resendError && (
+                                <p className="text-red-400 text-xs mt-1">{resendError}</p>
+                            )}
+                        </div>
+                        <p className="pt-4">
                             <Link
                                 href="/login"
                                 className="text-text-secondary hover:text-text-primary transition-colors"
