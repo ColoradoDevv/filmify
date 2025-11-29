@@ -13,6 +13,7 @@ export default function Navbar() {
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [loading, setLoading] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const supabase = createClient();
@@ -118,21 +119,49 @@ export default function Navbar() {
                                             </div>
 
                                             {/* User Menu */}
-                                            <div className="flex items-center gap-3 pl-6 border-l border-surface-light/50">
-                                                <div className="relative group">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all cursor-pointer">
+                                            <div className="flex items-center gap-3 pl-6 border-l border-surface-light/50 relative">
+                                                <div
+                                                    className="relative group cursor-pointer"
+                                                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                                >
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all">
                                                         <User className="w-5 h-5" />
                                                     </div>
                                                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
                                                 </div>
 
-                                                <button
-                                                    onClick={handleLogoutClick}
-                                                    className="p-2.5 text-text-secondary hover:text-accent transition-all rounded-xl hover:bg-surface/50 group"
-                                                    title="Cerrar Sesión"
-                                                >
-                                                    <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                </button>
+                                                {/* Dropdown Menu */}
+                                                {profileMenuOpen && (
+                                                    <>
+                                                        <div
+                                                            className="fixed inset-0 z-40"
+                                                            onClick={() => setProfileMenuOpen(false)}
+                                                        />
+                                                        <div className="absolute top-full right-0 mt-2 w-48 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-scale-in">
+                                                            <div className="p-2 space-y-1">
+                                                                <Link
+                                                                    href="/settings"
+                                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors"
+                                                                    onClick={() => setProfileMenuOpen(false)}
+                                                                >
+                                                                    <Settings className="w-4 h-4" />
+                                                                    <span className="text-sm font-medium">Configuración</span>
+                                                                </Link>
+                                                                <div className="h-px bg-surface-light/50 my-1" />
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setProfileMenuOpen(false);
+                                                                        handleLogoutClick();
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-500/10 text-text-secondary hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <LogOut className="w-4 h-4" />
+                                                                    <span className="text-sm font-medium">Cerrar Sesión</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </>
                                     ) : (
