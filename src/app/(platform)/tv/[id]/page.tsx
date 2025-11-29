@@ -1,3 +1,4 @@
+import type { MovieDetails, TVDetails } from '@/types/tmdb';
 import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import MovieHero from '@/components/features/MovieHero';
@@ -38,12 +39,20 @@ export default async function TVDetailsPage({ params }: PageProps) {
     if (!tvShow) notFound();
 
     // Map TV show data to match Movie structure for MovieHero
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { similar, recommendations, ...restTvShow } = tvShow;
+
     const heroData = {
-        ...tvShow,
-        title: tvShow.name || tvShow.title,
-        original_title: tvShow.original_name || tvShow.original_title,
-        release_date: tvShow.first_air_date || tvShow.release_date,
-    };
+        ...restTvShow,
+        title: tvShow.name,
+        original_title: tvShow.original_name,
+        release_date: tvShow.first_air_date,
+        runtime: 0,
+        budget: 0,
+        revenue: 0,
+        imdb_id: '',
+        video: false,
+    } as unknown as MovieDetails;
 
     // Get trailer
     let trailer = tvShow.videos?.results.find(
