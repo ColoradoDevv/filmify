@@ -13,11 +13,40 @@ export default function ContactPage() {
     });
     const [submitted, setSubmitted] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement actual form submission
-        setSubmitted(true);
-        setTimeout(() => setSubmitted(false), 3000);
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = typeof data.error === 'string'
+                    ? data.error
+                    : data.error?.message || 'Error al enviar el mensaje';
+                throw new Error(errorMessage);
+            }
+
+            setSubmitted(true);
+            setFormData({ name: '', email: '', message: '' });
+            setTimeout(() => setSubmitted(false), 5000);
+        } catch (err: any) {
+            setError(err.message || 'Hubo un error al enviar tu mensaje. Por favor intenta de nuevo.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -108,11 +137,23 @@ export default function ContactPage() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Send className="w-5 h-5" />
-                            Enviar Mensaje
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Send className="w-5 h-5" />
+                            )}
+                            {loading ? 'Enviando...' : 'Enviar Mensaje'}
                         </button>
+
+                        {/* Error Message */}
+                        {error && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-center">
+                                {error}
+                            </div>
+                        )}
 
                         {/* Success Message */}
                         {submitted && (

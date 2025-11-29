@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     return {
-        title: `${tvShow.title || tvShow.name} - FilmiFy`,
+        title: `${tvShow.name} - FilmiFy`,
         description: tvShow.overview,
     };
 }

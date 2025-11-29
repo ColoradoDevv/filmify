@@ -14,7 +14,7 @@ export interface Recommendation {
 
 export interface Notification {
     id: string;
-    type: 'newReleases' | 'friendActivity' | 'offers';
+    type: 'newReleases' | 'friendActivity' | 'offers' | 'recommendations';
     title: string;
     message: string;
     time: string;
