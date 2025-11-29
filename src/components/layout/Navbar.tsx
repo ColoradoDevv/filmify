@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { getGeminiRecommendations, getNewReleasesNotifications, getMovieNewsNotifications, getSpecialOffersNotifications } from '@/lib/ai';
 import { useFavorites } from '@/lib/store/useStore';
+import SearchInput from '@/components/features/SearchInput';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -220,7 +221,7 @@ export default function Navbar() {
                                                         }`}
                                                 >
                                                     <span className="relative z-10 flex items-center gap-2">
-                                                        <Search className="w-4 h-4" />
+                                                        <Clapperboard className="w-4 h-4" />
                                                         Explorar
                                                     </span>
                                                     {pathname === '/browse' && (
@@ -246,6 +247,9 @@ export default function Navbar() {
                                                     <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </Link>
                                             </div>
+
+                                            {/* Search Bar */}
+                                            <SearchInput className="w-64" />
 
                                             {/* Notification Center */}
                                             <div className="relative">

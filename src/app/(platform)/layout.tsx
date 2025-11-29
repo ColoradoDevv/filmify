@@ -1,4 +1,6 @@
 import Sidebar from '@/components/layout/Sidebar';
+import SearchInput from '@/components/features/SearchInput';
+import PlatformContent from '@/components/layout/PlatformContent';
 
 export default function PlatformLayout({
     children,
@@ -11,11 +13,15 @@ export default function PlatformLayout({
             <Sidebar />
 
             {/* Main Content Area */}
-            <div className="lg:pl-64">
-                {/* Top Navbar for Mobile */}
-                <div className="lg:hidden sticky top-0 z-40 bg-surface border-b border-surface-light px-4 py-4">
-                    <div className="flex items-center gap-2">
+            <PlatformContent>
+                {/* Top Navbar for Mobile & Desktop Search */}
+                <div className="sticky top-0 z-40 bg-surface border-b border-surface-light px-4 py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 lg:hidden">
                         <span className="text-2xl font-bold text-gradient">FilmiFy</span>
+                    </div>
+
+                    <div className="flex-1 max-w-xl ml-auto">
+                        <SearchInput className="w-full" placeholder="Buscar películas, series..." />
                     </div>
                 </div>
 
@@ -23,7 +29,7 @@ export default function PlatformLayout({
                 <main className="p-4 sm:p-6 lg:p-8">
                     {children}
                 </main>
-            </div>
+            </PlatformContent>
         </div>
     );
 }

@@ -17,6 +17,7 @@ interface UIState {
     isMenuOpen: boolean;
     isLoading: boolean;
     searchQuery: string;
+    isSidebarCollapsed: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ interface StoreState {
     setMenuOpen: (isOpen: boolean) => void;
     setLoading: (isLoading: boolean) => void;
     setSearchQuery: (query: string) => void;
+    toggleSidebar: () => void;
 
     // Utility actions
     clearFavorites: () => void;
@@ -62,6 +64,7 @@ const initialState = {
         isMenuOpen: false,
         isLoading: false,
         searchQuery: '',
+        isSidebarCollapsed: false,
     },
 };
 
@@ -169,6 +172,15 @@ export const useStore = create<StoreState>()(
                 }));
             },
 
+            toggleSidebar: () => {
+                set((state) => ({
+                    ui: {
+                        ...state.ui,
+                        isSidebarCollapsed: !state.ui.isSidebarCollapsed,
+                    },
+                }));
+            },
+
             // Utility actions
             clearFavorites: () => {
                 set((state) => ({
@@ -212,6 +224,8 @@ export const useUIState = () => useStore((state) => state.ui);
 export const useIsMenuOpen = () => useStore((state) => state.ui.isMenuOpen);
 export const useIsLoading = () => useStore((state) => state.ui.isLoading);
 export const useSearchQuery = () => useStore((state) => state.ui.searchQuery);
+export const useIsSidebarCollapsed = () => useStore((state) => state.ui.isSidebarCollapsed);
+export const useToggleSidebar = () => useStore((state) => state.toggleSidebar);
 
 /**
  * Export store type for use in components

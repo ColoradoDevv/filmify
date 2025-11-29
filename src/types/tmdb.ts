@@ -141,6 +141,12 @@ export interface MovieDetails extends Movie {
         iso_3166_1: string;
         name: string;
     }[];
+    belongs_to_collection?: {
+        id: number;
+        name: string;
+        poster_path: string | null;
+        backdrop_path: string | null;
+    };
     spoken_languages: {
         iso_639_1: string;
         name: string;
@@ -152,6 +158,64 @@ export interface MovieDetails extends Movie {
     credits?: Credits;
     similar?: PaginatedResponse<Movie>;
     recommendations?: PaginatedResponse<Movie>;
+    'watch/providers'?: {
+        results: {
+            [key: string]: {
+                link: string;
+                flatrate?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+                rent?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+                buy?: {
+                    logo_path: string;
+                    provider_id: number;
+                    provider_name: string;
+                    display_priority: number;
+                }[];
+            };
+        };
+    };
+}
+
+/**
+ * Extended TV Show Details
+ */
+export interface TVDetails extends TVShow {
+    genres: Genre[];
+    status: string;
+    tagline: string;
+    homepage: string;
+    number_of_episodes: number;
+    number_of_seasons: number;
+    production_companies: {
+        id: number;
+        name: string;
+        logo_path: string | null;
+        origin_country: string;
+    }[];
+    production_countries: {
+        iso_3166_1: string;
+        name: string;
+    }[];
+    spoken_languages: {
+        iso_639_1: string;
+        name: string;
+        english_name: string;
+    }[];
+    videos?: {
+        results: Video[];
+    };
+    credits?: Credits;
+    similar?: PaginatedResponse<TVShow>;
+    recommendations?: PaginatedResponse<TVShow>;
     'watch/providers'?: {
         results: {
             [key: string]: {
@@ -193,6 +257,6 @@ export interface SearchFilters {
     query?: string;
     genre?: number;
     year?: number;
-    sortBy?: 'popularity.desc' | 'vote_average.desc' | 'release_date.desc';
+    sortBy?: 'popularity.desc' | 'vote_average.desc' | 'release_date.desc' | 'primary_release_date.desc';
     page?: number;
 }

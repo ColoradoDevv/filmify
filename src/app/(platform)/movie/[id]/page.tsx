@@ -1,4 +1,6 @@
 import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getYouTubeTrailerId } from '@/lib/ai';
+import { getProviderLink } from '@/lib/referrals';
 import MovieHero from '@/components/features/MovieHero';
 import Image from 'next/image';
 import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft } from 'lucide-react';
@@ -46,9 +48,31 @@ export default async function MovieDetailsPage({ params }: PageProps) {
     const runtime = `${hours}h ${minutes}m`;
 
     // Get trailer
-    const trailer = movie.videos?.results.find(
+    let trailer = movie.videos?.results.find(
         (video) => video.type === 'Trailer' && video.site === 'YouTube'
     );
+
+    // AI Fallback for trailer
+    if (!trailer) {
+        const aiTrailerId = await getYouTubeTrailerId(
+            movie.title,
+            movie.release_date ? new Date(movie.release_date).getFullYear().toString() : '',
+            'movie'
+        );
+
+        if (aiTrailerId) {
+            trailer = {
+                id: 'ai-generated',
+                key: aiTrailerId,
+                name: 'Official Trailer (AI Found)',
+                site: 'YouTube',
+                size: 1080,
+                type: 'Trailer',
+                official: false,
+                published_at: new Date().toISOString()
+            };
+        }
+    }
 
     // Get director
     const director = movie.credits?.crew.find((person) => person.job === 'Director');
@@ -61,11 +85,30 @@ export default async function MovieDetailsPage({ params }: PageProps) {
         movie['watch/providers']?.results?.US ||
         Object.values(movie['watch/providers']?.results || {})[0];
 
+    // Format currency
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+
     return (
         <div className="min-h-screen bg-background pb-20">
             <MovieHero movie={movie} trailer={trailer} />
 
             <div className="container mx-auto px-4 py-12 space-y-16">
+
+                {/* Tagline */}
+                {movie.tagline && (
+                    <div className="text-center max-w-4xl mx-auto">
+                        <h2 className="text-2xl md:text-3xl font-light italic text-gray-300">
+                            "{movie.tagline}"
+                        </h2>
+                    </div>
+                )}
+
                 {/* Cast Section */}
                 {cast.length > 0 && (
                     <section>
@@ -82,6 +125,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                                                 alt={person.name}
                                                 fill
                                                 className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-surface-light flex items-center justify-center text-gray-500">
@@ -101,101 +145,210 @@ export default async function MovieDetailsPage({ params }: PageProps) {
 
                 {/* Info Grid */}
                 <section className="grid md:grid-cols-3 gap-8">
-                    {/* Details */}
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white mb-4">Detalles</h2>
-                        <div className="space-y-4 text-sm">
+                    {/* Details Sidebar */}
+                    <div className="space-y-8">
+                        {/* Key Specs */}
+                        <div className="bg-surface-light/10 rounded-xl p-6 border border-white/5 space-y-4">
+                            <h3 className="text-xl font-bold text-white mb-4">Información</h3>
+
                             {director && (
                                 <div>
-                                    <span className="block text-gray-400 mb-1">Director</span>
+                                    <span className="block text-gray-400 text-sm mb-1">Director</span>
                                     <span className="text-white font-medium">{director.name}</span>
                                 </div>
                             )}
+
                             <div>
-                                <span className="block text-gray-400 mb-1">Estado</span>
+                                <span className="block text-gray-400 text-sm mb-1">Estado</span>
                                 <span className="text-white font-medium">{movie.status}</span>
                             </div>
+
+                            <div>
+                                <span className="block text-gray-400 text-sm mb-1">Idioma Original</span>
+                                <span className="text-white font-medium uppercase">{movie.original_language}</span>
+                            </div>
+
                             {movie.budget > 0 && (
                                 <div>
-                                    <span className="block text-gray-400 mb-1">Presupuesto</span>
-                                    <span className="text-white font-medium">
-                                        ${movie.budget.toLocaleString()}
-                                    </span>
+                                    <span className="block text-gray-400 text-sm mb-1">Presupuesto</span>
+                                    <span className="text-white font-medium">{formatCurrency(movie.budget)}</span>
                                 </div>
                             )}
+
                             {movie.revenue > 0 && (
                                 <div>
-                                    <span className="block text-gray-400 mb-1">Ingresos</span>
-                                    <span className="text-white font-medium">
-                                        ${movie.revenue.toLocaleString()}
-                                    </span>
+                                    <span className="block text-gray-400 text-sm mb-1">Ingresos</span>
+                                    <span className="text-white font-medium">{formatCurrency(movie.revenue)}</span>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* External Links */}
+                        <div className="flex flex-col gap-3">
+                            {movie.homepage && (
+                                <a
+                                    href={movie.homepage}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/10"
+                                >
+                                    <Globe className="w-4 h-4" />
+                                    Sitio Web Oficial
+                                </a>
+                            )}
+                            {movie.imdb_id && (
+                                <a
+                                    href={`https://www.imdb.com/title/${movie.imdb_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-[#f5c518]/10 hover:bg-[#f5c518]/20 text-[#f5c518] transition-colors border border-[#f5c518]/20"
+                                >
+                                    IMDb
+                                </a>
                             )}
                         </div>
                     </div>
 
-                    {/* Where to Watch */}
-                    <div className="md:col-span-2 space-y-6">
-                        <h2 className="text-2xl font-bold text-white mb-4">Dónde Ver</h2>
-                        {providers ? (
-                            <div className="space-y-6">
-                                {providers.flatrate && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Streaming</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.flatrate.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden tooltip" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
-                                                </div>
-                                            ))}
+                    {/* Main Content Area */}
+                    <div className="md:col-span-2 space-y-10">
+                        {/* Where to Watch */}
+                        <div className="bg-surface-light/5 rounded-xl p-6 border border-white/5">
+                            <h2 className="text-2xl font-bold text-white mb-6">Dónde Ver</h2>
+                            {providers ? (
+                                <div className="space-y-6">
+                                    {providers.flatrate && (
+                                        <div>
+                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Streaming</h3>
+                                            <div className="flex flex-wrap gap-4">
+                                                {providers.flatrate.map((provider) => (
+                                                    <a
+                                                        key={provider.provider_id}
+                                                        href={getProviderLink(provider.provider_name, movie.title)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
+                                                        title={`Ver en ${provider.provider_name}`}
+                                                    >
+                                                        <Image
+                                                            src={getPosterUrl(provider.logo_path) || ''}
+                                                            alt={provider.provider_name}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="56px"
+                                                        />
+                                                    </a>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {providers.rent && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Alquilar</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.rent.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
-                                                </div>
-                                            ))}
+                                    )}
+                                    {providers.rent && (
+                                        <div>
+                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Alquilar</h3>
+                                            <div className="flex flex-wrap gap-4">
+                                                {providers.rent.map((provider) => (
+                                                    <a
+                                                        key={provider.provider_id}
+                                                        href={getProviderLink(provider.provider_name, movie.title)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
+                                                        title={`Alquilar en ${provider.provider_name}`}
+                                                    >
+                                                        <Image
+                                                            src={getPosterUrl(provider.logo_path) || ''}
+                                                            alt={provider.provider_name}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="56px"
+                                                        />
+                                                    </a>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {providers.buy && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Comprar</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.buy.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
-                                                </div>
-                                            ))}
+                                    )}
+                                    {providers.buy && (
+                                        <div>
+                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Comprar</h3>
+                                            <div className="flex flex-wrap gap-4">
+                                                {providers.buy.map((provider) => (
+                                                    <a
+                                                        key={provider.provider_id}
+                                                        href={getProviderLink(provider.provider_name, movie.title)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
+                                                        title={`Comprar en ${provider.provider_name}`}
+                                                    >
+                                                        <Image
+                                                            src={getPosterUrl(provider.logo_path) || ''}
+                                                            alt={provider.provider_name}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="56px"
+                                                        />
+                                                    </a>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {!providers.flatrate && !providers.rent && !providers.buy && (
-                                    <p className="text-gray-400">No hay información de streaming disponible para esta región.</p>
-                                )}
+                                    )}
+                                    {!providers.flatrate && !providers.rent && !providers.buy && (
+                                        <p className="text-gray-400">No hay información de streaming disponible para esta región.</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-gray-400">No hay información de streaming disponible.</p>
+                            )}
+                        </div>
+
+                        {/* Production Companies */}
+                        {movie.production_companies && movie.production_companies.length > 0 && (
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-6">Producción</h2>
+                                <div className="flex flex-wrap gap-8 items-center bg-white/5 p-8 rounded-xl border border-white/5">
+                                    {movie.production_companies.map((company) => (
+                                        company.logo_path ? (
+                                            <div key={company.id} className="relative h-12 w-auto min-w-[100px] opacity-70 hover:opacity-100 transition-opacity">
+                                                <Image
+                                                    src={getPosterUrl(company.logo_path) || ''}
+                                                    alt={company.name}
+                                                    width={200}
+                                                    height={100}
+                                                    className="object-contain h-full w-auto filter brightness-0 invert"
+                                                    style={{ maxHeight: '48px', width: 'auto' }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <span key={company.id} className="text-gray-400 font-medium text-lg">
+                                                {company.name}
+                                            </span>
+                                        )
+                                    ))}
+                                </div>
                             </div>
-                        ) : (
-                            <p className="text-gray-400">No hay información de streaming disponible.</p>
+                        )}
+
+                        {/* Collection Info */}
+                        {movie.belongs_to_collection && (
+                            <div className="relative rounded-2xl overflow-hidden border border-white/10 group">
+                                <div className="absolute inset-0">
+                                    {movie.belongs_to_collection.backdrop_path && (
+                                        <Image
+                                            src={getBackdropUrl(movie.belongs_to_collection.backdrop_path) || ''}
+                                            alt={movie.belongs_to_collection.name}
+                                            fill
+                                            className="object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-700"
+                                        />
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+                                </div>
+                                <div className="relative p-8 md:p-12">
+                                    <h3 className="text-sm text-primary font-bold uppercase tracking-wider mb-2">Colección</h3>
+                                    <h2 className="text-3xl font-bold text-white mb-4">{movie.belongs_to_collection.name}</h2>
+                                    <button className="px-6 py-2 bg-white text-black rounded-full font-bold hover:bg-gray-200 transition-colors">
+                                        Ver Colección
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </section>

@@ -11,9 +11,9 @@ export default async function LandingPage() {
   const trendingData = await getTrending('movie', 'day');
   const trendingMovies = trendingData.results;
 
-  // Select a random movie for the hero backdrop
-  const randomMovie = trendingMovies[Math.floor(Math.random() * trendingMovies.length)];
-  const backdropUrl = getBackdropUrl(randomMovie?.backdrop_path);
+  // Select the top trending movie for the hero
+  const heroMovie = trendingMovies[0];
+  const backdropUrl = getBackdropUrl(heroMovie?.backdrop_path);
 
   // JSON-LD Structured Data for SEO
   const structuredData = {
@@ -97,7 +97,7 @@ export default async function LandingPage() {
             <div className="absolute inset-0">
               <Image
                 src={backdropUrl}
-                alt={`Imagen de fondo de la película ${randomMovie.title}`}
+                alt={`Imagen de fondo de la película ${heroMovie.title}`}
                 fill
                 className="object-cover scale-110 animate-[scale_20s_ease-in-out_infinite]"
                 priority
@@ -125,30 +125,34 @@ export default async function LandingPage() {
               <div className="inline-flex items-center gap-2 px-4 py-2 glass-effect rounded-full mb-8 animate-fade-in-up">
                 <Film className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-text-secondary">
-                  Miles de películas al alcance de tu mano
+                  Película #1 en Tendencias
                 </span>
               </div>
 
               {/* Main Heading with Premium Gradient */}
-              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100">
-                Tu Universo de{' '}
-                <span className="text-gradient-premium inline-block">Películas</span>
+              <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-2">
+                {heroMovie?.title || (
+                  <>
+                    Tu Universo de{' '}
+                    <span className="text-gradient-premium inline-block">Películas</span>
+                  </>
+                )}
               </h1>
 
-              <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200">
-                Descubre, organiza y disfruta de miles de películas.
-                <br />
-                <span className="text-primary font-semibold">Tu colección personal de películas</span> en un solo lugar.
+              <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3">
+                {heroMovie?.overview || "Descubre, organiza y disfruta de miles de películas. Tu colección personal de películas en un solo lugar."}
               </p>
 
               {/* CTA Buttons with Premium Effects */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
                 <Link
-                  href="/browse"
+                  href={heroMovie ? `/movie/${heroMovie.id}` : "/browse"}
                   className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span className="relative z-10">Explorar Ahora</span>
+                  <span className="relative z-10">
+                    {heroMovie ? "Ver Detalles" : "Explorar Ahora"}
+                  </span>
                   <ArrowRight className="relative z-10 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   <div className="absolute inset-0 animate-shimmer" />
                 </Link>

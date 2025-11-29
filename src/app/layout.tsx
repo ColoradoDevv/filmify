@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "FilmiFy - Tu Universo de Películas | Descubre y Organiza Cine",
   description: "Descubre, organiza y disfruta de miles de películas y series. Tu colección personal de cine en un solo lugar. Búsqueda inteligente, listas personalizadas y catálogo actualizado diariamente.",
   keywords: [

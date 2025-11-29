@@ -299,3 +299,94 @@ export async function getSpecialOffersNotifications(favorites: string[]): Promis
         return [];
     }
 }
+
+/**
+ * Get AI-generated search correction
+ */
+export async function getSearchCorrection(query: string): Promise<string | null> {
+    if (!groq) {
+        return null;
+    }
+
+    const prompt = `Act as a movie search assistant.
+    The user searched for: "${query}".
+    Did they likely mean a specific movie or TV show title that is spelled differently?
+    If yes, return ONLY the corrected title.
+    If the spelling seems correct or you are unsure, return "null".
+    Example: User "moaaana" -> Return "Moana"
+    Example: User "matrix" -> Return "null" (correct spelling)
+    IMPORTANT: Return ONLY the string of the title or the string "null". Do not include quotes or explanations.`;
+
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.1,
+            max_tokens: 50,
+        });
+
+        const text = completion.choices[0]?.message?.content?.trim() || 'null';
+        if (text.toLowerCase() === 'null' || text.toLowerCase() === query.toLowerCase()) {
+            return null;
+        }
+
+        // Remove quotes if present
+        return text.replace(/^["']|["']$/g, '');
+    } catch (error) {
+        console.error('❌ Error getting search correction:', error);
+        return null;
+    }
+}
+/**
+ * Get YouTube trailer ID using AI
+ */
+export async function getYouTubeTrailerId(title: string, year: string, type: 'movie' | 'tv'): Promise<string | null> {
+    if (!groq) {
+        return null;
+    }
+
+    const prompt = `Act as a movie database expert.
+    Find the YouTube video ID for the official trailer of the ${type}: "${title}" (${year}).
+    Return ONLY the 11-character YouTube video ID string.
+    Example: "d9My665987"
+    If you are not 100% sure or cannot find a specific trailer, return "null".
+    IMPORTANT: Return ONLY the ID string or "null". Do not include quotes, explanations, or full URLs.`;
+
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.1,
+            max_tokens: 20,
+        });
+
+        const text = completion.choices[0]?.message?.content?.trim() || 'null';
+
+        // Clean up the response
+        let videoId = text.replace(/^["']|["']$/g, '');
+
+        // Handle explicit null from AI
+        if (videoId.toLowerCase() === 'null') {
+            return null;
+        }
+
+        // Handle if AI returns a full URL
+        if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
+            const urlMatch = videoId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
+            if (urlMatch) {
+                videoId = urlMatch[1];
+            }
+        }
+
+        // Validate ID format (11 characters, alphanumeric, -, _)
+        if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+            console.warn('⚠️ Invalid YouTube ID returned by AI:', videoId);
+            return null;
+        }
+
+        return videoId;
+    } catch (error) {
+        console.error('❌ Error getting trailer ID:', error);
+        return null;
+    }
+}

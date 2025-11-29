@@ -20,10 +20,19 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
     const posterUrl = getPosterUrl(movie.poster_path);
 
+    console.log('🎬 MovieHero Debug:', {
+        movieId: movie.id,
+        title: movie.title,
+        hasTrailer: !!trailer,
+        trailerKey: trailer?.key,
+        showVideo
+    });
+
     // Format runtime
-    const hours = Math.floor(movie.runtime / 60);
-    const minutes = movie.runtime % 60;
-    const runtime = `${hours}h ${minutes}m`;
+    const totalMinutes = movie.runtime || 0;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const runtime = totalMinutes > 0 ? `${hours}h ${minutes}m` : '';
 
     useEffect(() => {
         // Check auto-play preference
@@ -37,6 +46,9 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
         }
     }, [trailer]);
 
+    const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
+    const voteAverage = movie.vote_average ? movie.vote_average.toFixed(1) : 'NR';
+
     return (
         <div className="relative h-[70vh] w-full group">
             {/* Background (Video or Image) */}
@@ -44,9 +56,12 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                 {showVideo && trailer ? (
                     <div className="relative w-full h-full">
                         <iframe
+                            id="yt-player"
+                            title={trailer.name}
                             src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${trailer.key}&mute=${isMuted ? 1 : 0}`}
                             className="absolute top-1/2 left-1/2 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 object-cover pointer-events-none"
-                            allow="autoplay; encrypted-media"
+                            allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
                         />
                         <div className="absolute inset-0 bg-black/20" />
                     </div>
@@ -59,6 +74,7 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                                 fill
                                 className="object-cover"
                                 priority
+                                sizes="100vw"
                             />
                         ) : (
                             <div className="w-full h-full bg-surface-light" />
@@ -100,6 +116,8 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                                     alt={movie.title}
                                     fill
                                     className="object-cover"
+                                    sizes="(max-width: 768px) 100vw, 256px"
+                                    priority
                                 />
                             )}
                         </div>
@@ -120,18 +138,26 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                             <div className="flex flex-wrap items-center gap-4 text-sm md:text-base text-gray-300">
                                 <div className="flex items-center gap-1 text-yellow-400">
                                     <Star className="w-5 h-5 fill-current" />
-                                    <span className="font-bold text-white">{movie.vote_average.toFixed(1)}</span>
+                                    <span className="font-bold text-white">{voteAverage}</span>
                                 </div>
-                                <span>•</span>
-                                <div className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4" />
-                                    <span>{runtime}</span>
-                                </div>
-                                <span>•</span>
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{new Date(movie.release_date).getFullYear()}</span>
-                                </div>
+                                {runtime && (
+                                    <>
+                                        <span>•</span>
+                                        <div className="flex items-center gap-1">
+                                            <Clock className="w-4 h-4" />
+                                            <span>{runtime}</span>
+                                        </div>
+                                    </>
+                                )}
+                                {releaseYear && !isNaN(releaseYear) && (
+                                    <>
+                                        <span>•</span>
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-4 h-4" />
+                                            <span>{releaseYear}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <div className="flex flex-wrap gap-2">

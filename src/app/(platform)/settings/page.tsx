@@ -170,11 +170,23 @@ function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                 [`last_${editingField}_change`]: new Date().toISOString()
             };
 
-            const { error } = await supabase.auth.updateUser({
+            // Update Auth User Metadata
+            const { error: authError } = await supabase.auth.updateUser({
                 data: updates
             });
 
-            if (error) throw error;
+            if (authError) throw authError;
+
+            // Update Profiles Table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    [editingField === 'fullName' ? 'full_name' : 'username']: editValue,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (profileError) throw profileError;
 
             setFormData(prev => ({ ...prev, [editingField]: editValue }));
             setMessage({ type: 'success', text: 'Perfil actualizado correctamente' });
@@ -192,11 +204,24 @@ function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
         setMessage(null);
 
         try {
-            const { error } = await supabase.auth.updateUser({
+            // Update Auth User Metadata
+            const { error: authError } = await supabase.auth.updateUser({
                 data: { bio: formData.bio }
             });
 
-            if (error) throw error;
+            if (authError) throw authError;
+
+            // Update Profiles Table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    bio: formData.bio,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (profileError) throw profileError;
+
             setMessage({ type: 'success', text: 'Biografía actualizada correctamente' });
             await onUpdate();
         } catch (error: any) {
@@ -213,11 +238,24 @@ function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
         setMessage(null);
 
         try {
-            const { error } = await supabase.auth.updateUser({
+            // Update Auth User Metadata
+            const { error: authError } = await supabase.auth.updateUser({
                 data: { birthdate: formData.birthdate }
             });
 
-            if (error) throw error;
+            if (authError) throw authError;
+
+            // Update Profiles Table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    birthdate: formData.birthdate,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (profileError) throw profileError;
+
             setMessage({ type: 'success', text: 'Fecha de nacimiento guardada correctamente' });
             await onUpdate();
         } catch (error: any) {
@@ -249,11 +287,23 @@ function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                 .from('avatars')
                 .getPublicUrl(filePath);
 
+            // Update Auth User Metadata
             const { error: updateError } = await supabase.auth.updateUser({
                 data: { avatar_url: publicUrl }
             });
 
             if (updateError) throw updateError;
+
+            // Update Profiles Table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    avatar_url: publicUrl,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (profileError) throw profileError;
 
             setAvatarUrl(publicUrl);
             setMessage({ type: 'success', text: 'Avatar actualizado correctamente' });
@@ -992,7 +1042,7 @@ function PreferencesSection({ user }: { user: any }) {
         }
     }, [user]);
 
-    const updateSetting = (key: keyof typeof settings, value: any) => {
+    const updateSetting = async (key: keyof typeof settings, value: any) => {
         if (key === 'adultContent' && value === true) {
             // Check email confirmation
             if (!user?.email_confirmed_at) {
@@ -1028,6 +1078,27 @@ function PreferencesSection({ user }: { user: any }) {
         // Apply immediate effects where possible
         if (key === 'reducedMotion') {
             document.documentElement.style.scrollBehavior = value ? 'auto' : 'smooth';
+        }
+
+        // Save to Supabase
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    preferences: newSettings,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (error) {
+                console.error('Error saving preferences:', error);
+                setMessage({ type: 'error', text: 'Error al guardar preferencias en la nube' });
+            } else {
+                // Optional: Show success message briefly or just keep it silent
+                // setMessage({ type: 'success', text: 'Preferencias guardadas' });
+            }
+        } catch (err) {
+            console.error('Error saving preferences:', err);
         }
     };
 
@@ -1267,8 +1338,8 @@ function NotificationsSection({ user }: { user: any }) {
 
             {message && (
                 <div className={`p-4 rounded-xl flex items-center gap-3 backdrop-blur-sm border transition-all duration-300 animate-in slide-in-from-top ${message.type === 'success'
-                        ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                        : 'bg-red-500/10 text-red-400 border-red-500/20'
+                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                    : 'bg-red-500/10 text-red-400 border-red-500/20'
                     }`}>
                     {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                     <span className="text-sm font-medium">{message.text}</span>

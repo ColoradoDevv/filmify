@@ -3,6 +3,7 @@ import type {
     TVShow,
     Person,
     MovieDetails,
+    TVDetails,
     PaginatedResponse,
     MultiSearchResult,
     SearchFilters,
@@ -132,6 +133,16 @@ export const getMovieDetails = async (movieId: number): Promise<MovieDetails> =>
 };
 
 /**
+ * Get detailed information about a TV show
+ * @param tvId - TMDB TV show ID
+ */
+export const getTVDetails = async (tvId: number): Promise<TVDetails> => {
+    return fetchFromTMDB(`/tv/${tvId}`, {
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
+    });
+};
+
+/**
  * Get movies by genre
  * @param genreId - Genre ID
  * @param page - Page number
@@ -224,22 +235,25 @@ export const getPersonDetails = async (personId: number): Promise<Person> => {
  */
 export const getImageUrl = (
     path: string | null,
-    size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w500'
+    size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'original'
 ): string | null => {
-    if (!path) return null;
+    if (!path) return '/no-image.svg';
     return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
 export const getPosterUrl = (path: string | null): string | null => {
-    return getImageUrl(path, 'w500');
+    return getImageUrl(path, 'original');
 };
 
 export const getBackdropUrl = (path: string | null): string | null => {
+    // For backdrops, we might want a wider placeholder or just null if we want to hide the container
+    // But user asked for a default photo for everything.
+    // Let's use the same one for now, CSS usually handles the aspect ratio (object-cover)
     return getImageUrl(path, 'original');
 };
 
 export const getProfileUrl = (path: string | null): string | null => {
-    return getImageUrl(path, 'w185');
+    return getImageUrl(path, 'original');
 };
 
 /**
