@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Clock, Calendar, Heart, Share2, ChevronLeft, Volume2, VolumeX } from 'lucide-react';
+import { Play, Star, Clock, Calendar, Heart, Share2, ChevronLeft, Volume2, VolumeX, Users } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import { getBackdropUrl, getPosterUrl } from '@/lib/tmdb/service';
 import type { MovieDetails, Video } from '@/types/tmdb';
 
@@ -16,6 +18,35 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [showVideo, setShowVideo] = useState(false);
+    const router = useRouter();
+    const supabase = createClient();
+
+    const handleCreateParty = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('parties')
+            .insert({
+                tmdb_id: movie.id,
+                title: movie.title,
+                poster_path: movie.poster_path,
+                host_id: user.id,
+                status: 'waiting'
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating party:', JSON.stringify(error, null, 2));
+            return;
+        }
+
+        router.push(`/party/${data.id}`);
+    };
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
     const posterUrl = getPosterUrl(movie.poster_path);
@@ -197,6 +228,13 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                                         Detener
                                     </button>
                                 )}
+                                <button
+                                    onClick={handleCreateParty}
+                                    className="px-6 py-3 rounded-full bg-purple-600 text-white font-bold flex items-center gap-2 hover:bg-purple-700 transition-transform hover:scale-105 shadow-lg shadow-purple-600/25"
+                                >
+                                    <Users className="w-5 h-5" />
+                                    Watch Party
+                                </button>
                                 <button className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors">
                                     <Heart className="w-6 h-6" />
                                 </button>

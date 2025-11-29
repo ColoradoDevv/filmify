@@ -314,13 +314,17 @@ export async function getSearchCorrection(query: string): Promise<string | null>
 /**
  * Get YouTube trailer ID using AI
  */
-export async function getYouTubeTrailerId(title: string, year: string, type: 'movie' | 'tv'): Promise<string | null> {
+export async function getYouTubeTrailerId(title: string, year: string, type: 'movie' | 'tv', productionCompany?: string): Promise<string | null> {
     if (!groq) {
         return null;
     }
 
+    const companyContext = productionCompany ? ` produced by "${productionCompany}"` : '';
+    const channelContext = productionCompany ? ` Look specifically on the official "${productionCompany}" YouTube channel or their local subsidiary channels.` : '';
+
     const prompt = `Act as a movie database expert.
-    Find the YouTube video ID for the official trailer of the ${type}: "${title}" (${year}).
+    Find the YouTube video ID for the official trailer of the ${type}: "${title}" (${year})${companyContext}.
+    ${channelContext}
     Return ONLY the 11-character YouTube video ID string.
     Example: "d9My665987"
     If you are not 100% sure or cannot find a specific trailer, return "null".
