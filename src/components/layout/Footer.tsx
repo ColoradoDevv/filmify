@@ -108,9 +108,9 @@ export default function Footer() {
                     <div className="lg:col-span-3">
                         <h4 className="font-semibold text-white mb-6">Legal</h4>
                         <ul className="space-y-4 text-sm mb-8">
-                            <li><Link href="/privacy" className="text-text-secondary hover:text-primary transition-colors">Privacidad</Link></li>
-                            <li><Link href="/terms" className="text-text-secondary hover:text-primary transition-colors">Términos</Link></li>
-                            <li><Link href="/cookies" className="text-text-secondary hover:text-primary transition-colors">Cookies</Link></li>
+                            <li><Link href="/legal/privacy" className="text-text-secondary hover:text-primary transition-colors">Privacidad</Link></li>
+                            <li><Link href="/legal/terms" className="text-text-secondary hover:text-primary transition-colors">Términos</Link></li>
+                            <li><Link href="/legal/cookies" className="text-text-secondary hover:text-primary transition-colors">Cookies</Link></li>
                         </ul>
 
                         <div className="flex gap-4">

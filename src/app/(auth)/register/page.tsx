@@ -22,6 +22,7 @@ export default function RegisterPage() {
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [usernameStatus, setUsernameStatus] = useState<'default' | 'success' | 'error' | 'loading'>('default');
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
 
     const captchaRef = useRef<HCaptcha>(null);
     const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -147,6 +148,11 @@ export default function RegisterPage() {
 
         if (usernameStatus !== 'success') {
             setError('Por favor, elige un nickname válido.');
+            return;
+        }
+
+        if (!acceptedTerms) {
+            setError('Debes aceptar los Términos y Condiciones para continuar.');
             return;
         }
 
@@ -302,10 +308,10 @@ export default function RegisterPage() {
                                 minLength={3}
                                 autoComplete="username"
                                 className={`w-full pl-12 pr-4 py-3 bg-surface border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all ${usernameStatus === 'error'
-                                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                                        : usernameStatus === 'success'
-                                            ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
-                                            : 'border-surface-light focus:border-primary focus:ring-primary/20'
+                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                                    : usernameStatus === 'success'
+                                        ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
+                                        : 'border-surface-light focus:border-primary focus:ring-primary/20'
                                     }`}
                                 placeholder="Tu nickname único"
                             />
@@ -491,6 +497,38 @@ export default function RegisterPage() {
                             ref={captchaRef}
                             theme="dark"
                         />
+                    </div>
+
+                    {/* Terms and Conditions Checkbox */}
+                    <div className="flex items-start gap-3 p-4 bg-surface/50 border border-surface-light rounded-xl">
+                        <input
+                            type="checkbox"
+                            id="acceptTerms"
+                            checked={acceptedTerms}
+                            onChange={(e) => setAcceptedTerms(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-surface-light bg-surface text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 cursor-pointer"
+                        />
+                        <label htmlFor="acceptTerms" className="text-sm text-text-secondary cursor-pointer select-none">
+                            Acepto los{' '}
+                            <Link
+                                href="/legal/terms"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-accent font-semibold underline transition-colors"
+                            >
+                                Términos y Condiciones
+                            </Link>
+                            {' '}y la{' '}
+                            <Link
+                                href="/legal/privacy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-accent font-semibold underline transition-colors"
+                            >
+                                Política de Privacidad
+                            </Link>
+                            {' '}de FilmiFy.
+                        </label>
                     </div>
 
                     {/* Submit Button */}
