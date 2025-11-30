@@ -16,9 +16,10 @@ import {
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
-import { updateUserRole, banUser } from "../actions"
+import { updateUserRole, banUser, impersonateUser, banIp } from "../actions"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Ghost, Lock } from "lucide-react"
 
 // Define the shape of our data
 export type User = {
@@ -28,6 +29,7 @@ export type User = {
     role: 'admin' | 'user' | 'moderator' | 'beta'
     updated_at: string
     is_banned: boolean
+    last_ip?: string
 }
 
 export const columns: ColumnDef<User>[] = [
@@ -89,7 +91,7 @@ export const columns: ColumnDef<User>[] = [
             const handleRoleChange = async (newRole: string) => {
                 setLoading(true)
                 try {
-                    await updateUserRole(user.id, newRole)
+                    await updateUserRole(user.id, newRole as 'admin' | 'user')
                     router.refresh()
                 } catch (error) {
                     console.error(error)
@@ -150,6 +152,45 @@ export const columns: ColumnDef<User>[] = [
                         <DropdownMenuItem onClick={handleBan} className="text-red-500 hover:bg-red-900/20 focus:bg-red-900/20 cursor-pointer">
                             <Shield className="mr-2 h-4 w-4" />
                             Banear Usuario
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                            onClick={async () => {
+                                setLoading(true);
+                                const res = await impersonateUser(user.id);
+                                if (res.success && res.url) {
+                                    window.open(res.url, '_blank');
+                                } else {
+                                    alert("Error al iniciar sesión como usuario");
+                                }
+                                setLoading(false);
+                            }}
+                            className="text-blue-400 hover:bg-blue-900/20 focus:bg-blue-900/20 cursor-pointer"
+                        >
+                            <Ghost className="mr-2 h-4 w-4" />
+                            Impersonate
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                            onClick={async () => {
+                                const ip = user.last_ip !== 'Unknown' ? user.last_ip : prompt("Ingrese la IP a banear:");
+                                if (!ip) return;
+                                if (!confirm(`¿Banear IP ${ip}?`)) return;
+
+                                setLoading(true);
+                                const res = await banIp(ip, user.id);
+                                if (res.success) {
+                                    alert("IP Baneada correctamente");
+                                    router.refresh();
+                                } else {
+                                    alert("Error al banear IP: " + res.error);
+                                }
+                                setLoading(false);
+                            }}
+                            className="text-orange-500 hover:bg-orange-900/20 focus:bg-orange-900/20 cursor-pointer"
+                        >
+                            <Lock className="mr-2 h-4 w-4" />
+                            Ban IP ({user.last_ip || '?'})
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

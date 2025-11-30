@@ -3,135 +3,220 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-export async function getDashboardStats() {
-    // Use Admin Client to bypass RLS for stats
-    const supabase = await createAdminClient();
+/**
+ * Helper to ensure the current user is an admin.
+ * Throws an error if not authorized.
+ */
+async function requireAdmin() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Get total users
-    const { count: totalUsers } = await supabase
+    if (!user) {
+        throw new Error('Unauthorized');
+    }
+
+    const { data: profile } = await supabase
         .from('profiles')
-        .select('*', { count: 'exact', head: true });
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-    // Get active rooms count
-    const { count: activeRooms } = await supabase
-        .from('watch_parties')
-        .select('*', { count: 'exact', head: true })
-        .neq('status', 'finished');
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+        throw new Error('Unauthorized: Admin access required');
+    }
 
-    // Get total reviews count
-    const { count: totalReviews } = await supabase
-        .from('reviews')
-        .select('*', { count: 'exact', head: true });
+    return user;
+}
 
-    return {
-        totalUsers: totalUsers || 0,
-        activeUsers: activeRooms || 0, // Using Active Rooms as "Active Users" metric for now
-        conversionRate: totalReviews?.toString() || "0", // Using Total Reviews as "Conversion" metric for now
-        costs: "$0.00",
-    };
+export async function getDashboardStats() {
+    try {
+        await requireAdmin();
+
+        // Use Admin Client to bypass RLS for stats
+        const supabase = await createAdminClient();
+
+        // Get total users
+        const { count: totalUsers } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
+
+        // Get active rooms count
+        const { count: activeRooms } = await supabase
+            .from('watch_parties')
+            .select('*', { count: 'exact', head: true })
+            .neq('status', 'finished');
+
+        // Get total reviews count
+        const { count: totalReviews } = await supabase
+            .from('reviews')
+            .select('*', { count: 'exact', head: true });
+
+        return {
+            totalUsers: totalUsers || 0,
+            activeUsers: activeRooms || 0, // Using Active Rooms as "Active Users" metric for now
+            conversionRate: totalReviews?.toString() || "0", // Using Total Reviews as "Conversion" metric for now
+            costs: "$0.00",
+        };
+    } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        return {
+            totalUsers: 0,
+            activeUsers: 0,
+            conversionRate: "0",
+            costs: "$0.00",
+        };
+    }
 }
 
 export async function getUsers(page = 1, pageSize = 10, search = '') {
-    // Use Admin Client to bypass RLS for user list
-    const supabase = await createAdminClient();
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+    try {
+        await requireAdmin();
 
-    let query = supabase
-        .from('profiles')
-        .select('*', { count: 'exact' })
-        .order('updated_at', { ascending: false })
-        .range(from, to);
+        // Use Admin Client to bypass RLS for user list
+        const supabase = await createAdminClient();
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
 
-    // Note: Filtering by email on 'profiles' won't work if email isn't there.
-    // We'll search by 'full_name' instead which exists in profiles.
-    if (search) {
-        query = query.ilike('full_name', `%${search}%`);
-    }
+        let query = supabase
+            .from('profiles')
+            .select('*', { count: 'exact' })
+            .order('updated_at', { ascending: false })
+            .range(from, to);
 
-    const { data: profiles, count, error } = await query;
+        // Note: Filtering by email on 'profiles' won't work if email isn't there.
+        // We'll search by 'full_name' instead which exists in profiles.
+        if (search) {
+            query = query.ilike('full_name', `%${search}%`);
+        }
 
-    if (error) {
-        console.error('Error fetching users:', error);
+        const { data: profiles, count, error } = await query;
+
+        if (error) {
+            console.error('Error fetching users:', error);
+            return { data: [], count: 0 };
+        }
+
+        // Fetch emails and IPs from auth.users/sessions for the retrieved profiles
+        const profilesWithDetails = await Promise.all(
+            (profiles || []).map(async (profile) => {
+                const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(profile.id);
+
+                return {
+                    ...profile,
+                    email: user?.email || 'No email found',
+                    last_ip: 'Unknown', // Placeholder until we implement tracking
+                };
+            })
+        );
+
+        return {
+            data: profilesWithDetails,
+            count: count || 0
+        };
+    } catch (error) {
+        console.error('Unauthorized access to getUsers:', error);
         return { data: [], count: 0 };
     }
+}
 
-    // Fetch emails from auth.users for the retrieved profiles
-    const profilesWithEmail = await Promise.all(
-        (profiles || []).map(async (profile) => {
-            const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(profile.id);
-            return {
-                ...profile,
-                email: user?.email || 'No email found',
-            };
-        })
-    );
+export async function impersonateUser(userId: string) {
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-    return {
-        data: profilesWithEmail,
-        count: count || 0
-    };
+        // Generate magic link
+        const { data, error } = await supabase.auth.admin.generateLink({
+            type: 'magiclink',
+            email: (await supabase.auth.admin.getUserById(userId)).data.user?.email || '',
+        });
+
+        if (error) return { success: false, error: error.message };
+
+        return { success: true, url: data.properties?.action_link };
+    } catch (error) {
+        return { success: false, error: 'Unauthorized' };
+    }
+}
+
+export async function banIp(ip: string, userId?: string) {
+    try {
+        const user = await requireAdmin();
+        const supabase = await createAdminClient();
+
+        const { error } = await supabase.from('ip_bans').insert({
+            ip_address: ip,
+            reason: 'Admin Manual Ban',
+            banned_by: user.id
+        });
+
+        if (error) return { success: false, error: error.message };
+
+        // Also ban the user account if userId provided
+        if (userId) {
+            await supabase.auth.admin.updateUserById(userId, { ban_duration: '876000h' }); // 100 years
+            await supabase.from('profiles').update({ is_banned: true }).eq('id', userId);
+        }
+
+        revalidatePath('/admin/users');
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: 'Unauthorized' };
+    }
 }
 
 export async function updateUserRole(userId: string, newRole: 'admin' | 'user') {
-    const supabase = await createClient();
-    const adminSupabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const adminSupabase = await createAdminClient();
 
-    // Check if requester is admin (using normal client to verify session)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
+        // Use Admin Client to perform the update (bypassing RLS if necessary)
+        const { error } = await adminSupabase
+            .from('profiles')
+            .update({ role: newRole })
+            .eq('id', userId);
 
-    const { data: requesterProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+        if (error) return { success: false, error: error.message };
 
-    if (requesterProfile?.role !== 'admin') {
+        revalidatePath('/admin/users');
+        return { success: true };
+    } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-
-    // Use Admin Client to perform the update (bypassing RLS if necessary)
-    const { error } = await adminSupabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
-    if (error) return { success: false, error: error.message };
-
-    revalidatePath('/admin/users');
-    return { success: true };
 }
 
 export async function banUser(userId: string) {
-    const supabase = await createClient();
-    const adminSupabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const adminSupabase = await createAdminClient();
 
-    // Check if requester is admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
+        // Toggle ban status (or set to true)
+        // First get current status
+        const { data: targetProfile } = await adminSupabase
+            .from('profiles')
+            .select('is_banned')
+            .eq('id', userId)
+            .single();
 
-    const { data: requesterProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+        const newBanStatus = !targetProfile?.is_banned;
 
-    if (requesterProfile?.role !== 'admin') {
+        // Update profile status
+        await adminSupabase
+            .from('profiles')
+            .update({ is_banned: newBanStatus })
+            .eq('id', userId);
+
+        // If banning, also ban in auth
+        if (newBanStatus) {
+            await adminSupabase.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+        } else {
+            await adminSupabase.auth.admin.updateUserById(userId, { ban_duration: '0s' });
+        }
+
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-
-    // Toggle ban status (or set to true)
-    // First get current status
-    const { data: targetProfile } = await adminSupabase
-        .from('profiles')
-        .select('is_banned')
-        .eq('id', userId)
-        .single();
-
-    const newBanStatus = !targetProfile?.is_banned;
-    revalidatePath('/admin');
-    return { success: true };
 }
 
 
@@ -139,98 +224,90 @@ export async function banUser(userId: string) {
 // --- Live Ops Actions ---
 
 export async function getRooms() {
-    const supabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-    // Fetch active rooms (not finished)
-    const { data, error } = await supabase
-        .from('parties')
-        .select('*')
-        .neq('status', 'finished')
-        .order('created_at', { ascending: false });
+        // Fetch active rooms (not finished)
+        const { data, error } = await supabase
+            .from('parties')
+            .select('*')
+            .neq('status', 'finished')
+            .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Error fetching rooms:', error);
+        if (error) {
+            console.error('Error fetching rooms:', error);
+            return [];
+        }
+
+        return data || [];
+    } catch (error) {
         return [];
     }
-
-    return data || [];
 }
 
 export async function terminateRoom(roomId: string) {
-    const supabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-    // Check if requester is admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
+        const { error } = await supabase
+            .from('parties')
+            .update({ status: 'finished', ended_at: new Date().toISOString() })
+            .eq('id', roomId);
 
-    const { data: requesterProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+        if (error) return { success: false, error: error.message };
 
-    if (requesterProfile?.role !== 'admin') {
+        revalidatePath('/admin/live-ops');
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-
-    const { error } = await supabase
-        .from('parties')
-        .update({ status: 'finished', ended_at: new Date().toISOString() })
-        .eq('id', roomId);
-
-    if (error) return { success: false, error: error.message };
-
-    revalidatePath('/admin/live-ops');
-    revalidatePath('/admin');
-    return { success: true };
 }
 
 // --- Moderation Actions ---
 
 export async function getLatestReviews() {
-    const supabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-    // Fetch reviews with user data
-    // Assuming 'reviews' table exists and has user_id
-    const { data, error } = await supabase
-        .from('reviews')
-        .select('*, profiles(full_name, email)')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        // Fetch reviews with user data
+        // Assuming 'reviews' table exists and has user_id
+        const { data, error } = await supabase
+            .from('reviews')
+            .select('*, profiles(full_name, email)')
+            .order('created_at', { ascending: false })
+            .limit(50);
 
-    if (error) {
-        console.error('Error fetching reviews:', error);
+        if (error) {
+            console.error('Error fetching reviews:', error);
+            return [];
+        }
+
+        return data || [];
+    } catch (error) {
         return [];
     }
-
-    return data || [];
 }
 
 export async function deleteReview(reviewId: string) {
-    const supabase = await createAdminClient();
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-    // Check if requester is admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
+        const { error } = await supabase
+            .from('reviews')
+            .delete()
+            .eq('id', reviewId);
 
-    const { data: requesterProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+        if (error) return { success: false, error: error.message };
 
-    if (requesterProfile?.role !== 'admin') {
+        revalidatePath('/admin/moderation');
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-
-    const { error } = await supabase
-        .from('reviews')
-        .delete()
-        .eq('id', reviewId);
-
-    if (error) return { success: false, error: error.message };
-
-    revalidatePath('/admin/moderation');
-    revalidatePath('/admin');
-    return { success: true };
 }

@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -33,6 +33,22 @@ export async function proxy(request: NextRequest) {
         }
     );
 
+    // IP Blocking Check
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    try {
+        const { data: bannedIp } = await supabase
+            .from('ip_bans')
+            .select('id')
+            .eq('ip_address', ip)
+            .single();
+
+        if (bannedIp) {
+            return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
+        }
+    } catch (e) {
+        // Ignore error if table doesn't exist or query fails
+    }
+
     const {
         data: { user },
     } = await supabase.auth.getUser();
@@ -61,8 +77,8 @@ export async function proxy(request: NextRequest) {
             .eq('id', user.id)
             .single();
 
-        if (!profile || profile.role !== 'admin') {
-            // Redirect unauthorized users to home or 404
+        if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+            // Redirect unauthorized users to home
             return NextResponse.redirect(new URL('/', request.url));
         }
     }
@@ -73,6 +89,20 @@ export async function proxy(request: NextRequest) {
     if (user && isAuthRoute && !request.nextUrl.pathname.startsWith('/confirm-email')) {
         return NextResponse.redirect(new URL('/browse', request.url));
     }
+
+    // --- SECURITY HEADERS ---
+    const securityHeaders = {
+        'X-DNS-Prefetch-Control': 'on',
+        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'origin-when-cross-origin',
+        // 'Content-Security-Policy': "default-src 'self'; ..." // TODO: Configure strict CSP later to avoid breaking scripts
+    };
+
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
 
     return response;
 }
