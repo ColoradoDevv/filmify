@@ -236,23 +236,23 @@ export const getPersonDetails = async (personId: number): Promise<Person> => {
 export const getImageUrl = (
     path: string | null,
     size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'original'
-): string | null => {
+): string => {
     if (!path) return '/no-image.svg';
     return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
-export const getPosterUrl = (path: string | null): string | null => {
+export const getPosterUrl = (path: string | null): string => {
     return getImageUrl(path, 'original');
 };
 
-export const getBackdropUrl = (path: string | null): string | null => {
+export const getBackdropUrl = (path: string | null): string => {
     // For backdrops, we might want a wider placeholder or just null if we want to hide the container
     // But user asked for a default photo for everything.
     // Let's use the same one for now, CSS usually handles the aspect ratio (object-cover)
     return getImageUrl(path, 'original');
 };
 
-export const getProfileUrl = (path: string | null): string | null => {
+export const getProfileUrl = (path: string | null): string => {
     return getImageUrl(path, 'original');
 };
 
