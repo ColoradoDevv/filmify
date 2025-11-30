@@ -7,14 +7,32 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Play, Users, Clock, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LiveOpsPage() {
     const [rooms, setRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const supabase = createClient();
 
     useEffect(() => {
         loadRooms();
+
+        // Realtime subscription for rooms
+        const channel = supabase
+            .channel('live-ops-rooms')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'parties' },
+                () => {
+                    loadRooms(); // Re-fetch on any change
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const loadRooms = async () => {

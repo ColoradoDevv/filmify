@@ -89,6 +89,10 @@ export const viewport: Viewport = {
 
 
 
+import SystemAnnouncement from "@/components/SystemAnnouncement";
+
+// ...
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -99,6 +103,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <SystemAnnouncement />
         {children}
         <SpeedInsights />
         <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ""} />

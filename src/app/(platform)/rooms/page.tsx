@@ -3,9 +3,29 @@ import RoomsList from '@/components/watch-party/RoomsList';
 import { Film } from 'lucide-react';
 import { RoomsActions } from '@/components/watch-party/RoomsActions';
 
+import { fetchSettings } from '@/app/admin/settings/actions';
+import { AlertTriangle } from 'lucide-react';
+
 export const dynamic = 'force-dynamic';
 
 export default async function RoomsPage() {
+    const settings = await fetchSettings();
+
+    if (!settings.enableWatchParty) {
+        return (
+            <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="bg-yellow-500/10 p-4 rounded-full">
+                    <AlertTriangle className="w-12 h-12 text-yellow-500" />
+                </div>
+                <h1 className="text-2xl font-bold text-white">Función Deshabilitada</h1>
+                <p className="text-gray-400 max-w-md">
+                    Las Watch Parties están temporalmente deshabilitadas por el administrador.
+                    Por favor, intenta más tarde.
+                </p>
+            </div>
+        );
+    }
+
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();

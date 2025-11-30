@@ -1,0 +1,7 @@
+{
+  "enableAi": true,
+  "enableWatchParty": true,
+  "allowRegistration": true,
+  "maintenanceMode": false,
+  "activeAnnouncement": "testing"
+}

@@ -44,9 +44,10 @@ export async function getUsers(page = 1, pageSize = 10, search = '') {
         .range(from, to);
 
     // Note: Filtering by email on 'profiles' won't work if email isn't there.
-    // We'll skip email filtering for now or assume it fails silently if column missing.
-    // If search is provided, we might need to search in auth.users first? 
-    // For simplicity in this fix, we'll ignore search-by-email if it fails, or rely on full_name.
+    // We'll search by 'full_name' instead which exists in profiles.
+    if (search) {
+        query = query.ilike('full_name', `%${search}%`);
+    }
 
     const { data: profiles, count, error } = await query;
 
@@ -129,17 +130,11 @@ export async function banUser(userId: string) {
         .single();
 
     const newBanStatus = !targetProfile?.is_banned;
-
-    const { error } = await adminSupabase
-        .from('profiles')
-        .update({ is_banned: newBanStatus })
-        .eq('id', userId);
-
-    if (error) return { success: false, error: error.message };
-
-    revalidatePath('/admin/users');
+    revalidatePath('/admin');
     return { success: true };
 }
+
+
 
 // --- Live Ops Actions ---
 
@@ -148,7 +143,7 @@ export async function getRooms() {
 
     // Fetch active rooms (not finished)
     const { data, error } = await supabase
-        .from('watch_parties')
+        .from('parties')
         .select('*')
         .neq('status', 'finished')
         .order('created_at', { ascending: false });
@@ -179,7 +174,7 @@ export async function terminateRoom(roomId: string) {
     }
 
     const { error } = await supabase
-        .from('watch_parties')
+        .from('parties')
         .update({ status: 'finished', ended_at: new Date().toISOString() })
         .eq('id', roomId);
 
