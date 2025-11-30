@@ -85,7 +85,8 @@ export const PartyPlayer = ({ party, isHost, onEndParty, onControl, onSync, onSe
                     setVideoKey(trailer.key);
                 } else {
                     // AI Fallback
-                    const aiTrailerId = await getYouTubeTrailerId(party.title, details.production_companies?.[0]?.name);
+                    const year = details.release_date?.split('-')[0] || '';
+                    const aiTrailerId = await getYouTubeTrailerId(party.title, year, 'movie', details.production_companies?.[0]?.name);
                     if (aiTrailerId) {
                         setVideoKey(aiTrailerId);
                     }
