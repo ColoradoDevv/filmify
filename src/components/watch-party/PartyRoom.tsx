@@ -24,9 +24,13 @@ export const PartyRoom = ({ partyId, currentUser }: PartyRoomProps) => {
         sendMessage,
         toggleReady,
         startParty,
+        setPlaying,
         endParty,
         sendControl,
+        sendSync,
         lastControlAction,
+        syncData,
+        memberJoinedAt,
     } = useWatchParty({ partyId, currentUser });
 
     if (isLoading) {
@@ -48,9 +52,23 @@ export const PartyRoom = ({ partyId, currentUser }: PartyRoomProps) => {
     const isHost = party.host_id === currentUser.id;
 
     return (
-        <div className="flex h-[calc(100vh-9rem)] bg-[#0b0e11] overflow-hidden rounded-xl border border-white/10">
+        <div className="relative flex h-[calc(100vh-9rem)] overflow-hidden rounded-xl border border-white/10 bg-black/90 group/room">
+            {/* Immersive Background */}
+            <div className="absolute inset-0 z-0">
+                {party.poster_path && (
+                    <div
+                        className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 scale-110 transition-transform duration-1000"
+                        style={{
+                            backgroundImage: `url(https://image.tmdb.org/t/p/original${party.poster_path})`,
+                        }}
+                    />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e11] via-[#0b0e11]/80 to-transparent" />
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+            </div>
+
             {/* Main Content Area (Lobby or Player) */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative z-10 flex flex-col min-w-0">
                 {party.status === 'waiting' ? (
                     <PartyLobby
                         party={party}
@@ -65,17 +83,23 @@ export const PartyRoom = ({ partyId, currentUser }: PartyRoomProps) => {
                         isHost={isHost}
                         onEndParty={endParty}
                         onControl={sendControl}
+                        onSync={sendSync}
+                        onSetPlaying={setPlaying}
                         lastControlAction={lastControlAction}
+                        syncData={syncData}
+                        memberJoinedAt={memberJoinedAt}
                     />
                 )}
             </div>
 
             {/* Chat Sidebar */}
-            <PartyChat
-                messages={messages}
-                currentUser={currentUser}
-                onSendMessage={sendMessage}
-            />
+            <div className="relative z-20 h-full border-l border-white/10 shadow-2xl">
+                <PartyChat
+                    messages={messages}
+                    currentUser={currentUser}
+                    onSendMessage={sendMessage}
+                />
+            </div>
         </div>
     );
 };

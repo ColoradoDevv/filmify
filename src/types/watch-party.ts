@@ -9,6 +9,11 @@ export interface Party {
     status: PartyStatus;
     created_at: string;
     ended_at?: string;
+    name: string;
+    is_private: boolean;
+    password?: string;
+    room_code: string;
+    party_members?: { count: number }[];
 }
 
 export interface PartyMember {
@@ -27,7 +32,7 @@ export interface ChatMessage {
     avatar_url: string | null;
     text: string;
     timestamp: string;
-    is_system?: boolean;
+    type?: 'user' | 'system';
 }
 
 export interface PartyState {

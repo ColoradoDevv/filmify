@@ -22,6 +22,13 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         value?: number;
         timestamp: number;
     } | null>(null);
+    const [syncData, setSyncData] = useState<{
+        time: number;
+        isPlaying: boolean;
+        timestamp: number;
+    } | null>(null);
+
+    const [memberJoinedAt, setMemberJoinedAt] = useState<number | null>(null);
 
     const channelRef = useRef<RealtimeChannel | null>(null);
     const supabase = createClient();
@@ -45,6 +52,34 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
 
         fetchParty();
     }, [partyId]);
+
+    // DB Membership Tracking
+    useEffect(() => {
+        if (!partyId || !currentUser) return;
+
+        const joinParty = async () => {
+            await supabase
+                .from('party_members')
+                .upsert({ party_id: partyId, user_id: currentUser.id }, { onConflict: 'party_id,user_id' });
+        };
+
+        const leaveParty = async () => {
+            await supabase
+                .from('party_members')
+                .delete()
+                .match({ party_id: partyId, user_id: currentUser.id });
+        };
+
+        joinParty();
+
+        // Handle unload/cleanup
+        window.addEventListener('beforeunload', leaveParty);
+
+        return () => {
+            window.removeEventListener('beforeunload', leaveParty);
+            leaveParty();
+        };
+    }, [partyId, currentUser.id]);
 
     // Realtime subscription
     useEffect(() => {
@@ -83,10 +118,43 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
             .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                 const newMember = newPresences[0];
                 console.log(`${newMember.username} joined the party!`);
+
+                // Add system message
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: crypto.randomUUID(),
+                        user_id: 'system',
+                        username: 'System',
+                        avatar_url: null,
+                        text: `${newMember.username} ha entrado a la sala`,
+                        timestamp: new Date().toISOString(),
+                        type: 'system',
+                    },
+                ]);
+
+                // Notify that a member joined so the host can sync them
+                if (newMember.user_id !== currentUser.id) {
+                    setMemberJoinedAt(Date.now());
+                }
             })
             .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
                 const leftMember = leftPresences[0];
                 console.log(`${leftMember.username} left.`);
+
+                // Add system message
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: crypto.randomUUID(),
+                        user_id: 'system',
+                        username: 'System',
+                        avatar_url: null,
+                        text: `${leftMember.username} ha salido de la sala`,
+                        timestamp: new Date().toISOString(),
+                        type: 'system',
+                    },
+                ]);
             })
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
                 setMessages((prev) => [...prev, payload as ChatMessage]);
@@ -96,6 +164,14 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
                 setLastControlAction({
                     action: payload.action,
                     value: payload.value,
+                    timestamp: Date.now(),
+                });
+            })
+            .on('broadcast', { event: 'sync' }, ({ payload }) => {
+                console.log('Received sync event:', payload);
+                setSyncData({
+                    time: payload.time,
+                    isPlaying: payload.isPlaying,
                     timestamp: Date.now(),
                 });
             })
@@ -179,6 +255,19 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         }
     }, [party]);
 
+    const setPlaying = useCallback(async () => {
+        if (!party) return;
+
+        const { error } = await supabase
+            .from('parties')
+            .update({ status: 'playing' })
+            .eq('id', party.id);
+
+        if (error) {
+            console.error('Failed to set playing status', error);
+        }
+    }, [party]);
+
     const endParty = useCallback(async () => {
         if (!party) return;
 
@@ -209,6 +298,16 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         });
     }, [currentUser]);
 
+    const sendSync = useCallback(async (time: number, isPlaying: boolean) => {
+        if (!channelRef.current) return;
+
+        await channelRef.current.send({
+            type: 'broadcast',
+            event: 'sync',
+            payload: { time, isPlaying },
+        });
+    }, []);
+
     return {
         party,
         members,
@@ -217,8 +316,12 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         sendMessage,
         toggleReady,
         startParty,
+        setPlaying,
         endParty,
         sendControl,
+        sendSync,
         lastControlAction,
+        syncData,
+        memberJoinedAt,
     };
 };

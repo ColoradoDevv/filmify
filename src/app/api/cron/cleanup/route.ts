@@ -1,0 +1,26 @@
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+
+export async function GET(request: Request) {
+    // Optional: Check for authorization header if you want to secure it with a secret
+    // const authHeader = request.headers.get('authorization');
+    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    //     return new NextResponse('Unauthorized', { status: 401 });
+    // }
+
+    try {
+        const supabase = await createClient();
+
+        const { error } = await supabase.rpc('cleanup_inactive_parties');
+
+        if (error) {
+            console.error('Error cleaning up parties:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, message: 'Cleanup executed successfully' });
+    } catch (error) {
+        console.error('Unexpected error during cleanup:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}

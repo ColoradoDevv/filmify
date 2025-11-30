@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { getBackdropUrl, getPosterUrl } from '@/lib/tmdb/service';
 import type { MovieDetails, Video } from '@/types/tmdb';
+import { CreatePartyModal } from '@/components/watch-party/CreatePartyModal';
 
 interface MovieHeroProps {
     movie: MovieDetails;
@@ -21,12 +22,27 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
     const router = useRouter();
     const supabase = createClient();
 
-    const handleCreateParty = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+
+    useEffect(() => {
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setCurrentUser(user);
+        };
+        getUser();
+    }, []);
+
+    const handleCreatePartyClick = async () => {
+        if (!currentUser) {
             router.push('/login');
             return;
         }
+        setIsCreateModalOpen(true);
+    };
+
+    const handleCreateParty = async (partyData: { name: string; isPrivate: boolean; password?: string }) => {
+        if (!currentUser) return;
 
         const { data, error } = await supabase
             .from('parties')
@@ -34,8 +50,12 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                 tmdb_id: movie.id,
                 title: movie.title,
                 poster_path: movie.poster_path,
-                host_id: user.id,
-                status: 'waiting'
+                host_id: currentUser.id,
+                status: 'waiting',
+                name: partyData.name,
+                is_private: partyData.isPrivate,
+                password: partyData.password,
+                room_code: Math.random().toString(36).substring(2, 8).toUpperCase()
             })
             .select()
             .single();
@@ -229,7 +249,7 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                                     </button>
                                 )}
                                 <button
-                                    onClick={handleCreateParty}
+                                    onClick={handleCreatePartyClick}
                                     className="px-6 py-3 rounded-full bg-purple-600 text-white font-bold flex items-center gap-2 hover:bg-purple-700 transition-transform hover:scale-105 shadow-lg shadow-purple-600/25"
                                 >
                                     <Users className="w-5 h-5" />
@@ -246,6 +266,14 @@ export default function MovieHero({ movie, trailer }: MovieHeroProps) {
                     </div>
                 </div>
             </div>
+
+            <CreatePartyModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreate={handleCreateParty}
+                movieTitle={movie.title}
+                currentUser={currentUser}
+            />
         </div>
     );
 }
