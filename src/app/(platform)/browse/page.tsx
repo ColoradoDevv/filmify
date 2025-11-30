@@ -2,6 +2,7 @@ import { getTrending, discoverMovies, getGenres } from '@/lib/tmdb/service';
 import FilterBar from '@/components/features/FilterBar';
 import AIRecommendations from '@/components/features/AIRecommendations';
 import MovieGrid from '@/components/features/MovieGrid';
+import { AdBannerWrapper } from '@/components/ads';
 import { TrendingUp } from 'lucide-react';
 
 interface BrowsePageProps {
@@ -49,6 +50,11 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                         </p>
                     </div>
                 </div>
+            </div>
+
+            {/* Ad Banner - Only visible to free users */}
+            <div className="my-8">
+                <AdBannerWrapper position="hero" />
             </div>
 
             {/* AI Recommendations */}
