@@ -12,7 +12,7 @@ export default async function RoomsPage() {
 
     const { data: parties, error } = await supabase
         .from('parties')
-        .select('id, tmdb_id, title, poster_path, host_id, status, created_at, name, is_private, party_members(count)')
+        .select('id, tmdb_id, title, poster_path, host_id, status, created_at, name, is_private, room_code, party_members(count)')
         .neq('status', 'finished')
         .order('created_at', { ascending: false });
 
