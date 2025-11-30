@@ -18,18 +18,25 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const movieId = parseInt(id);
-    const movie = await getMovieDetails(movieId);
 
-    if (!movie) {
+    try {
+        const movie = await getMovieDetails(movieId);
+
+        if (!movie) {
+            return {
+                title: 'Movie Not Found - FilmiFy',
+            };
+        }
+
         return {
-            title: 'Movie Not Found',
+            title: `${movie.title} - FilmiFy`,
+            description: movie.overview,
+        };
+    } catch (error) {
+        return {
+            title: 'Movie Not Found - FilmiFy',
         };
     }
-
-    return {
-        title: `${movie.title} - FilmiFy`,
-        description: movie.overview,
-    };
 }
 
 export default async function MovieDetailsPage({ params }: PageProps) {
@@ -37,8 +44,15 @@ export default async function MovieDetailsPage({ params }: PageProps) {
     const movieId = parseInt(id);
     if (isNaN(movieId)) notFound();
 
-    const movie = await getMovieDetails(movieId);
-    if (!movie) notFound();
+    let movie;
+    try {
+        movie = await getMovieDetails(movieId);
+        if (!movie) notFound();
+    } catch (error) {
+        // If TMDB API returns 404 or any error, show our custom 404 page
+        console.error('Error fetching movie details:', error);
+        notFound();
+    }
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
     const posterUrl = getPosterUrl(movie.poster_path);
