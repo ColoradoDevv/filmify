@@ -16,18 +16,25 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const tvId = parseInt(id);
-    const tvShow = await getTVDetails(tvId);
 
-    if (!tvShow) {
+    try {
+        const tvShow = await getTVDetails(tvId);
+
+        if (!tvShow) {
+            return {
+                title: 'TV Show Not Found - FilmiFy',
+            };
+        }
+
         return {
-            title: 'TV Show Not Found',
+            title: `${tvShow.name} - FilmiFy`,
+            description: tvShow.overview,
+        };
+    } catch (error) {
+        return {
+            title: 'TV Show Not Found - FilmiFy',
         };
     }
-
-    return {
-        title: `${tvShow.name} - FilmiFy`,
-        description: tvShow.overview,
-    };
 }
 
 export default async function TVDetailsPage({ params }: PageProps) {
@@ -35,8 +42,15 @@ export default async function TVDetailsPage({ params }: PageProps) {
     const tvId = parseInt(id);
     if (isNaN(tvId)) notFound();
 
-    const tvShow = await getTVDetails(tvId);
-    if (!tvShow) notFound();
+    let tvShow;
+    try {
+        tvShow = await getTVDetails(tvId);
+        if (!tvShow) notFound();
+    } catch (error) {
+        // If TMDB API returns 404 or any error, show our custom 404 page
+        console.error('Error fetching TV show details:', error);
+        notFound();
+    }
 
     // Map TV show data to match Movie structure for MovieHero
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
