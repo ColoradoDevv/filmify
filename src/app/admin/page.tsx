@@ -1,6 +1,9 @@
 import { getDashboardStats } from "./actions";
 import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 
+// Force dynamic rendering since this page uses cookies for auth
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDashboard() {
     const stats = await getDashboardStats();
 

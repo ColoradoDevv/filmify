@@ -10,6 +10,9 @@ import {
     Terminal
 } from 'lucide-react';
 
+// Force dynamic rendering for all admin routes since they use cookies for auth
+export const dynamic = 'force-dynamic';
+
 export default function AdminLayout({
     children,
 }: {
