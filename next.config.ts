@@ -19,23 +19,6 @@ const nextConfig: NextConfig = {
     formats: ['image/webp'],
     minimumCacheTTL: 60,
   },
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        // Workaround for source map issues in Turbopack
-      },
-    },
-  },
-  productionBrowserSourceMaps: false,
-  webpack: (config, { dev, isServer }) => {
-    if (dev) {
-      config.devtool = false; // Disable source maps in development
-      config.ignoreWarnings = [
-        { module: /node_modules/ },
-      ];
-    }
-    return config;
-  },
 };
 
 export default nextConfig;

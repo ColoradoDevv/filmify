@@ -70,7 +70,9 @@ export const StreamingPlayer = ({
                     mediaType !== 'tv',
                     season,
                     episode,
-                    failedSources
+                    tmdbId,
+                    undefined, // isAnimeOverride
+                    failedSources // excludedSources
                 );
                 setStream(result);
 

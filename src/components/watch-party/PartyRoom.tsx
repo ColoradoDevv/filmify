@@ -102,7 +102,6 @@ export const PartyRoom = ({ partyId, currentUser }: PartyRoomProps) => {
                         onSetPlaying={setPlaying}
                         lastControlAction={lastControlAction}
                         syncData={syncData}
-                        syncData={syncData}
                         memberJoinedAt={memberJoinedAt}
                         onUpdateLanguage={updateLanguage}
                         onUpdateSource={updateSource}
