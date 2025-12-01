@@ -63,7 +63,19 @@ export const StreamingPlayer = ({
                     }
                 }
 
-                // Auto mode (find working stream)
+                // 1. Try Latino Sources First (if language is Spanish and not forced manual)
+                if (language === 'es') {
+                    const { getLatinoStream } = await import('@/services/latinoSources');
+                    const latinoStream = await getLatinoStream(imdbId, mediaType !== 'tv', season, episode);
+
+                    if (latinoStream) {
+                        setStream(latinoStream);
+                        setIsLoadingEmbed(false);
+                        return;
+                    }
+                }
+
+                // 2. Auto mode (find working stream - fallback to international)
                 const result = await getWorkingStream(
                     imdbId,
                     language,

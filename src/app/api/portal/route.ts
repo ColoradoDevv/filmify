@@ -90,7 +90,8 @@ async function authenticateDevice(mac: string) {
         // If create fails, maybe the user exists but password was wrong (changed?)
         // In that case, we might want to reset the password or just fail.
         // For now, let's try to get the user by listing (fallback) if create says "already registered"
-        if (createError.message.includes('already registered')) {
+        // Also catch 'email_exists' code which Supabase returns
+        if (createError.message.includes('already registered') || createError.code === 'email_exists') {
             // Fallback: List users (not ideal but works for now if sign in failed)
             // Note: signIn might fail if email is not confirmed, but we set email_confirm: true
             const { data: users } = await supabase.auth.admin.listUsers();
@@ -155,6 +156,7 @@ async function handleSTBRequest(action: string, mac: string) {
         case 'get_profile':
             try {
                 const user = await authenticateDevice(mac);
+                if (!user) throw new Error('User not found');
                 return NextResponse.json({
                     js: {
                         id: user.id,

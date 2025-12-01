@@ -68,14 +68,14 @@ const INTERNATIONAL_SOURCES: StreamSource[] = [
 
 // Fuentes anime (mantengo las tuyas)
 const ANIME_SOURCES: StreamSource[] = [
-    // 1. AnimeZ (clone directo de Aniwave, subs multilingües)
-    {
-        name: "animez.tv",
-        priority: 1,
-        isAnime: true,
-        getMovieUrl: (id, lang) => `https://animez.tv/embed/movie/${id}?lang=${lang}&sub=1`, // sub=1 para subs
-        getEpisodeUrl: (id, s, e, lang) => `https://animez.tv/embed/anime/${id}/episode-${e}-s${s}?lang=${lang}&sub=1`
-    },
+    // 1. AnimeZ (clone directo de Aniwave, subs multilingües) - DOWN
+    // {
+    //     name: "animez.tv",
+    //     priority: 1,
+    //     isAnime: true,
+    //     getMovieUrl: (id, lang) => `https://animez.tv/embed/movie/${id}?lang=${lang}&sub=1`, // sub=1 para subs
+    //     getEpisodeUrl: (id, s, e, lang) => `https://animez.tv/embed/anime/${id}/episode-${e}-s${s}?lang=${lang}&sub=1`
+    // },
 
     // 2. 9Anime (rápido updates, subs en español/inglés, bajo ads)
     {
