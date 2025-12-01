@@ -1,25 +1,50 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, Filter, X, Tv, Globe, Tag, TrendingUp, Radio } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, Filter, X, Tv, Globe, Tag, TrendingUp, Radio, Loader2 } from 'lucide-react';
 import type { LiveChannel } from '@/services/liveTV';
+import { fetchAllChannels, getCategories, getCountries } from '@/services/liveTV';
 import LiveTVGrid from '@/components/live-tv/LiveTVGrid';
 
 interface LiveTVClientProps {
-    initialChannels: LiveChannel[];
-    categories: string[];
-    countries: string[];
+    initialChannels?: LiveChannel[];
+    categories?: string[];
+    countries?: string[];
 }
 
-export default function LiveTVClient({ initialChannels, categories, countries }: LiveTVClientProps) {
+export default function LiveTVClient({ initialChannels: propChannels, categories: propCategories, countries: propCountries }: LiveTVClientProps = {}) {
+    const [channels, setChannels] = useState<LiveChannel[]>(propChannels || []);
+    const [categories, setCategories] = useState<string[]>(propCategories || []);
+    const [countries, setCountries] = useState<string[]>(propCountries || []);
+    const [isLoading, setIsLoading] = useState(!propChannels);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [selectedCountry, setSelectedCountry] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
 
+    // Fetch channels on client if not provided as props
+    useEffect(() => {
+        if (!propChannels) {
+            const loadChannels = async () => {
+                try {
+                    setIsLoading(true);
+                    const fetchedChannels = await fetchAllChannels();
+                    setChannels(fetchedChannels);
+                    setCategories(getCategories(fetchedChannels));
+                    setCountries(getCountries(fetchedChannels));
+                } catch (error) {
+                    console.error('Error loading channels:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            loadChannels();
+        }
+    }, [propChannels]);
+
     // Filter channels based on search and filters
     const filteredChannels = useMemo(() => {
-        return initialChannels.filter(channel => {
+        return channels.filter(channel => {
             // Search filter
             if (searchQuery && !channel.name.toLowerCase().includes(searchQuery.toLowerCase())) {
                 return false;
@@ -37,7 +62,7 @@ export default function LiveTVClient({ initialChannels, categories, countries }:
 
             return true;
         });
-    }, [initialChannels, searchQuery, selectedCategory, selectedCountry]);
+    }, [channels, searchQuery, selectedCategory, selectedCountry]);
 
     const clearFilters = () => {
         setSearchQuery('');
@@ -46,6 +71,18 @@ export default function LiveTVClient({ initialChannels, categories, countries }:
     };
 
     const hasActiveFilters = searchQuery || selectedCategory || selectedCountry;
+
+    // Show loading state while fetching channels
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                    <p className="text-text-secondary">Cargando canales...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">
