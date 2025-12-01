@@ -46,7 +46,11 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
                     ? await discoverTV(filters)
                     : await discoverMovies(filters);
             } else {
-                data = await getTrending(mediaType, 'week', nextPage);
+                if (mediaType === 'tv') {
+                    data = await getTrending('tv', 'week', nextPage);
+                } else {
+                    data = await getTrending('movie', 'week', nextPage);
+                }
             }
 
             // Filter out duplicates just in case
