@@ -1,5 +1,3 @@
-'use server';
-
 // src/services/streamingSources.ts
 // Soporte multi-fuente + ANIME ESPECÍFICO con subs (Aniwave clones + alternativas 2025)
 
