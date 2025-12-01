@@ -43,8 +43,13 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         content = data.results;
     } else {
         // Fetch trending content on the server
-        const trendingData = await getTrending(isTV ? 'tv' : 'movie', 'week', 1);
-        content = trendingData.results;
+        if (isTV) {
+            const trendingData = await getTrending('tv', 'week', 1);
+            content = trendingData.results;
+        } else {
+            const trendingData = await getTrending('movie', 'week', 1);
+            content = trendingData.results;
+        }
     }
 
     // Fetch genres based on category
