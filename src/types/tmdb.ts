@@ -120,6 +120,20 @@ export interface Genre {
 }
 
 /**
+ * Season details
+ */
+export interface Season {
+    air_date: string;
+    episode_count: number;
+    id: number;
+    name: string;
+    overview: string;
+    poster_path: string | null;
+    season_number: number;
+    vote_average: number;
+}
+
+/**
  * Extended Movie Details with additional information
  */
 export interface MovieDetails extends Movie {
@@ -183,6 +197,28 @@ export interface MovieDetails extends Movie {
             };
         };
     };
+    external_ids?: {
+        imdb_id: string | null;
+        facebook_id: string | null;
+        instagram_id: string | null;
+        twitter_id: string | null;
+    };
+    keywords?: {
+        keywords: {
+            id: number;
+            name: string;
+        }[];
+    };
+    release_dates?: {
+        results: {
+            iso_3166_1: string;
+            release_dates: {
+                certification: string;
+                release_date: string;
+                type: number;
+            }[];
+        }[];
+    };
 }
 
 /**
@@ -195,6 +231,7 @@ export interface TVDetails extends TVShow {
     homepage: string;
     number_of_episodes: number;
     number_of_seasons: number;
+    seasons: Season[];
     production_companies: {
         id: number;
         name: string;
@@ -240,6 +277,16 @@ export interface TVDetails extends TVShow {
                 }[];
             };
         };
+    };
+    external_ids?: {
+        imdb_id: string | null;
+        freebase_mid: string | null;
+        freebase_id: string | null;
+        tvdb_id: number | null;
+        tvrage_id: number | null;
+        facebook_id: string | null;
+        instagram_id: string | null;
+        twitter_id: string | null;
     };
 }
 

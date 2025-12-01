@@ -4,7 +4,7 @@ import { getProviderLink } from '@/lib/referrals';
 import MovieHero from '@/components/features/MovieHero';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
-import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft } from 'lucide-react';
+import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft, Facebook, Instagram, Twitter, Tag, Users, Film, Clapperboard } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -100,6 +100,19 @@ export default async function MovieDetailsPage({ params }: PageProps) {
         movie['watch/providers']?.results?.US ||
         Object.values(movie['watch/providers']?.results || {})[0];
 
+    // Get writers
+    const writers = movie.credits?.crew.filter((person) => ['Screenplay', 'Writer', 'Story'].includes(person.job)) || [];
+    // Deduplicate writers
+    const uniqueWriters = Array.from(new Set(writers.map(a => a.id)))
+        .map(id => {
+            return writers.find(a => a.id === id);
+        });
+
+    // Get certification (MX or US)
+    const releaseDates = movie.release_dates?.results.find(r => r.iso_3166_1 === 'MX') ||
+        movie.release_dates?.results.find(r => r.iso_3166_1 === 'US');
+    const certification = releaseDates?.release_dates.find(r => r.certification)?.certification || 'NR';
+
     // Format currency
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -179,6 +192,18 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             </div>
 
                             <div>
+                                <span className="block text-gray-400 text-sm mb-1">Clasificación</span>
+                                <span className="inline-block px-2 py-1 rounded bg-white/10 text-white text-xs font-bold border border-white/10">
+                                    {certification}
+                                </span>
+                            </div>
+
+                            <div>
+                                <span className="block text-gray-400 text-sm mb-1">Título Original</span>
+                                <span className="text-white font-medium italic">{movie.original_title}</span>
+                            </div>
+
+                            <div>
                                 <span className="block text-gray-400 text-sm mb-1">Idioma Original</span>
                                 <span className="text-white font-medium uppercase">{movie.original_language}</span>
                             </div>
@@ -198,7 +223,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             )}
                         </div>
 
-                        {/* External Links */}
+                        {/* External Links & Socials */}
                         <div className="flex flex-col gap-3">
                             {movie.homepage && (
                                 <a
@@ -211,16 +236,52 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                                     Sitio Web Oficial
                                 </a>
                             )}
-                            {movie.imdb_id && (
-                                <a
-                                    href={`https://www.imdb.com/title/${movie.imdb_id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-[#f5c518]/10 hover:bg-[#f5c518]/20 text-[#f5c518] transition-colors border border-[#f5c518]/20"
-                                >
-                                    IMDb
-                                </a>
-                            )}
+                            <div className="grid grid-cols-4 gap-2">
+                                {movie.external_ids?.imdb_id && (
+                                    <a
+                                        href={`https://www.imdb.com/title/${movie.external_ids.imdb_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center py-3 rounded-lg bg-[#f5c518]/10 hover:bg-[#f5c518]/20 text-[#f5c518] transition-colors border border-[#f5c518]/20"
+                                        title="IMDb"
+                                    >
+                                        <span className="font-bold">IMDb</span>
+                                    </a>
+                                )}
+                                {movie.external_ids?.facebook_id && (
+                                    <a
+                                        href={`https://facebook.com/${movie.external_ids.facebook_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center py-3 rounded-lg bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] transition-colors border border-[#1877F2]/20"
+                                        title="Facebook"
+                                    >
+                                        <Facebook className="w-5 h-5" />
+                                    </a>
+                                )}
+                                {movie.external_ids?.instagram_id && (
+                                    <a
+                                        href={`https://instagram.com/${movie.external_ids.instagram_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center py-3 rounded-lg bg-[#E4405F]/10 hover:bg-[#E4405F]/20 text-[#E4405F] transition-colors border border-[#E4405F]/20"
+                                        title="Instagram"
+                                    >
+                                        <Instagram className="w-5 h-5" />
+                                    </a>
+                                )}
+                                {movie.external_ids?.twitter_id && (
+                                    <a
+                                        href={`https://twitter.com/${movie.external_ids.twitter_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center py-3 rounded-lg bg-[#1DA1F2]/10 hover:bg-[#1DA1F2]/20 text-[#1DA1F2] transition-colors border border-[#1DA1F2]/20"
+                                        title="Twitter"
+                                    >
+                                        <Twitter className="w-5 h-5" />
+                                    </a>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -365,12 +426,68 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                                 </div>
                             </div>
                         )}
+                        {/* Keywords */}
+                        {movie.keywords?.keywords && movie.keywords.keywords.length > 0 && (
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                    <Tag className="w-5 h-5 text-primary" />
+                                    Palabras Clave
+                                </h2>
+                                <div className="flex flex-wrap gap-2">
+                                    {movie.keywords.keywords.map((keyword) => (
+                                        <Link
+                                            key={keyword.id}
+                                            href={`/search?q=${keyword.name}`}
+                                            className="px-3 py-1.5 rounded-lg bg-surface-light/30 border border-white/5 text-sm text-gray-300 hover:text-white hover:bg-surface-light hover:border-primary/30 transition-all"
+                                        >
+                                            {keyword.name}
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {movie.recommendations?.results && movie.recommendations.results.length > 0 && (
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                    <Film className="w-5 h-5 text-primary" />
+                                    Recomendaciones
+                                </h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    {movie.recommendations.results.slice(0, 4).map((rec) => (
+                                        <Link
+                                            key={rec.id}
+                                            href={`/movie/${rec.id}`}
+                                            className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-surface-light/30 border border-white/5 hover:border-primary/50 transition-all"
+                                        >
+                                            {rec.poster_path ? (
+                                                <Image
+                                                    src={getPosterUrl(rec.poster_path) || ''}
+                                                    alt={rec.title}
+                                                    fill
+                                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                                                    Sin Imagen
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                                                <p className="text-white font-bold text-sm line-clamp-2">{rec.title}</p>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </section>
 
                 {/* Reviews Section */}
                 <ReviewsSection mediaId={movieId} mediaType="movie" />
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

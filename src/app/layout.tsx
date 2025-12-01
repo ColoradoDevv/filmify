@@ -90,7 +90,6 @@ export const viewport: Viewport = {
 
 
 import SystemAnnouncement from "@/components/SystemAnnouncement";
-import { BroadcastListener } from "@/components/admin/BroadcastListener";
 import { Toaster } from "sonner";
 
 // ...
@@ -106,7 +105,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SystemAnnouncement />
-        <BroadcastListener />
         <Toaster position="top-center" richColors />
         {children}
         <SpeedInsights />

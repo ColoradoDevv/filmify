@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Filter, ChevronDown, Check, Calendar } from 'lucide-react';
+import { Filter, ChevronDown, Check, Calendar, Clapperboard, Tv, Heart, Sparkles, LayoutGrid } from 'lucide-react';
 
 interface FilterBarProps {
     genres: { id: number; name: string }[];
@@ -15,16 +15,26 @@ const SORT_OPTIONS = [
     { id: 'primary_release_date.desc', name: 'Más Recientes' },
 ];
 
+const CATEGORIES = [
+    { id: 'movie', name: 'Películas', icon: Clapperboard, color: 'text-primary' },
+    { id: 'tv', name: 'Series', icon: Tv, color: 'text-primary' },
+    { id: 'novelas', name: 'Novelas', icon: Heart, color: 'text-pink-500' },
+    { id: 'anime', name: 'Anime', icon: Sparkles, color: 'text-yellow-500' },
+    { id: 'live-tv', name: 'TV en Vivo', icon: Tv, color: 'text-red-500' },
+];
+
 const YEARS = Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i);
 
 export default function FilterBar({ genres }: FilterBarProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
+    const activeCategory = searchParams.get('category') || 'movie';
     const activeGenre = searchParams.get('genre') ? Number(searchParams.get('genre')) : null;
     const activeYear = searchParams.get('year') ? Number(searchParams.get('year')) : null;
     const sortBy = searchParams.get('sort_by') || SORT_OPTIONS[0].id;
 
+    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
     const [isGenreOpen, setIsGenreOpen] = useState(false);
     const [isYearOpen, setIsYearOpen] = useState(false);
     const [isSortOpen, setIsSortOpen] = useState(false);
@@ -36,11 +46,59 @@ export default function FilterBar({ genres }: FilterBarProps) {
         } else {
             params.delete(key);
         }
+
+        // Reset genre when changing category as genres are specific to media type
+        if (key === 'category') {
+            params.delete('genre');
+        }
+
         router.push(`?${params.toString()}`);
     };
 
+    const currentCategory = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
+    const CategoryIcon = currentCategory.icon;
+
     return (
         <div className="flex flex-wrap items-center gap-4 mb-8">
+            {/* Category Filter */}
+            <div className="relative">
+                <button
+                    onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all"
+                >
+                    <LayoutGrid className="w-4 h-4" />
+                    <span>Categoría: <span className={`${currentCategory.color} font-medium flex items-center gap-1 inline-flex`}>
+                        <CategoryIcon className="w-3 h-3" />
+                        {currentCategory.name}
+                    </span></span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isCategoryOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-surface border border-surface-light rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                        <div className="p-2 flex flex-col gap-1">
+                            {CATEGORIES.map((category) => {
+                                const Icon = category.icon;
+                                return (
+                                    <button
+                                        key={category.id}
+                                        onClick={() => { updateFilter('category', category.id); setIsCategoryOpen(false); }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${activeCategory === category.id
+                                            ? 'bg-primary/10 text-white'
+                                            : 'text-text-secondary hover:bg-surface-light hover:text-white'
+                                            }`}
+                                    >
+                                        <Icon className={`w-4 h-4 ${category.color}`} />
+                                        <span>{category.name}</span>
+                                        {activeCategory === category.id && <Check className="w-3 h-3 ml-auto" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Genre Filter */}
             <div className="relative">
                 <button

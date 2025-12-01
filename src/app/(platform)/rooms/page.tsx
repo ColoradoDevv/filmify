@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import RoomsList from '@/components/watch-party/RoomsList';
 import { Film } from 'lucide-react';
-import { RoomsActions } from '@/components/watch-party/RoomsActions';
+import { RoomsActions } from '@/components/watch-party/RoomsActionsComponent';
 
 import { fetchSettings } from '@/app/admin/settings/actions';
 import { AlertTriangle } from 'lucide-react';

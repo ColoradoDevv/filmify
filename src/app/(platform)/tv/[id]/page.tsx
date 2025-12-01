@@ -64,7 +64,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
         runtime: 0,
         budget: 0,
         revenue: 0,
-        imdb_id: '',
+        imdb_id: tvShow.external_ids?.imdb_id || '',
         video: false,
     } as unknown as MovieDetails;
 
@@ -103,7 +103,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
 
     return (
         <div className="min-h-screen bg-background pb-20">
-            <MovieHero movie={heroData} trailer={trailer} />
+            <MovieHero movie={heroData} trailer={trailer} mediaType="tv" seasons={tvShow.seasons} />
 
             <div className="container mx-auto px-4 py-12 space-y-16">
                 {/* Cast Section */}

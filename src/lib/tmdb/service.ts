@@ -182,7 +182,7 @@ export const searchMovies = async (
  */
 export const getMovieDetails = async (movieId: number): Promise<MovieDetails> => {
     return fetchFromTMDB(`/movie/${movieId}`, {
-        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers,external_ids,keywords,release_dates',
     });
 };
 
@@ -192,7 +192,7 @@ export const getMovieDetails = async (movieId: number): Promise<MovieDetails> =>
  */
 export const getTVDetails = async (tvId: number): Promise<TVDetails> => {
     return fetchFromTMDB(`/tv/${tvId}`, {
-        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers,external_ids',
     });
 };
 
@@ -275,6 +275,35 @@ export const getGenres = async (): Promise<{ genres: { id: number; name: string 
 };
 
 /**
+ * Get all available TV genres
+ */
+export const getTVGenres = async (): Promise<{ genres: { id: number; name: string }[] }> => {
+    return fetchFromTMDB('/genre/tv/list');
+};
+
+/**
+ * Discover TV shows with filters
+ */
+export const discoverTV = async (
+    filters: SearchFilters = {}
+): Promise<PaginatedResponse<TVShow>> => {
+    const params: Record<string, string | number> = {
+        page: filters.page || 1,
+        sort_by: filters.sortBy || 'popularity.desc',
+    };
+
+    if (filters.genre) {
+        params.with_genres = filters.genre;
+    }
+
+    if (filters.year) {
+        params.first_air_date_year = filters.year;
+    }
+
+    return fetchFromTMDB('/discover/tv', params);
+};
+
+/**
  * Get person details
  * @param personId - TMDB person ID
  */
@@ -282,6 +311,19 @@ export const getPersonDetails = async (personId: number): Promise<Person> => {
     return fetchFromTMDB(`/person/${personId}`, {
         append_to_response: 'movie_credits,tv_credits',
     });
+};
+
+/**
+ * Get external IDs for a movie (IMDB, TVDB, etc.)
+ * @param movieId - TMDB movie ID
+ */
+export const getExternalIds = async (movieId: number): Promise<{
+    imdb_id: string | null;
+    facebook_id: string | null;
+    instagram_id: string | null;
+    twitter_id: string | null;
+}> => {
+    return fetchFromTMDB(`/movie/${movieId}/external_ids`);
 };
 
 /**
@@ -325,7 +367,10 @@ export const TMDBService = {
     getNowPlaying,
     getUpcoming,
     getGenres,
+    getTVGenres,
+    discoverTV,
     getPersonDetails,
+    getExternalIds,
     getImageUrl,
     getPosterUrl,
     getBackdropUrl,

@@ -4,28 +4,29 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Sparkles, Loader2 } from 'lucide-react';
 import MovieCard from '@/components/features/MovieCard';
-import { getTrending, discoverMovies } from '@/lib/tmdb/service';
-import type { Movie } from '@/types/tmdb';
+import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
+import type { Movie, TVShow } from '@/types/tmdb';
 
 interface MovieGridProps {
-    initialMovies: Movie[];
+    initialMovies: (Movie | TVShow)[];
+    mediaType?: 'movie' | 'tv';
 }
 
-export default function MovieGrid({ initialMovies }: MovieGridProps) {
+export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieGridProps) {
     const searchParams = useSearchParams();
     const genre = searchParams.get('genre');
     const year = searchParams.get('year');
     const sortBy = searchParams.get('sort_by');
 
-    const [movies, setMovies] = useState<Movie[]>(initialMovies);
+    const [movies, setMovies] = useState<(Movie | TVShow)[]>(initialMovies);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
 
-    // Reset state when filters change
+    // Reset state when filters or mediaType change
     useEffect(() => {
         setMovies(initialMovies);
         setPage(1);
-    }, [initialMovies]);
+    }, [initialMovies, mediaType]);
 
     const handleLoadMore = async () => {
         setLoading(true);
@@ -34,14 +35,18 @@ export default function MovieGrid({ initialMovies }: MovieGridProps) {
             let data;
 
             if (genre || sortBy || year) {
-                data = await discoverMovies({
+                const filters = {
                     genre: genre ? Number(genre) : undefined,
                     year: year ? Number(year) : undefined,
                     sortBy: (sortBy as any) || undefined,
                     page: nextPage
-                });
+                };
+
+                data = mediaType === 'tv'
+                    ? await discoverTV(filters)
+                    : await discoverMovies(filters);
             } else {
-                data = await getTrending('movie', 'week', nextPage);
+                data = await getTrending(mediaType, 'week', nextPage);
             }
 
             // Filter out duplicates just in case
@@ -68,7 +73,7 @@ export default function MovieGrid({ initialMovies }: MovieGridProps) {
                         className="animate-fade-in-up"
                         style={{ animationDelay: `${(index % 20) * 50}ms` }}
                     >
-                        <MovieCard movie={movie} />
+                        <MovieCard movie={movie} mediaType={mediaType} />
                     </div>
                 ))}
             </div>
@@ -87,7 +92,7 @@ export default function MovieGrid({ initialMovies }: MovieGridProps) {
                         ) : (
                             <Sparkles className="w-4 h-4 text-primary" />
                         )}
-                        {loading ? 'Cargando...' : 'Cargar más películas'}
+                        {loading ? 'Cargando...' : `Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}
                     </span>
                 </button>
             </div>
