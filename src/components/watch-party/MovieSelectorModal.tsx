@@ -149,7 +149,9 @@ export const MovieSelectorModal = ({ isOpen, onClose, onSelect }: MovieSelectorM
                                     )}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                                         <h3 className="text-white font-bold text-sm line-clamp-2">{movie.title}</h3>
-                                        <p className="text-gray-400 text-xs">{new Date(movie.release_date).getFullYear()}</p>
+                                        <p className="text-gray-400 text-xs">
+                                            {movie.release_date ? new Date(movie.release_date).getFullYear() : 'Fecha desconocida'}
+                                        </p>
                                     </div>
                                 </div>
                             ))}

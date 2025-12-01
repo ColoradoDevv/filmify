@@ -1,8 +1,49 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
     const resend = new Resend(process.env.RESEND_API_KEY);
+
+    // Rate Limiting
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+    const supabase = createServiceRoleClient();
+
+    // Check rate limit (5 requests per hour per IP)
+    const WINDOW_SIZE = 60 * 60 * 1000; // 1 hour
+    const LIMIT = 5;
+
+    const { data: limits } = await supabase
+        .from('rate_limits')
+        .select('*')
+        .eq('ip_address', ip)
+        .eq('endpoint', 'contact')
+        .gt('window_start', new Date(Date.now() - WINDOW_SIZE).toISOString())
+        .single();
+
+    if (limits && limits.requests_count >= LIMIT) {
+        return NextResponse.json(
+            { error: 'Too many requests. Please try again later.' },
+            { status: 429 }
+        );
+    }
+
+    // Update or Insert Rate Limit
+    if (limits) {
+        await supabase
+            .from('rate_limits')
+            .update({ requests_count: limits.requests_count + 1 })
+            .eq('id', limits.id);
+    } else {
+        await supabase
+            .from('rate_limits')
+            .insert({
+                ip_address: ip,
+                endpoint: 'contact',
+                requests_count: 1,
+                window_start: new Date().toISOString()
+            });
+    }
 
     try {
         const body = await request.json();

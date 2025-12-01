@@ -123,9 +123,18 @@ export default function Footer() {
 
                 {/* Bottom Bar */}
                 <div className="pt-8 border-t border-surface-light/30 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-xs text-text-muted">
-                        © {currentYear} FilmiFy. Todos los derechos reservados.
-                    </p>
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <p className="text-xs text-text-muted">
+                            © {currentYear} FilmiFy. Todos los derechos reservados.
+                        </p>
+                        <Link href="/security" className="opacity-80 hover:opacity-100 transition-opacity">
+                            <img
+                                src="https://img.shields.io/badge/Security-Audited%20Nov%202025-00ff00?style=flat-square"
+                                alt="Security Audited"
+                                className="h-5"
+                            />
+                        </Link>
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-text-secondary">
                         <span>Hecho con</span>
                         <Heart className="w-3 h-3 text-accent fill-accent animate-pulse" />

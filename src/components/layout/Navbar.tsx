@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Clapperboard, Heart, Sparkles, LogOut } from 'lucide-react';
+import { Menu, X, Clapperboard, Heart, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
@@ -20,6 +20,7 @@ export default function Navbar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const supabase = createClient();
     const favorites = useFavorites();
@@ -30,13 +31,41 @@ export default function Navbar() {
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
+
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                // Check if user has admin privileges
+                if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
+                    setIsAdmin(true);
+                }
+            }
+
             setLoading(false);
         };
 
         getUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setUser(session?.user ?? null);
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .single();
+                if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
+                    setIsAdmin(true);
+                } else {
+                    setIsAdmin(false);
+                }
+            } else {
+                setIsAdmin(false);
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -88,9 +117,27 @@ export default function Navbar() {
                                         <>
                                             {/* Navigation Links */}
                                             <div className="flex items-center gap-2">
+                                                {isAdmin && (
+                                                    <Link
+                                                        href="/admin"
+                                                        className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-red-500/50 ${pathname?.startsWith('/admin')
+                                                            ? 'text-red-500'
+                                                            : 'text-text-secondary hover:text-text-primary'
+                                                            }`}
+                                                    >
+                                                        <span className="relative z-10 flex items-center gap-2">
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                            Admin
+                                                        </span>
+                                                        {pathname?.startsWith('/admin') && (
+                                                            <div className="absolute inset-0 bg-red-500/10 rounded-xl" />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </Link>
+                                                )}
                                                 <Link
                                                     href="/browse"
-                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname === '/browse'
+                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/browse')
                                                         ? 'text-primary'
                                                         : 'text-text-secondary hover:text-text-primary'
                                                         }`}
@@ -99,7 +146,41 @@ export default function Navbar() {
                                                         <Clapperboard className="w-4 h-4" />
                                                         Explorar
                                                     </span>
-                                                    {pathname === '/browse' && (
+                                                    {pathname?.startsWith('/browse') && (
+                                                        <div className="absolute inset-0 bg-primary/10 rounded-xl" />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </Link>
+
+                                                <Link
+                                                    href="/rooms"
+                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/rooms')
+                                                        ? 'text-primary'
+                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        }`}
+                                                >
+                                                    <span className="relative z-10 flex items-center gap-2">
+                                                        <Users className="w-4 h-4" />
+                                                        Watch Parties
+                                                    </span>
+                                                    {pathname?.startsWith('/rooms') && (
+                                                        <div className="absolute inset-0 bg-primary/10 rounded-xl" />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </Link>
+
+                                                <Link
+                                                    href="/live-tv"
+                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/live-tv')
+                                                        ? 'text-primary'
+                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        }`}
+                                                >
+                                                    <span className="relative z-10 flex items-center gap-2">
+                                                        <Tv className="w-4 h-4" />
+                                                        TV en Vivo
+                                                    </span>
+                                                    {pathname?.startsWith('/live-tv') && (
                                                         <div className="absolute inset-0 bg-primary/10 rounded-xl" />
                                                     )}
                                                     <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -213,4 +294,3 @@ export default function Navbar() {
         </>
     );
 }
-

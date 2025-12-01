@@ -7,7 +7,8 @@ import { JoinByCodeModal } from './JoinByCodeModal';
 import { MovieSelectorModal } from './MovieSelectorModal';
 import { CreatePartyModal } from './CreatePartyModal';
 import { createClient } from '@/lib/supabase/client';
-import { Movie } from '@/types/tmdb';
+import { Movie, MovieDetails } from '@/types/tmdb';
+import { getMovieDetails } from '@/lib/tmdb/service';
 
 interface RoomsActionsProps {
     currentUser: any;
@@ -20,14 +21,25 @@ export const RoomsActions = ({ currentUser }: RoomsActionsProps) => {
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+    const [selectedImdbId, setSelectedImdbId] = useState<string | undefined>(undefined);
 
-    const handleSelectMovie = (movie: Movie) => {
+    const handleSelectMovie = async (movie: Movie) => {
         setSelectedMovie(movie);
         setIsSelectorOpen(false);
+
+        // Fetch full details to get IMDB ID
+        try {
+            const details = await getMovieDetails(movie.id);
+            setSelectedImdbId(details.imdb_id);
+        } catch (e) {
+            console.error('Error fetching movie details:', e);
+            setSelectedImdbId(undefined);
+        }
+
         setIsCreateModalOpen(true);
     };
 
-    const handleCreateParty = async (partyData: { name: string; isPrivate: boolean; password?: string }) => {
+    const handleCreateParty = async (partyData: { name: string; isPrivate: boolean; password?: string; imdbId?: string; mediaType?: 'movie' | 'tv'; language?: 'es' | 'en' }) => {
         if (!currentUser || !selectedMovie) return;
 
         const { data, error } = await supabase
@@ -41,7 +53,10 @@ export const RoomsActions = ({ currentUser }: RoomsActionsProps) => {
                 name: partyData.name,
                 is_private: partyData.isPrivate,
                 password: partyData.password,
-                room_code: Math.random().toString(36).substring(2, 8).toUpperCase()
+                room_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                imdb_id: partyData.imdbId,
+                media_type: partyData.mediaType,
+                language: partyData.language
             })
             .select()
             .single();
@@ -72,14 +87,14 @@ export const RoomsActions = ({ currentUser }: RoomsActionsProps) => {
             <div className="flex items-center gap-4">
                 <button
                     onClick={() => setIsJoinModalOpen(true)}
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-colors flex items-center gap-2 border border-white/10"
+                    className="px-4 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-colors flex items-center gap-2 border border-white/10 tv-focusable"
                 >
                     <Hash size={18} />
                     Unirse con Código
                 </button>
                 <button
                     onClick={handleCreateClick}
-                    className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20"
+                    className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20 tv-focusable"
                 >
                     <Plus size={18} />
                     Crear Sala
@@ -104,6 +119,8 @@ export const RoomsActions = ({ currentUser }: RoomsActionsProps) => {
                     onCreate={handleCreateParty}
                     movieTitle={selectedMovie.title}
                     currentUser={currentUser}
+                    imdbId={selectedImdbId}
+                    mediaType="movie"
                 />
             )}
         </>

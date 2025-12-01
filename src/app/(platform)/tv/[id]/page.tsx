@@ -6,11 +6,16 @@ import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { isTVDevice } from '@/lib/device-detection';
+import TVDetailsPageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
 
 interface PageProps {
     params: Promise<{
         id: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -37,8 +42,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 }
 
-export default async function TVDetailsPage({ params }: PageProps) {
+export default async function TVDetailsPage({ params, searchParams }: PageProps) {
     const { id } = await params;
+    const sp = await searchParams;
     const tvId = parseInt(id);
     if (isNaN(tvId)) notFound();
 
@@ -64,7 +70,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
         runtime: 0,
         budget: 0,
         revenue: 0,
-        imdb_id: '',
+        imdb_id: tvShow.external_ids?.imdb_id || '',
         video: false,
     } as unknown as MovieDetails;
 
@@ -101,9 +107,45 @@ export default async function TVDetailsPage({ params }: PageProps) {
         tvShow['watch/providers']?.results?.US ||
         Object.values(tvShow['watch/providers']?.results || {})[0];
 
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = sp.tv === 'true';
+
+    if (isGlobalTV) {
+        return (
+            <TVDetailsPageTV
+                tvShow={tvShow}
+                trailer={trailer}
+                cast={cast}
+                creator={creator}
+            />
+        );
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <TVDetailsPageTV
+                                tvShow={tvShow}
+                                trailer={trailer}
+                                cast={cast}
+                                creator={creator}
+                            />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-background pb-20">
-            <MovieHero movie={heroData} trailer={trailer} />
+            <MovieHero movie={heroData} trailer={trailer} mediaType="tv" seasons={tvShow.seasons} />
 
             <div className="container mx-auto px-4 py-12 space-y-16">
                 {/* Cast Section */}

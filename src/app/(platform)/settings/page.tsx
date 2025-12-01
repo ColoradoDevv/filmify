@@ -18,12 +18,22 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/ui/Modal';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { useTVDetection } from '@/hooks/useTVDetection';
+import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 export default function SettingsPage() {
     const supabase = createClient();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'preferences' | 'notifications'>('profile');
+
+    const { isTV } = useTVDetection();
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useSpatialNavigation(containerRef, {
+        enabled: isTV,
+        focusOnMount: true
+    });
 
     useEffect(() => {
         const getUser = async () => {
@@ -55,7 +65,7 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto" ref={containerRef}>
             {/* Enhanced Header */}
             <div className="mb-6 relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 blur-3xl -z-10 opacity-50" />
@@ -78,7 +88,7 @@ export default function SettingsPage() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
-                                    className={`group w-full flex items-center gap-4 px-5 py-4 rounded-xl text-sm font-medium transition-all duration-300 ${isActive
+                                    className={`group w-full flex items-center gap-4 px-5 py-4 rounded-xl text-sm font-medium transition-all duration-300 tv-focusable ${isActive
                                         ? 'bg-gradient-to-r from-primary to-primary-hover text-white shadow-lg shadow-primary/30 scale-[1.02]'
                                         : 'text-text-secondary hover:bg-surface-hover/50 hover:text-white hover:scale-[1.01]'
                                         }`}

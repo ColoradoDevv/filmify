@@ -2,11 +2,11 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
-    // Optional: Check for authorization header if you want to secure it with a secret
-    // const authHeader = request.headers.get('authorization');
-    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    //     return new NextResponse('Unauthorized', { status: 401 });
-    // }
+    // Check for authorization header to secure it with a secret
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return new NextResponse('Unauthorized', { status: 401 });
+    }
 
     try {
         const supabase = await createClient();

@@ -17,6 +17,45 @@ import type {
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
+// Simple in-memory cache for blacklist
+let blacklistCache: Set<number> | null = null;
+let lastBlacklistFetch = 0;
+const CACHE_TTL = 60 * 1000; // 1 minute
+
+const getBlacklist = async (): Promise<Set<number>> => {
+    const now = Date.now();
+    if (blacklistCache && (now - lastBlacklistFetch < CACHE_TTL)) {
+        return blacklistCache;
+    }
+
+    try {
+        // We use a direct fetch to Supabase REST API to avoid importing the client and causing circular deps or bundle issues
+        // assuming RLS allows public read (which we set)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) return new Set();
+
+        const response = await fetch(`${supabaseUrl}/rest/v1/content_blacklist?select=tmdb_id`, {
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`
+            },
+            next: { revalidate: 60 } // Next.js cache
+        });
+
+        if (!response.ok) return new Set();
+
+        const data = await response.json();
+        blacklistCache = new Set(data.map((item: any) => item.tmdb_id));
+        lastBlacklistFetch = now;
+        return blacklistCache;
+    } catch (e) {
+        console.error('Error fetching blacklist:', e);
+        return new Set();
+    }
+};
+
 /**
  * Get API key from environment variables
  */
@@ -57,7 +96,22 @@ const fetchFromTMDB = async <T>(endpoint: string, params: Record<string, string 
             throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+
+        // Apply blacklist filtering
+        const blacklist = await getBlacklist();
+
+        // If it's a paginated response or list
+        if (data.results && Array.isArray(data.results)) {
+            data.results = data.results.filter((item: any) => !blacklist.has(item.id));
+            // Adjust total results if needed, but it's just visual usually
+        }
+        // If it's a single item details
+        else if (data.id && blacklist.has(data.id)) {
+            throw new Error('Content is blacklisted');
+        }
+
+        return data;
     } catch (error) {
         console.error('TMDB API Error:', error);
         throw error;
@@ -128,7 +182,7 @@ export const searchMovies = async (
  */
 export const getMovieDetails = async (movieId: number): Promise<MovieDetails> => {
     return fetchFromTMDB(`/movie/${movieId}`, {
-        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers,external_ids,keywords,release_dates',
     });
 };
 
@@ -138,7 +192,7 @@ export const getMovieDetails = async (movieId: number): Promise<MovieDetails> =>
  */
 export const getTVDetails = async (tvId: number): Promise<TVDetails> => {
     return fetchFromTMDB(`/tv/${tvId}`, {
-        append_to_response: 'videos,credits,similar,recommendations,watch/providers',
+        append_to_response: 'videos,credits,similar,recommendations,watch/providers,external_ids',
     });
 };
 
@@ -221,6 +275,35 @@ export const getGenres = async (): Promise<{ genres: { id: number; name: string 
 };
 
 /**
+ * Get all available TV genres
+ */
+export const getTVGenres = async (): Promise<{ genres: { id: number; name: string }[] }> => {
+    return fetchFromTMDB('/genre/tv/list');
+};
+
+/**
+ * Discover TV shows with filters
+ */
+export const discoverTV = async (
+    filters: SearchFilters = {}
+): Promise<PaginatedResponse<TVShow>> => {
+    const params: Record<string, string | number> = {
+        page: filters.page || 1,
+        sort_by: filters.sortBy || 'popularity.desc',
+    };
+
+    if (filters.genre) {
+        params.with_genres = filters.genre;
+    }
+
+    if (filters.year) {
+        params.first_air_date_year = filters.year;
+    }
+
+    return fetchFromTMDB('/discover/tv', params);
+};
+
+/**
  * Get person details
  * @param personId - TMDB person ID
  */
@@ -228,6 +311,19 @@ export const getPersonDetails = async (personId: number): Promise<Person> => {
     return fetchFromTMDB(`/person/${personId}`, {
         append_to_response: 'movie_credits,tv_credits',
     });
+};
+
+/**
+ * Get external IDs for a movie (IMDB, TVDB, etc.)
+ * @param movieId - TMDB movie ID
+ */
+export const getExternalIds = async (movieId: number): Promise<{
+    imdb_id: string | null;
+    facebook_id: string | null;
+    instagram_id: string | null;
+    twitter_id: string | null;
+}> => {
+    return fetchFromTMDB(`/movie/${movieId}/external_ids`);
 };
 
 /**
@@ -271,7 +367,10 @@ export const TMDBService = {
     getNowPlaying,
     getUpcoming,
     getGenres,
+    getTVGenres,
+    discoverTV,
     getPersonDetails,
+    getExternalIds,
     getImageUrl,
     getPosterUrl,
     getBackdropUrl,

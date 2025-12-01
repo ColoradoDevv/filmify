@@ -7,10 +7,11 @@ interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
+    description?: string;
     children: React.ReactNode;
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, description, children }: ModalProps) {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -37,7 +38,10 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
             {/* Modal Content */}
             <div className={`relative bg-surface border border-surface-light rounded-2xl w-full max-w-md shadow-2xl transform transition-all duration-300 ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
                 <div className="flex items-center justify-between p-6 border-b border-surface-light">
-                    <h3 className="text-xl font-bold text-white">{title}</h3>
+                    <div>
+                        <h3 className="text-xl font-bold text-white">{title}</h3>
+                        {description && <p className="text-sm text-gray-400 mt-1">{description}</p>}
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-surface-light rounded-lg transition-colors text-text-secondary hover:text-white"

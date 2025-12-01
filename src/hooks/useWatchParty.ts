@@ -308,6 +308,29 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         });
     }, []);
 
+    const updateLanguage = useCallback(async (language: 'es' | 'en') => {
+        if (!party) return;
+
+        const { error } = await supabase
+            .from('parties')
+            .update({ language })
+            .eq('id', party.id);
+
+    }, [party]);
+
+    const updateSource = useCallback(async (source: string | null) => {
+        if (!party) return;
+
+        const { error } = await supabase
+            .from('parties')
+            .update({ source })
+            .eq('id', party.id);
+
+        if (error) {
+            console.error('Failed to update source', error);
+        }
+    }, [party]);
+
     return {
         party,
         members,
@@ -323,5 +346,7 @@ export const useWatchParty = ({ partyId, currentUser }: UseWatchPartyProps) => {
         lastControlAction,
         syncData,
         memberJoinedAt,
+        updateLanguage,
+        updateSource,
     };
 };

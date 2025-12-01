@@ -1,6 +1,7 @@
 'use server';
 
 import Groq from 'groq-sdk';
+import { getSettings } from "./admin-settings";
 
 const apiKey = process.env.GROQ_API_KEY;
 
@@ -33,6 +34,9 @@ interface AINotificationResponse {
 }
 
 export async function getGeminiRecommendations(favorites: string[]): Promise<Recommendation[]> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return [];
+
     if (!groq) {
         return [];
     }
@@ -76,6 +80,9 @@ Do not include markdown formatting or explanations.`;
  * Get movie recommendations as a JSON array of titles
  */
 export async function getMovieRecommendationsJSON(prompt: string): Promise<string[]> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return [];
+
     if (!groq) {
         return [];
     }
@@ -111,6 +118,9 @@ export async function getMovieRecommendationsJSON(prompt: string): Promise<strin
  * Generate a generic AI response based on a prompt
  */
 export async function generateAIResponse(prompt: string): Promise<string> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return 'La IA está deshabilitada por el administrador.';
+
     if (!groq) {
         return 'Lo siento, la IA no está configurada correctamente.';
     }
@@ -133,6 +143,9 @@ export async function generateAIResponse(prompt: string): Promise<string> {
  * Get AI-generated notifications for new movie releases
  */
 export async function getNewReleasesNotifications(): Promise<Notification[]> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return [];
+
     if (!groq) {
         return [];
     }
@@ -180,6 +193,9 @@ export async function getNewReleasesNotifications(): Promise<Notification[]> {
  * Get AI-generated movie industry news notifications
  */
 export async function getMovieNewsNotifications(): Promise<Notification[]> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return [];
+
     if (!groq) {
         return [];
     }
@@ -227,6 +243,9 @@ export async function getMovieNewsNotifications(): Promise<Notification[]> {
  * Get AI-generated special offers notifications
  */
 export async function getSpecialOffersNotifications(favorites: string[]): Promise<Notification[]> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return [];
+
     if (!groq) {
         return [];
     }
@@ -279,6 +298,9 @@ export async function getSpecialOffersNotifications(favorites: string[]): Promis
  * Get AI-generated search correction
  */
 export async function getSearchCorrection(query: string): Promise<string | null> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return null;
+
     if (!groq) {
         return null;
     }
@@ -315,6 +337,9 @@ export async function getSearchCorrection(query: string): Promise<string | null>
  * Get YouTube trailer ID using AI
  */
 export async function getYouTubeTrailerId(title: string, year: string, type: 'movie' | 'tv', productionCompany?: string): Promise<string | null> {
+    const settings = await getSettings();
+    if (!settings.enableAi) return null;
+
     if (!groq) {
         return null;
     }
@@ -366,4 +391,3 @@ export async function getYouTubeTrailerId(title: string, year: string, type: 'mo
         return null;
     }
 }
-

@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Home, Heart, Settings, Film, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
+import { useRef } from 'react';
+import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 const navigation = [
     { name: 'Inicio', href: '/browse', icon: Home },
@@ -14,8 +16,23 @@ const navigation = [
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const isCollapsed = useIsSidebarCollapsed();
     const toggleSidebar = useToggleSidebar();
+    const navRef = useRef<HTMLElement>(null);
+
+    // Enable spatial navigation for sidebar
+    useSpatialNavigation(navRef, {
+        enabled: true,
+        focusOnMount: false
+    });
+
+    const handleNavKeyDown = (e: React.KeyboardEvent, href: string) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            router.push(href);
+        }
+    };
 
     return (
         <aside
@@ -29,31 +46,46 @@ export default function Sidebar() {
                 {/* Toggle Button */}
                 <button
                     onClick={toggleSidebar}
-                    className="absolute -right-3 top-8 w-6 h-6 bg-surface border border-white/10 rounded-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-hover transition-colors shadow-lg z-50"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleSidebar();
+                        }
+                    }}
+                    className="absolute -right-3 top-8 w-6 h-6 bg-surface border border-white/10 rounded-full flex items-center justify-center text-text-secondary hover:text-white hover:bg-surface-hover transition-colors shadow-lg z-50 tv-focusable focus:outline-none"
+                    tabIndex={0}
+                    data-focusable="true"
+                    aria-label={isCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
                 >
                     {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
                 </button>
 
                 {/* Logo */}
                 <div className={`flex items-center gap-3 py-8 mb-4 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'px-8'}`}>
-                    <Link href="/browse" className="relative group flex items-center justify-center">
+                    <Link
+                        href="/browse"
+                        className="relative group flex items-center justify-center tv-focusable focus:outline-none"
+                        tabIndex={0}
+                        onKeyDown={(e) => handleNavKeyDown(e, '/browse')}
+                        data-focusable="true"
+                    >
                         {/* Full Logo */}
                         <img
                             src="/logo-full.svg"
                             alt="FilmiFy Logo"
-                            className={`h-10 w-auto transition-all duration-300 ${isCollapsed ? 'hidden' : 'block group-hover:scale-105'}`}
+                            className={`h-10 w-auto transition-all duration-300 ${isCollapsed ? 'hidden' : 'block group-hover:scale-105 group-focus:scale-105'}`}
                         />
                         {/* Icon Logo */}
                         <img
                             src="/logo-icon.svg"
                             alt="FilmiFy Icon"
-                            className={`h-8 w-8 transition-all duration-300 ${isCollapsed ? 'block group-hover:scale-110' : 'hidden'}`}
+                            className={`h-8 w-8 transition-all duration-300 ${isCollapsed ? 'block group-hover:scale-110 group-focus:scale-110' : 'hidden'}`}
                         />
                     </Link>
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-3 space-y-2">
+                <nav ref={navRef} className="flex-1 px-3 space-y-2" role="navigation" aria-label="Navegación principal">
                     {navigation.map((item) => {
                         const isActive = pathname === item.href;
                         const Icon = item.icon;
@@ -62,17 +94,22 @@ export default function Sidebar() {
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group relative flex items-center py-4 rounded-xl transition-all duration-300 overflow-hidden ${isActive
+                                onKeyDown={(e) => handleNavKeyDown(e, item.href)}
+                                className={`group relative flex items-center py-4 rounded-xl transition-all duration-300 overflow-hidden tv-focusable focus:outline-none ${isActive
                                     ? 'text-white shadow-lg shadow-primary/20'
-                                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                    : 'text-text-secondary hover:text-white hover:bg-white/5 focus:text-white focus:bg-white/5'
                                     } ${isCollapsed ? 'justify-center px-2 gap-0' : 'px-5 gap-4'}`}
                                 title={isCollapsed ? item.name : undefined}
+                                tabIndex={0}
+                                data-focusable="true"
+                                aria-label={item.name}
+                                aria-current={isActive ? 'page' : undefined}
                             >
                                 {isActive && (
                                     <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/20 rounded-xl" />
                                 )}
 
-                                <Icon className={`w-5 h-5 relative z-10 transition-transform duration-300 ${isActive ? 'scale-110 text-primary' : 'group-hover:scale-110 group-hover:text-primary'
+                                <Icon className={`w-5 h-5 relative z-10 transition-transform duration-300 ${isActive ? 'scale-110 text-primary' : 'group-hover:scale-110 group-hover:text-primary group-focus:scale-110 group-focus:text-primary'
                                     }`} />
 
                                 <span className={`font-medium relative z-10 tracking-wide whitespace-nowrap transition-all duration-300 ${isActive ? 'font-semibold' : ''

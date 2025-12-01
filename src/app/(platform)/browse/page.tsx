@@ -1,33 +1,92 @@
-import { getTrending, discoverMovies, getGenres } from '@/lib/tmdb/service';
+import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
 import FilterBar from '@/components/features/FilterBar';
 import AIRecommendations from '@/components/features/AIRecommendations';
 import MovieGrid from '@/components/features/MovieGrid';
-import { AdBannerWrapper } from '@/components/ads';
-import { TrendingUp } from 'lucide-react';
+import ComingSoon from '@/components/features/ComingSoon';
+import { TrendingUp, Tv, Film } from 'lucide-react';
+import BrowsePageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+import { isTVDevice } from '@/lib/device-detection';
+
+// ...
+
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     const params = await searchParams;
+
+    // Check for TV mode via server-side detection or search params
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = params.tv === 'true';
+
+    if (isGlobalTV) {
+        // PlatformLayout already handles the shell
+        return <BrowsePageTV searchParams={searchParams} />;
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <BrowsePageTV searchParams={searchParams} />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
+    }
+
+    const category = typeof params.category === 'string' ? params.category : 'movie';
     const genre = params.genre ? Number(params.genre) : undefined;
     const year = params.year ? Number(params.year) : undefined;
     const sortBy = params.sort_by as "popularity.desc" | "vote_average.desc" | "primary_release_date.desc" | undefined;
 
-    let movies;
+    // Handle unsupported categories
+    if (['novelas', 'anime', 'live-tv'].includes(category)) {
+        const titles: Record<string, string> = {
+            novelas: 'Telenovelas',
+            anime: 'Anime',
+            'live-tv': 'TV en Vivo'
+        };
 
-    if (genre || sortBy || year) {
-        const data = await discoverMovies({ genre, year, sortBy, page: 1 });
-        movies = data.results;
-    } else {
-        // Fetch trending movies on the server
-        const trendingData = await getTrending('movie', 'week', 1);
-        movies = trendingData.results;
+        return (
+            <ComingSoon
+                title={titles[category]}
+                description="Estamos trabajando para traerte el mejor contenido de esta categoría. ¡Vuelve pronto!"
+            />
+        );
     }
 
-    // Fetch genres
-    const { genres } = await getGenres();
+    const isTV = category === 'tv';
+    let content;
+
+    if (genre || sortBy || year) {
+        const data = isTV
+            ? await discoverTV({ genre, year, sortBy, page: 1 })
+            : await discoverMovies({ genre, year, sortBy, page: 1 });
+        content = data.results;
+    } else {
+        // Fetch trending content on the server
+        if (isTV) {
+            const trendingData = await getTrending('tv', 'week', 1);
+            content = trendingData.results;
+        } else {
+            const trendingData = await getTrending('movie', 'week', 1);
+            content = trendingData.results;
+        }
+    }
+
+    // Fetch genres based on category
+    const { genres } = isTV ? await getTVGenres() : await getGenres();
 
     return (
         <div className="space-y-8 pb-20">
@@ -39,22 +98,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                 <div className="relative z-10 p-8 sm:p-12">
                     <div className="space-y-4 max-w-2xl">
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 animate-fade-in-up">
-                            <TrendingUp className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-medium text-white/90">Actualizado semanalmente</span>
+                            {isTV ? <Tv className="w-4 h-4 text-primary" /> : <TrendingUp className="w-4 h-4 text-primary" />}
+                            <span className="text-xs font-medium text-white/90">
+                                {isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
+                            </span>
                         </div>
                         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-                            Tendencias <span className="text-gradient-premium">Globales</span>
+                            Explora <span className="text-gradient-premium">{isTV ? 'Series' : 'Películas'}</span>
                         </h1>
                         <p className="text-text-secondary text-lg">
-                            Explora las películas que están definiendo la conversación cinematográfica esta semana.
+                            {isTV
+                                ? 'Descubre las series más populares y aclamadas del momento.'
+                                : 'Explora las películas que están definiendo la conversación cinematográfica.'}
                         </p>
                     </div>
                 </div>
-            </div>
-
-            {/* Ad Banner - Only visible to free users */}
-            <div className="my-8">
-                <AdBannerWrapper position="hero" />
             </div>
 
             {/* AI Recommendations */}
@@ -64,7 +122,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <FilterBar genres={genres} />
 
             {/* Movies Grid with Load More */}
-            <MovieGrid initialMovies={movies} />
+            <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
         </div>
     );
 }

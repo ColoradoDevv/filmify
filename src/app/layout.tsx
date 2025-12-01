@@ -89,16 +89,27 @@ export const viewport: Viewport = {
 
 
 
-export default function RootLayout({
+import SystemAnnouncement from "@/components/SystemAnnouncement";
+import { Toaster } from "sonner";
+
+// ...
+
+import { isTVDevice } from "@/lib/device-detection";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isTV = await isTVDevice();
+
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased ${isTV ? 'tv-mode' : ''}`}
       >
+        <SystemAnnouncement />
+        <Toaster position="top-center" richColors />
         {children}
         <SpeedInsights />
         <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ""} />

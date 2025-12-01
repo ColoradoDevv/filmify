@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Lock, Globe, Users, Play, X } from 'lucide-react';
@@ -8,6 +8,8 @@ import { getPosterUrl } from '@/lib/tmdb/service';
 import { verifyRoomPassword } from '@/app/(platform)/rooms/actions';
 import { Party } from '@/types/watch-party';
 import { createClient } from '@/lib/supabase/client';
+import { useTVDetection } from '@/hooks/useTVDetection';
+import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 interface RoomsListProps {
     initialParties: Party[];
@@ -21,6 +23,14 @@ export default function RoomsList({ initialParties }: RoomsListProps) {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const supabase = createClient();
+
+    const { isTV } = useTVDetection();
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useSpatialNavigation(containerRef, {
+        enabled: isTV,
+        focusOnMount: true
+    });
 
     useEffect(() => {
         setParties(initialParties);
@@ -143,11 +153,11 @@ export default function RoomsList({ initialParties }: RoomsListProps) {
 
     return (
         <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" ref={containerRef}>
                 {parties.map((party) => (
                     <div
                         key={party.id}
-                        className="group relative bg-surface border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 cursor-pointer"
+                        className="group relative bg-surface border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 cursor-pointer tv-focusable focus:scale-105"
                         onClick={() => handleJoin(party)}
                     >
                         {/* Backdrop/Poster Background */}
@@ -209,67 +219,65 @@ export default function RoomsList({ initialParties }: RoomsListProps) {
                         </div>
                     </div>
                 ))}
-            </div >
+            </div>
 
             {/* Password Modal */}
-            {
-                selectedParty && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                        <div className="w-full max-w-sm bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-                                <h3 className="font-bold text-white">Sala Privada</h3>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedParty(null);
-                                    }}
-                                    className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                                >
-                                    <X size={20} />
-                                </button>
+            {selectedParty && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                            <h3 className="font-bold text-white">Sala Privada</h3>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedParty(null);
+                                }}
+                                className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
+                            <div className="text-center space-y-2">
+                                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto text-red-400 mb-4">
+                                    <Lock size={24} />
+                                </div>
+                                <p className="text-sm text-gray-400">
+                                    Esta sala está protegida. Ingresa el código de acceso.
+                                </p>
                             </div>
 
-                            <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
-                                <div className="text-center space-y-2">
-                                    <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto text-red-400 mb-4">
-                                        <Lock size={24} />
-                                    </div>
-                                    <p className="text-sm text-gray-400">
-                                        Esta sala está protegida. Ingresa el código de acceso.
-                                    </p>
-                                </div>
+                            <input
+                                type="text"
+                                maxLength={6}
+                                autoFocus
+                                value={password}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setPassword(val);
+                                }}
+                                className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all tracking-widest text-center font-mono text-lg"
+                                placeholder="000000"
+                            />
 
-                                <input
-                                    type="text"
-                                    maxLength={6}
-                                    autoFocus
-                                    value={password}
-                                    onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, '');
-                                        setPassword(val);
-                                    }}
-                                    className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all tracking-widest text-center font-mono text-lg"
-                                    placeholder="000000"
-                                />
+                            {error && (
+                                <p className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-lg">
+                                    {error}
+                                </p>
+                            )}
 
-                                {error && (
-                                    <p className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-lg">
-                                        {error}
-                                    </p>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    disabled={isLoading || password.length !== 6}
-                                    className="w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isLoading ? 'Verificando...' : 'Entrar'}
-                                </button>
-                            </form>
-                        </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading || password.length !== 6}
+                                className="w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? 'Verificando...' : 'Entrar'}
+                            </button>
+                        </form>
                     </div>
-                )
-            }
+                </div>
+            )}
         </>
     );
 }

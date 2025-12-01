@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, User, AlertCircle, Loader2, ArrowLeft, Eye, EyeOff, Sparkles, Check, X } from 'lucide-react';
@@ -27,6 +27,44 @@ export default function RegisterPage() {
     const captchaRef = useRef<HCaptcha>(null);
     const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const supabase = createClient();
+
+    // Check registration setting
+    const [registrationAllowed, setRegistrationAllowed] = useState(true);
+    const [checkingSettings, setCheckingSettings] = useState(true);
+
+    useEffect(() => {
+        import('@/app/admin/settings/actions').then(({ fetchSettings }) => {
+            fetchSettings().then(settings => {
+                setRegistrationAllowed(settings.allowRegistration);
+                setCheckingSettings(false);
+            });
+        });
+    }, []);
+
+    if (!checkingSettings && !registrationAllowed) {
+        return (
+            <div className="relative flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                <Link
+                    href="/"
+                    className="absolute top-0 left-0 inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
+                >
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-medium">Volver al inicio</span>
+                </Link>
+                <div className="bg-red-500/10 p-6 rounded-full mb-6">
+                    <User className="w-16 h-16 text-red-500" />
+                </div>
+                <h1 className="text-3xl font-bold text-white mb-4">Registro Cerrado</h1>
+                <p className="text-gray-400 max-w-md mb-8">
+                    Lo sentimos, el registro de nuevos usuarios está temporalmente deshabilitado.
+                    Por favor, intenta más tarde o contacta al administrador.
+                </p>
+                <Link href="/" className="px-6 py-3 bg-surface border border-surface-light rounded-xl hover:bg-surface-light transition-colors">
+                    Volver al Inicio
+                </Link>
+            </div>
+        );
+    }
 
     // Blacklist validation
     const blacklist = useMemo(() => [

@@ -14,6 +14,14 @@ export interface Party {
     password?: string;
     room_code: string;
     party_members?: { count: number }[];
+    imdb_id?: string | null;
+    player_mode?: 'trailer' | 'movie';
+    embed_url?: string | null;
+    media_type?: 'movie' | 'tv';
+    season?: number;
+    episode?: number;
+    language?: 'es' | 'en';
+    source?: string | null;
 }
 
 export interface PartyMember {

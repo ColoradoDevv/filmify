@@ -235,5 +235,804 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+
+  /* Larger text for TV viewing */
+  .tv-text-lg {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .tv-text-xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .tv-text-2xl {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+
+  /* Larger spacing */
+  .tv-spacing-lg {
+    padding: 1.5rem;
+  }
+
+  .tv-spacing-xl {
+    padding: 2rem;
+  }
+
+  /* Larger touch targets */
+  .tv-target {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .tv-target-lg {
+    min-width: 64px;
+    min-height: 64px;
+  }
+}
+
+/* TV Mode Body Styles */
+body.tv-mode {
+  font-size: 18px;
+  cursor: none;
+  /* Hide cursor on TV */
+}
+
+body.tv-mode * {
+  cursor: none !important;
+}
+
+/* TV-specific grid layouts */
+.tv-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+@media screen and (min-width: 1920px) {
+  .tv-grid-movies {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .tv-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+/* TV Navigation Hints */
+.tv-nav-hint {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  z-index: 1000;
+  opacity: 0;
+  animation: fade-in-hint 0.5s ease-out 1s forwards;
+}
+
+@keyframes fade-in-hint {
+  to {
+    opacity: 1;
+  }
+}
+
+/* TV-specific animations */
+@keyframes tv-focus-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+      0 0 20px rgba(0, 194, 255, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.4),
+      0 0 30px rgba(0, 194, 255, 0.6);
+  }
+}
+
+.tv-focus-animate {
+  animation: tv-focus-pulse 2s ease-in-out infinite;
+}
+
+/* Hide elements not suitable for TV */
+@media screen and (min-width: 1920px) {
+  .tv-hide {
+    display: none !important;
+  }
+
+  .tv-show {
+    display: block !important;
+  }
+}
+
+/* TV-optimized scrollbar */
+body.tv-mode ::-webkit-scrollbar {
+  width: 12px;
+}
+
+body.tv-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 194, 255, 0.5);
+  border-radius: 20px;
+  border: 2px solid transparent;
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 194, 255, 0.7);
+}
+
+/* Focus within - show content when parent is focused */
+.tv-focus-within:focus-within {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+    0 0 20px rgba(0, 194, 255, 0.4);
+}
+
+/* Skip to content link for accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #00c2ff;
+  color: white;
+  padding: 8px 16px;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tv-focusable:focus {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+  transform: scale(1.05);
+  z-index: 10;
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+    0 0 20px rgba(0, 194, 255, 0.4),
+    0 0 40px rgba(0, 194, 255, 0.2);
+}
+
+.tv-focusable:focus-visible {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+}
+
+/* Prominent focus for cards */
+.tv-card-focus:focus {
+  outline: 4px solid #00c2ff;
+  outline-offset: 6px;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.3),
+    0 0 30px rgba(0, 194, 255, 0.5),
+    0 0 60px rgba(0, 194, 255, 0.3),
+    0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Focus for buttons */
+.tv-button-focus:focus {
+  outline: 3px solid #00c2ff;
+  outline-offset: 3px;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.3),
+    0 0 20px rgba(0, 194, 255, 0.5);
+}
+
+/* 10-Foot UI Optimizations */
+@media screen and (min-width: 1920px) {
+
+  /* Larger text for TV viewing */
+  .tv-text-lg {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .tv-text-xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .tv-text-2xl {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+
+  /* Larger spacing */
+  .tv-spacing-lg {
+    padding: 1.5rem;
+  }
+
+  .tv-spacing-xl {
+    padding: 2rem;
+  }
+
+  /* Larger touch targets */
+  .tv-target {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .tv-target-lg {
+    min-width: 64px;
+    min-height: 64px;
+  }
+}
+
+/* TV Mode Body Styles */
+body.tv-mode {
+  font-size: 18px;
+  cursor: none;
+  /* Hide cursor on TV */
+}
+
+body.tv-mode * {
+  cursor: none !important;
+}
+
+/* TV-specific grid layouts */
+.tv-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+@media screen and (min-width: 1920px) {
+  .tv-grid-movies {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .tv-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+/* TV Navigation Hints */
+.tv-nav-hint {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  z-index: 1000;
+  opacity: 0;
+  animation: fade-in-hint 0.5s ease-out 1s forwards;
+}
+
+@keyframes fade-in-hint {
+  to {
+    opacity: 1;
+  }
+}
+
+/* TV-specific animations */
+@keyframes tv-focus-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+      0 0 20px rgba(0, 194, 255, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.4),
+      0 0 30px rgba(0, 194, 255, 0.6);
+  }
+}
+
+.tv-focus-animate {
+  animation: tv-focus-pulse 2s ease-in-out infinite;
+}
+
+/* Hide elements not suitable for TV */
+@media screen and (min-width: 1920px) {
+  .tv-hide {
+    display: none !important;
+  }
+
+  .tv-show {
+    display: block !important;
+  }
+}
+
+/* TV-optimized scrollbar */
+body.tv-mode ::-webkit-scrollbar {
+  width: 12px;
+}
+
+body.tv-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 194, 255, 0.5);
+  border-radius: 20px;
+  border: 2px solid transparent;
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 194, 255, 0.7);
+}
+
+/* Focus within - show content when parent is focused */
+.tv-focus-within:focus-within {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+    0 0 20px rgba(0, 194, 255, 0.4);
+}
+
+/* Skip to content link for accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #00c2ff;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* TV Horizontal Rows */
+.tv-row {
+  position: relative;
+}
+
+.tv-row-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.tv-row-item:focus-within {
+  transform: scale(1.05);
+  z-index: 20;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scroll behavior */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+}
+
+/* TV Row Animations */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.tv-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+
+/* TV Navigation Hints */
+.tv-nav-hint {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  z-index: 1000;
+  opacity: 0;
+  animation: fade-in-hint 0.5s ease-out 1s forwards;
+}
+
+@keyframes fade-in-hint {
+  to {
+    opacity: 1;
+  }
+}
+
+/* TV-specific animations */
+@keyframes tv-focus-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+      0 0 20px rgba(0, 194, 255, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.4),
+      0 0 30px rgba(0, 194, 255, 0.6);
+  }
+}
+
+.tv-focus-animate {
+  animation: tv-focus-pulse 2s ease-in-out infinite;
+}
+
+/* Hide elements not suitable for TV */
+@media screen and (min-width: 1920px) {
+  .tv-hide {
+    display: none !important;
+  }
+
+  .tv-show {
+    display: block !important;
+  }
+}
+
+/* TV-optimized scrollbar */
+body.tv-mode ::-webkit-scrollbar {
+  width: 12px;
+}
+
+body.tv-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 194, 255, 0.5);
+  border-radius: 20px;
+  border: 2px solid transparent;
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 194, 255, 0.7);
+}
+
+/* Focus within - show content when parent is focused */
+.tv-focus-within:focus-within {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+    0 0 20px rgba(0, 194, 255, 0.4);
+}
+
+/* Skip to content link for accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #00c2ff;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* TV Horizontal Rows */
+.tv-row {
+  position: relative;
+}
+
+.tv-row-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.tv-row-item:focus-within {
+  transform: scale(1.05);
+  z-index: 20;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scroll behavior */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+}
+
+/* TV Row Animations */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* TV Mode Enhancements */
+body.tv-mode .tv-row {
+  margin-bottom: 4rem;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.tv-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+
+/* TV Navigation Hints */
+.tv-nav-hint {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  z-index: 1000;
+  opacity: 0;
+  animation: fade-in-hint 0.5s ease-out 1s forwards;
+}
+
+@keyframes fade-in-hint {
+  to {
+    opacity: 1;
+  }
+}
+
+/* TV-specific animations */
+@keyframes tv-focus-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+      0 0 20px rgba(0, 194, 255, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.4),
+      0 0 30px rgba(0, 194, 255, 0.6);
+  }
+}
+
+.tv-focus-animate {
+  animation: tv-focus-pulse 2s ease-in-out infinite;
+}
+
+/* Hide elements not suitable for TV */
+@media screen and (min-width: 1920px) {
+  .tv-hide {
+    display: none !important;
+  }
+
+  .tv-show {
+    display: block !important;
+  }
+}
+
+/* TV-optimized scrollbar */
+body.tv-mode ::-webkit-scrollbar {
+  width: 12px;
+}
+
+body.tv-mode ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 194, 255, 0.5);
+  border-radius: 20px;
+  border: 2px solid transparent;
+}
+
+body.tv-mode ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 194, 255, 0.7);
+}
+
+/* Focus within - show content when parent is focused */
+.tv-focus-within:focus-within {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
+    0 0 20px rgba(0, 194, 255, 0.4);
+}
+
+/* Skip to content link for accessibility */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #00c2ff;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* TV Horizontal Rows */
+.tv-row {
+  position: relative;
+}
+
+.tv-row-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.tv-row-item:focus-within {
+  transform: scale(1.05);
+  z-index: 20;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scroll behavior */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+}
+
+/* TV Row Animations */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* TV Mode Enhancements */
+body.tv-mode .tv-row {
+  margin-bottom: 4rem;
+}
+
+body.tv-mode .tv-row-item {
+  width: 280px;
+}
+
+/* Focus ring for TV mode */
+body.tv-mode *:focus {
+  outline: 3px solid #00c2ff;
+  outline-offset: 4px;
+}
+
+/* Larger cards for TV */
+@media screen and (min-width: 1920px) {
+  .tv-row-item {
+    width: 300px !important;
+  }
+}
+
+/* Hide default layout elements in TV mode */
+body.tv-mode aside:not(.tv-sidebar),
+body.tv-mode header,
+body.tv-mode .platform-content {
+  display: none !important;
+}
+
+/* Ensure TV layout takes full width */
+body.tv-mode main {
+  width: 100vw;
+  max-width: 100vw;
+  padding: 0;
+  margin: 0;
 }

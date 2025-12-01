@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
     formats: ['image/webp'],
     minimumCacheTTL: 60,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/portal.php',
+        destination: '/api/portal',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
