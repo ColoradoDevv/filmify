@@ -87,14 +87,14 @@ export const RoomsActions = ({ currentUser }: RoomsActionsProps) => {
             <div className="flex items-center gap-4">
                 <button
                     onClick={() => setIsJoinModalOpen(true)}
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-colors flex items-center gap-2 border border-white/10"
+                    className="px-4 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-colors flex items-center gap-2 border border-white/10 tv-focusable"
                 >
                     <Hash size={18} />
                     Unirse con Código
                 </button>
                 <button
                     onClick={handleCreateClick}
-                    className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20"
+                    className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20 tv-focusable"
                 >
                     <Plus size={18} />
                     Crear Sala

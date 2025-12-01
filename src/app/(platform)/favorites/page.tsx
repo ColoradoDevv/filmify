@@ -1,14 +1,24 @@
 'use client';
 
+import { useRef } from 'react';
 import { Heart } from 'lucide-react';
 import { useFavorites } from '@/lib/store/useStore';
 import MovieCard from '@/components/features/MovieCard';
+import { useTVDetection } from '@/hooks/useTVDetection';
+import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 export default function FavoritesPage() {
     const favorites = useFavorites();
+    const { isTV } = useTVDetection();
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useSpatialNavigation(containerRef, {
+        enabled: isTV,
+        focusOnMount: true
+    });
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8" ref={containerRef}>
             {/* Header */}
             <div className="flex items-center gap-3">
                 <Heart className="w-8 h-8 text-accent" />
@@ -24,7 +34,9 @@ export default function FavoritesPage() {
             {favorites.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                     {favorites.map((movie) => (
-                        <MovieCard key={movie.id} movie={movie} />
+                        <div key={movie.id} className="tv-focusable rounded-xl transition-transform focus:scale-105">
+                            <MovieCard movie={movie} />
+                        </div>
                     ))}
                 </div>
             ) : (

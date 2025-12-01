@@ -8,11 +8,16 @@ import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft, Faceboo
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { isTVDevice } from '@/lib/device-detection';
+import MovieDetailsPageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
 
 interface PageProps {
     params: Promise<{
         id: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -39,8 +44,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 }
 
-export default async function MovieDetailsPage({ params }: PageProps) {
+export default async function MovieDetailsPage({ params, searchParams }: PageProps) {
     const { id } = await params;
+    const sp = await searchParams;
     const movieId = parseInt(id);
     if (isNaN(movieId)) notFound();
 
@@ -121,6 +127,44 @@ export default async function MovieDetailsPage({ params }: PageProps) {
             maximumFractionDigits: 0,
         }).format(value);
     };
+
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = sp.tv === 'true';
+
+    if (isGlobalTV) {
+        return (
+            <MovieDetailsPageTV
+                movie={movie}
+                trailer={trailer}
+                cast={cast}
+                certification={certification}
+                director={director}
+            />
+        );
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <MovieDetailsPageTV
+                                movie={movie}
+                                trailer={trailer}
+                                cast={cast}
+                                certification={certification}
+                                director={director}
+                            />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background pb-20">

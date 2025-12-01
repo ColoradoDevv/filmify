@@ -155,7 +155,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                     <div className="container mx-auto px-4 pb-12">
                         <Link
                             href="/browse"
-                            className="absolute top-24 left-4 p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-primary hover:border-primary hover:scale-110 transition-all duration-300 z-20 group/back"
+                            className="absolute top-24 left-4 p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-primary hover:border-primary hover:scale-110 transition-all duration-300 z-20 group/back tv-focusable focus:outline-none focus:ring-2 focus:ring-primary focus:scale-110"
                         >
                             <ChevronLeft className="w-6 h-6 group-hover/back:-translate-x-1 transition-transform" />
                         </Link>
@@ -246,7 +246,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                                 setIsPlaying(true);
                                                 setIsMuted(false);
                                             }}
-                                            className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-gray-300 font-medium flex items-center gap-2 hover:bg-white/10 hover:text-white transition-colors"
+                                            className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-gray-300 font-medium flex items-center gap-2 hover:bg-white/10 hover:text-white transition-colors tv-focusable focus:outline-none focus:bg-white/20 focus:scale-105"
                                         >
                                             <Play className="w-4 h-4 fill-current" />
                                             Ver Tráiler
@@ -260,7 +260,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                                 setIsPlaying(false);
                                             }
                                         }}
-                                        className="px-8 py-3 rounded-full bg-primary text-white font-bold flex items-center gap-2 hover:bg-primary/90 transition-transform hover:scale-105 shadow-lg shadow-primary/25"
+                                        className="px-8 py-3 rounded-full bg-primary text-white font-bold flex items-center gap-2 hover:bg-primary/90 transition-transform hover:scale-105 shadow-lg shadow-primary/25 tv-focusable focus:outline-none focus:ring-4 focus:ring-primary/50 focus:scale-110"
                                     >
                                         <Play className="w-5 h-5 fill-current" />
                                         {mediaType === 'movie' ? 'Ver Película' : 'Ver Serie'}
@@ -268,22 +268,22 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                     {showVideo && (
                                         <button
                                             onClick={() => setShowVideo(false)}
-                                            className="px-8 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold flex items-center gap-2 hover:bg-white/20 transition-colors"
+                                            className="px-8 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold flex items-center gap-2 hover:bg-white/20 transition-colors tv-focusable focus:outline-none focus:bg-white/30"
                                         >
                                             Detener
                                         </button>
                                     )}
                                     <button
                                         onClick={handleCreatePartyClick}
-                                        className="px-6 py-3 rounded-full bg-purple-600 text-white font-bold flex items-center gap-2 hover:bg-purple-700 transition-transform hover:scale-105 shadow-lg shadow-purple-600/25"
+                                        className="px-6 py-3 rounded-full bg-purple-600 text-white font-bold flex items-center gap-2 hover:bg-purple-700 transition-transform hover:scale-105 shadow-lg shadow-purple-600/25 tv-focusable focus:outline-none focus:ring-4 focus:ring-purple-600/50 focus:scale-110"
                                     >
                                         <Users className="w-5 h-5" />
                                         Watch Party
                                     </button>
-                                    <button className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors">
+                                    <button className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors tv-focusable focus:outline-none focus:bg-white/30 focus:scale-110">
                                         <Heart className="w-6 h-6" />
                                     </button>
-                                    <button className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors">
+                                    <button className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors tv-focusable focus:outline-none focus:bg-white/30 focus:scale-110">
                                         <Share2 className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -308,7 +308,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                                 setSelectedSeason(Number(e.target.value));
                                                 setSelectedEpisode(1); // Reset episode when season changes
                                             }}
-                                            className="appearance-none bg-white/10 border border-white/20 text-white py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer font-medium"
+                                            className="appearance-none bg-white/10 border border-white/20 text-white py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer font-medium tv-focusable"
                                         >
                                             {seasons.map((season) => (
                                                 <option key={season.id} value={season.season_number} className="bg-gray-900 text-white">
@@ -325,7 +325,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                         <select
                                             value={selectedEpisode}
                                             onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                                            className="appearance-none bg-white/10 border border-white/20 text-white py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer font-medium"
+                                            className="appearance-none bg-white/10 border border-white/20 text-white py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer font-medium tv-focusable"
                                         >
                                             {Array.from({ length: seasons.find(s => s.season_number === selectedSeason)?.episode_count || 0 }, (_, i) => i + 1).map((ep) => (
                                                 <option key={ep} value={ep} className="bg-gray-900 text-white">
@@ -342,7 +342,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
 
                             <button
                                 onClick={() => setShowStreamingPlayer(false)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-sm font-medium ml-auto"
+                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-sm font-medium ml-auto tv-focusable focus:outline-none focus:bg-red-500/20"
                             >
                                 <X className="w-4 h-4" />
                                 Cerrar Reproductor

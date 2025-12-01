@@ -4,13 +4,17 @@ import { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
 import { Search, Frown, Sparkles } from 'lucide-react';
 import { getSearchCorrection } from '@/lib/ai';
 import Link from 'next/link';
+import { isTVDevice } from '@/lib/device-detection';
+import SearchPageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
 
 export default async function SearchPage({
     searchParams,
 }: {
-    searchParams: Promise<{ q: string }>;
+    searchParams: Promise<{ q: string; tv?: string }>;
 }) {
-    const { q } = await searchParams;
+    const { q, tv } = await searchParams;
     const query = q || '';
     const { results } = await searchMulti(query);
 
@@ -29,7 +33,31 @@ export default async function SearchPage({
                 } as unknown as Movie;
             }
             return item as Movie;
-        });
+        }) as any as MultiSearchResult[];
+
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = tv === 'true';
+
+    if (isGlobalTV) {
+        return <SearchPageTV initialQuery={query} initialResults={filteredResults} />;
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <SearchPageTV initialQuery={query} initialResults={filteredResults} />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
+    }
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -45,10 +73,10 @@ export default async function SearchPage({
 
             {filteredResults.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {filteredResults.map((movie) => (
+                    {filteredResults.map((movie: any) => (
                         <MovieCard
                             key={movie.id}
-                            movie={movie}
+                            movie={movie as any}
                             mediaType={(movie as any).media_type === 'tv' ? 'tv' : 'movie'}
                         />
                     ))}

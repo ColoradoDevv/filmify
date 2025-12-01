@@ -174,7 +174,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                     setShowSuggestions(true);
                 }}
                 placeholder={placeholder}
-                className="w-full bg-surface-light/30 border border-surface-light/50 text-text-primary text-sm rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary block pl-10 p-2.5 transition-all placeholder:text-text-muted hover:bg-surface-light/50 focus:bg-surface-light/50 outline-none"
+                className="w-full bg-surface-light/30 border border-surface-light/50 text-text-primary text-sm rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary block pl-10 p-2.5 transition-all placeholder:text-text-muted hover:bg-surface-light/50 focus:bg-surface-light/50 outline-none tv-focusable"
             />
 
             {/* Suggestions Dropdown */}
@@ -194,7 +194,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                     <button
                                         key={item.id}
                                         onClick={() => handleHistoryClick(item.query)}
-                                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item"
+                                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                     >
                                         <Clock className="w-4 h-4 text-text-secondary" />
                                         <span className="text-sm text-text-primary group-hover/item:text-primary transition-colors">
@@ -218,7 +218,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                     <button
                                         key={`${item.media_type}-${item.id}`}
                                         onClick={() => handleSuggestionClick(item)}
-                                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item"
+                                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                     >
                                         <div className="relative w-8 h-12 flex-shrink-0 rounded overflow-hidden bg-surface-light">
                                             {getImage(item) ? (

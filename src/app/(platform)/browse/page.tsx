@@ -3,15 +3,48 @@ import FilterBar from '@/components/features/FilterBar';
 import AIRecommendations from '@/components/features/AIRecommendations';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
-import { AdBannerWrapper } from '@/components/ads';
 import { TrendingUp, Tv, Film } from 'lucide-react';
+import BrowsePageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+import { isTVDevice } from '@/lib/device-detection';
+
+// ...
+
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     const params = await searchParams;
+
+    // Check for TV mode via server-side detection or search params
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = params.tv === 'true';
+
+    if (isGlobalTV) {
+        // PlatformLayout already handles the shell
+        return <BrowsePageTV searchParams={searchParams} />;
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <BrowsePageTV searchParams={searchParams} />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
+    }
+
     const category = typeof params.category === 'string' ? params.category : 'movie';
     const genre = params.genre ? Number(params.genre) : undefined;
     const year = params.year ? Number(params.year) : undefined;
@@ -80,11 +113,6 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                         </p>
                     </div>
                 </div>
-            </div>
-
-            {/* Ad Banner - Only visible to free users */}
-            <div className="my-8">
-                <AdBannerWrapper position="hero" />
             </div>
 
             {/* AI Recommendations */}

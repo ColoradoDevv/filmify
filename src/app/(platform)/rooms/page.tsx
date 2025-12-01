@@ -8,7 +8,17 @@ import { AlertTriangle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RoomsPage() {
+import { isTVDevice } from '@/lib/device-detection';
+import RoomsPageTV from './page-tv';
+import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
+import TVSidebar from '@/components/layout/TVSidebar';
+
+export default async function RoomsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ tv?: string }>;
+}) {
+    const { tv } = await searchParams;
     const settings = await fetchSettings();
 
     if (!settings.enableWatchParty) {
@@ -38,6 +48,30 @@ export default async function RoomsPage() {
 
     if (error) {
         console.error('Error fetching parties:', error);
+    }
+
+    const isGlobalTV = await isTVDevice();
+    const isManualTV = tv === 'true';
+
+    if (isGlobalTV) {
+        return <RoomsPageTV parties={parties || []} currentUser={user} />;
+    }
+
+    if (isManualTV) {
+        return (
+            <TVLayoutWrapper
+                forceTVMode={true}
+                tvLayout={
+                    <div className="flex min-h-screen bg-background text-white">
+                        <TVSidebar />
+                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                            <RoomsPageTV parties={parties || []} currentUser={user} />
+                        </main>
+                    </div>
+                }>
+                <div />
+            </TVLayoutWrapper>
+        );
     }
 
     return (

@@ -94,15 +94,19 @@ import { Toaster } from "sonner";
 
 // ...
 
-export default function RootLayout({
+import { isTVDevice } from "@/lib/device-detection";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isTV = await isTVDevice();
+
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased ${isTV ? 'tv-mode' : ''}`}
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />

@@ -57,8 +57,15 @@ export default function PlatformHeader() {
                     {user && (
                         <div className="flex items-center gap-3 pl-4 border-l border-surface-light/50 relative">
                             <div
-                                className="relative group cursor-pointer"
+                                className="relative group cursor-pointer tv-focusable focus:outline-none focus:ring-2 focus:ring-primary rounded-xl transition-all"
                                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setProfileMenuOpen(!profileMenuOpen);
+                                    }
+                                }}
+                                tabIndex={0}
                             >
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all">
                                     {user.user_metadata?.avatar_url ? (
@@ -85,7 +92,7 @@ export default function PlatformHeader() {
                                         <div className="p-2 space-y-1">
                                             <Link
                                                 href="/settings"
-                                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors"
+                                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                                 onClick={() => setProfileMenuOpen(false)}
                                             >
                                                 <Settings className="w-4 h-4" />
@@ -97,7 +104,7 @@ export default function PlatformHeader() {
                                                     setProfileMenuOpen(false);
                                                     handleLogoutClick();
                                                 }}
-                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-500/10 text-text-secondary hover:text-red-500 transition-colors"
+                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-500/10 text-text-secondary hover:text-red-500 transition-colors tv-focusable focus:bg-red-500/20 focus:outline-none"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                                 <span className="text-sm font-medium">Cerrar Sesión</span>
@@ -126,13 +133,13 @@ export default function PlatformHeader() {
                             <div className="flex gap-3 w-full">
                                 <button
                                     onClick={() => setShowLogoutConfirm(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-surface-light hover:bg-surface-light/50 transition-colors font-medium"
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-surface-light hover:bg-surface-light/50 transition-colors font-medium tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={confirmLogout}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium"
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium tv-focusable focus:bg-red-600 focus:outline-none"
                                 >
                                     Cerrar Sesión
                                 </button>

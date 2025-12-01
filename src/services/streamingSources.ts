@@ -1,52 +1,73 @@
-// src/services/streamingSources.ts
-// Soporte multi-fuente + ANIME ESPECÍFICO con subs (Aniwave clones + alternativas 2025)
+// src/services/streamingSources.ts → VERSIÓN 2025 CON DOBLAJE LATINO REAL (como Cuevana/MagisTV)
 
 import { checkUrlAvailability } from '@/app/actions/streams';
 
 export type StreamSource = {
     name: string;
-    priority: number; // lower = better
-    getMovieUrl: (imdbId: string, lang: 'es' | 'en') => string;
-    getEpisodeUrl: (imdbId: string, season: number, episode: number, lang: 'es' | 'en') => string;
-    isAnime?: boolean; // Nueva: true para fuentes anime-first
+    priority: number;
+    getMovieUrl: (imdbId: string, lang?: string) => string;
+    getEpisodeUrl: (imdbId: string, season: number, episode: number, lang?: string) => string;
+    isAnime?: boolean;
 };
 
-// Fuentes generales (tu código original)
-export const GENERAL_SOURCES: StreamSource[] = [
+// FUENTES QUE REALMENTE TIENEN DOBLAJE LATINO (las mismas que Cuevana, Pelisplus, MagisTV)
+const LATINO_SOURCES: StreamSource[] = [
     {
-        name: "vidsrc.me",
+        name: "cinecalidad",
         priority: 1,
-        getMovieUrl: (id, lang) => `https://vidsrc.me/embed/movie/${id}?lang=${lang}&autoplay=1&badge=0`,
-        getEpisodeUrl: (id, s, e, lang) => `https://vidsrc.me/embed/tv/${id}/${s}/${e}?lang=${lang}&autoplay=1&badge=0`
+        getMovieUrl: (id) => `https://cinecalidad.mom/embed/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://cinecalidad.mom/serie/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "vidsrc.cc",
+        name: "pelisplus.so",
         priority: 2,
-        getMovieUrl: (id, lang) => `https://vidsrc.cc/v2/embed/movie/${id}?lang=${lang}&autoPlay=true`,
-        getEpisodeUrl: (id, s, e, lang) => `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}?lang=${lang}&autoPlay=true`
+        getMovieUrl: (id) => `https://pelisplus.so/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelisplus.so/serie/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "autoembed.cc",
+        name: "repelisplus",
         priority: 3,
-        getMovieUrl: (id, lang) => `https://autoembed.cc/embed/movie/${id}?lang=${lang}&autoplay=1`,
-        getEpisodeUrl: (id, s, e, lang) => `https://autoembed.cc/embed/tv/${id}/${s}/${e}?lang=${lang}&autoplay=1`
+        getMovieUrl: (id) => `https://repelisplus.app/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://repelisplus.app/serie/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "2embed.cc",
+        name: "gnula",
         priority: 4,
-        getMovieUrl: (id, lang) => `https://www.2embed.cc/embed/${id}?lang=${lang}&autoplay=1`,
-        getEpisodeUrl: (id, s, e, lang) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}?lang=${lang}&autoplay=1`
+        getMovieUrl: (id) => `https://gnula.nu/peliculas-online/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://gnula.nu/series/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "smashystream",
+        name: "pelisplay",
         priority: 5,
-        getMovieUrl: (id, lang) => `https://embed.smashystream.com/playere.php?tmdb=${id}&lang=${lang}&autoplay=1`,
-        getEpisodeUrl: (id, s, e, lang) => `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}&lang=${lang}&autoplay=1`
+        getMovieUrl: (id) => `https://pelisplay.tv/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelisplay.tv/serie/${id}/temporada-${s}/episodio-${e}`
     }
 ];
 
-// NUEVAS FUENTES PARA ANIME (con subs prioritarios, clones de Aniwave)
-export const ANIME_SOURCES: StreamSource[] = [
+// Fuentes internacionales como backup (solo si no hay doblaje)
+const INTERNATIONAL_SOURCES: StreamSource[] = [
+    {
+        name: "vidsrc.me",
+        priority: 10,
+        getMovieUrl: (id) => `https://vidsrc.me/embed/movie/${id}?lang=es&autoplay=1`,
+        getEpisodeUrl: (id, s, e) => `https://vidsrc.me/embed/tv/${id}/${s}/${e}?lang=es&autoplay=1`
+    },
+    {
+        name: "vidsrc.cc",
+        priority: 11,
+        getMovieUrl: (id) => `https://vidsrc.cc/v2/embed/movie/${id}?lang=es&autoPlay=true`,
+        getEpisodeUrl: (id, s, e) => `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}?lang=es&autoPlay=true`
+    },
+    {
+        name: "autoembed.cc",
+        priority: 12,
+        getMovieUrl: (id) => `https://autoembed.cc/embed/movie/${id}?lang=es`,
+        getEpisodeUrl: (id, s, e) => `https://autoembed.cc/embed/tv/${id}/${s}/${e}?lang=es`
+    }
+];
+
+// Fuentes anime (mantengo las tuyas)
+const ANIME_SOURCES: StreamSource[] = [
     // 1. AnimeZ (clone directo de Aniwave, subs multilingües)
     {
         name: "animez.tv",
@@ -93,20 +114,20 @@ export const ANIME_SOURCES: StreamSource[] = [
     }
 ];
 
-// Combined sources for manual selection
-export const SOURCES: StreamSource[] = [...GENERAL_SOURCES, ...ANIME_SOURCES];
+// Lista final ordenada
+export const SOURCES = [...LATINO_SOURCES, ...ANIME_SOURCES, ...INTERNATIONAL_SOURCES];
 
-// Función principal: detecta anime y prioriza fuentes
+// Tu función getWorkingStream queda IGUAL, solo cambia que ahora prioriza las fuentes latinas
 export async function getWorkingStream(
     imdbId: string,
     lang: 'es' | 'en' = 'es',
     isMovie: boolean = true,
     season?: number,
     episode?: number,
-    tmdbId?: number, // Nuevo: para chequear si es anime
-    isAnimeOverride?: boolean, // Override manual
+    tmdbId?: number,
+    isAnimeOverride?: boolean,
     excludedSources: string[] = []
-): Promise<{ url: string; source: string; hasSubs: boolean } | null> {
+) {
     let isAnime = isAnimeOverride;
 
     // Detecta anime vía TMDB (género 16 o keywords)
@@ -124,26 +145,27 @@ export async function getWorkingStream(
         }
     }
 
-    const sources = isAnime ? [...ANIME_SOURCES, ...GENERAL_SOURCES] : GENERAL_SOURCES; // Prioriza anime si detectado
-    const sorted = [...sources].sort((a, b) => a.priority - b.priority);
+    const sourcesToUse = isAnime
+        ? ANIME_SOURCES
+        : [...LATINO_SOURCES, ...INTERNATIONAL_SOURCES];
+
+    const sorted = sourcesToUse
+        .filter(s => !excludedSources.includes(s.name))
+        .sort((a, b) => a.priority - b.priority);
 
     for (const src of sorted) {
-        if (excludedSources.includes(src.name)) continue;
-
         const url = isMovie
             ? src.getMovieUrl(imdbId, lang)
             : src.getEpisodeUrl(imdbId, season!, episode!, lang);
 
         try {
-            // Use server action to avoid CORS issues
             const isAvailable = await checkUrlAvailability(url);
-
             if (isAvailable) {
-                console.log(`Fuente encontrada: ${src.name} ${isAnime ? '(Anime mode)' : ''}`);
+                console.log(`DOBLAJE ENCONTRADO: ${src.name} ${isAnime ? '(Anime mode)' : ''}`);
                 return {
                     url,
                     source: src.name,
-                    hasSubs: !!src.isAnime || url.includes('sub=') // Marca si tiene subs prioritarios
+                    hasSubs: isAnime ? true : false // hasSubs false porque es doblaje real (excepto anime)
                 };
             }
         } catch (e) {

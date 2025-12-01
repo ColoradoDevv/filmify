@@ -64,7 +64,13 @@ export default function FilterBar({ genres }: FilterBarProps) {
             <div className="relative">
                 <button
                     onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsCategoryOpen(!isCategoryOpen);
+                        }
+                    }}
                 >
                     <LayoutGrid className="w-4 h-4" />
                     <span>Categoría: <span className={`${currentCategory.color} font-medium flex items-center gap-1 inline-flex`}>
@@ -83,7 +89,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                     <button
                                         key={category.id}
                                         onClick={() => { updateFilter('category', category.id); setIsCategoryOpen(false); }}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${activeCategory === category.id
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeCategory === category.id
                                             ? 'bg-primary/10 text-white'
                                             : 'text-text-secondary hover:bg-surface-light hover:text-white'
                                             }`}
@@ -103,10 +109,16 @@ export default function FilterBar({ genres }: FilterBarProps) {
             <div className="relative">
                 <button
                     onClick={() => setIsGenreOpen(!isGenreOpen)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${activeGenre
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary ${activeGenre
                         ? 'bg-primary/20 border-primary text-primary'
                         : 'bg-surface border-surface-light text-text-secondary hover:border-primary/50'
                         }`}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsGenreOpen(!isGenreOpen);
+                        }
+                    }}
                 >
                     <Filter className="w-4 h-4" />
                     <span>Género</span>
@@ -118,7 +130,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                         <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
                             <button
                                 onClick={() => { updateFilter('genre', null); setIsGenreOpen(false); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${!activeGenre ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeGenre ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
                                     }`}
                             >
                                 Todos
@@ -127,7 +139,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                 <button
                                     key={genre.id}
                                     onClick={() => { updateFilter('genre', String(genre.id)); setIsGenreOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${activeGenre === genre.id
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeGenre === genre.id
                                         ? 'bg-primary/10 text-primary'
                                         : 'text-text-secondary hover:bg-surface-light'
                                         }`}
@@ -145,10 +157,16 @@ export default function FilterBar({ genres }: FilterBarProps) {
             <div className="relative">
                 <button
                     onClick={() => setIsYearOpen(!isYearOpen)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${activeYear
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary ${activeYear
                         ? 'bg-primary/20 border-primary text-primary'
                         : 'bg-surface border-surface-light text-text-secondary hover:border-primary/50'
                         }`}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsYearOpen(!isYearOpen);
+                        }
+                    }}
                 >
                     <Calendar className="w-4 h-4" />
                     <span>Año</span>
@@ -160,7 +178,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                         <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
                             <button
                                 onClick={() => { updateFilter('year', null); setIsYearOpen(false); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${!activeYear ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeYear ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
                                     }`}
                             >
                                 Todos
@@ -169,7 +187,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                 <button
                                     key={year}
                                     onClick={() => { updateFilter('year', String(year)); setIsYearOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${activeYear === year
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeYear === year
                                         ? 'bg-primary/10 text-primary'
                                         : 'text-text-secondary hover:bg-surface-light'
                                         }`}
@@ -187,7 +205,13 @@ export default function FilterBar({ genres }: FilterBarProps) {
             <div className="relative">
                 <button
                     onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsSortOpen(!isSortOpen);
+                        }
+                    }}
                 >
                     <span>Ordenar por: <span className="text-white font-medium">{SORT_OPTIONS.find(o => o.id === sortBy)?.name}</span></span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
@@ -200,7 +224,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                 <button
                                     key={option.id}
                                     onClick={() => { updateFilter('sort_by', option.id); setIsSortOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${sortBy === option.id
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${sortBy === option.id
                                         ? 'bg-primary/10 text-primary'
                                         : 'text-text-secondary hover:bg-surface-light'
                                         }`}
@@ -220,18 +244,18 @@ export default function FilterBar({ genres }: FilterBarProps) {
                     {activeGenre && (
                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary">
                             <span>{genres.find(g => g.id === activeGenre)?.name}</span>
-                            <button onClick={() => updateFilter('genre', null)} className="hover:text-white">×</button>
+                            <button onClick={() => updateFilter('genre', null)} className="hover:text-white tv-focusable focus:outline-none focus:text-white">×</button>
                         </div>
                     )}
                     {activeYear && (
                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary">
                             <span>{activeYear}</span>
-                            <button onClick={() => updateFilter('year', null)} className="hover:text-white">×</button>
+                            <button onClick={() => updateFilter('year', null)} className="hover:text-white tv-focusable focus:outline-none focus:text-white">×</button>
                         </div>
                     )}
                     <button
                         onClick={() => router.push('?')}
-                        className="text-xs text-text-secondary hover:text-white transition-colors"
+                        className="text-xs text-text-secondary hover:text-white transition-colors tv-focusable focus:outline-none focus:text-white"
                     >
                         Limpiar todo
                     </button>
