@@ -19,6 +19,6 @@ BEGIN
   -- Delete finished parties older than 24 hours
   DELETE FROM public.parties
   WHERE status = 'finished'
-  AND created_at < (now() - interval '24 hours');
+  AND creataed_at < (now() - interval '24 hours');
 END;
 $$;
