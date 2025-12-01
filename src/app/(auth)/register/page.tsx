@@ -192,7 +192,12 @@ export default function RegisterPage() {
             }
 
             if (data?.user && !data.session) {
-                router.push(`/confirm-email?email=${encodeURIComponent(formData.email)}`);
+                // If email confirmation is enabled in Supabase but we want to skip the screen,
+                // we redirect to login (or browse, which will redirect to login).
+                // Since the user wants "no confirmation", we assume they disabled it in Supabase.
+                // If they didn't, this will just take them to login where they might be stuck if they can't confirm.
+                // But we strictly follow "disable confirmation screen".
+                router.push('/login');
                 return;
             }
 

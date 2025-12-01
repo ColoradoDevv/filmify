@@ -54,9 +54,7 @@ export async function loginAction(prevState: any, formData: FormData) {
     });
 
     if (error) {
-        if (error.message.includes('Email not confirmed')) {
-            return { error: 'Por favor, confirma tu correo electrónico antes de iniciar sesión.' };
-        }
+        // We removed the specific "Email not confirmed" check as requested.
         return { error: 'Credenciales inválidas' };
     }
 
