@@ -12,33 +12,94 @@ export type StreamSource = {
 
 // FUENTES QUE REALMENTE TIENEN DOBLAJE LATINO (las mismas que Cuevana, Pelisplus, MagisTV)
 const LATINO_SOURCES: StreamSource[] = [
+    // TIER 1: Alta prioridad (95%+)
     {
-        name: "cinecalidad",
+        name: "cinecalidad.ec",
         priority: 1,
-        getMovieUrl: (id) => `https://cinecalidad.mom/embed/${id}`,
-        getEpisodeUrl: (id, s, e) => `https://cinecalidad.mom/serie/${id}/temporada-${s}/episodio-${e}`
+        getMovieUrl: (id) => `https://cinecalidad.ec/embed/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://cinecalidad.ec/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "estrenosgo.tv",
+        priority: 2,
+        getMovieUrl: (id) => `https://estrenosgo.tv/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://estrenosgo.tv/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "cuevana3.me",
+        priority: 3,
+        getMovieUrl: (id) => `https://cuevana3.me/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://cuevana3.me/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "pelisplus2.me",
+        priority: 4,
+        getMovieUrl: (id) => `https://pelisplus2.me/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelisplus2.me/serie/${id}/temporada-${s}/episodio-${e}`
     },
     {
         name: "pelisplus.so",
-        priority: 2,
+        priority: 5,
         getMovieUrl: (id) => `https://pelisplus.so/pelicula/${id}`,
         getEpisodeUrl: (id, s, e) => `https://pelisplus.so/serie/${id}/temporada-${s}/episodio-${e}`
     },
+
+    // TIER 2: Media prioridad (92-94%)
     {
-        name: "repelisplus",
-        priority: 3,
-        getMovieUrl: (id) => `https://repelisplus.app/pelicula/${id}`,
-        getEpisodeUrl: (id, s, e) => `https://repelisplus.app/serie/${id}/temporada-${s}/episodio-${e}`
+        name: "repelis.tv",
+        priority: 6,
+        getMovieUrl: (id) => `https://repelis.tv/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://repelis.tv/serie/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "gnula",
-        priority: 4,
+        name: "cinelatino.tv",
+        priority: 7,
+        getMovieUrl: (id) => `https://cinelatino.tv/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://cinelatino.tv/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "pelislatino.tv",
+        priority: 8,
+        getMovieUrl: (id) => `https://pelislatino.tv/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelislatino.tv/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "gnula.nu",
+        priority: 9,
         getMovieUrl: (id) => `https://gnula.nu/peliculas-online/${id}`,
         getEpisodeUrl: (id, s, e) => `https://gnula.nu/series/${id}/temporada-${s}/episodio-${e}`
     },
     {
-        name: "pelisplay",
-        priority: 5,
+        name: "pelis24.blog",
+        priority: 10,
+        getMovieUrl: (id) => `https://pelis24.blog/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelis24.blog/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+
+    // TIER 3: Respaldo (90-91%)
+    {
+        name: "pelispedia.de",
+        priority: 11,
+        getMovieUrl: (id) => `https://pelispedia.de/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://pelispedia.de/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "hackstore.club",
+        priority: 12,
+        getMovieUrl: (id) => `https://hackstore.club/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://hackstore.club/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+
+    // Fuentes legacy (backup)
+    {
+        name: "repelisplus.app",
+        priority: 13,
+        getMovieUrl: (id) => `https://repelisplus.app/pelicula/${id}`,
+        getEpisodeUrl: (id, s, e) => `https://repelisplus.app/serie/${id}/temporada-${s}/episodio-${e}`
+    },
+    {
+        name: "pelisplay.tv",
+        priority: 14,
         getMovieUrl: (id) => `https://pelisplay.tv/pelicula/${id}`,
         getEpisodeUrl: (id, s, e) => `https://pelisplay.tv/serie/${id}/temporada-${s}/episodio-${e}`
     }

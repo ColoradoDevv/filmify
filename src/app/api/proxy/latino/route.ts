@@ -16,8 +16,14 @@ export async function GET(request: NextRequest) {
 
     // Dominios permitidos (agrega más si necesitas)
     const allowedDomains = [
+        // Fuentes existentes
         'cinecalidad.', 'pelisplus.', 'repelisplus.', 'gnula.',
-        'pelisflix.', 'cuevana.', 'tiocalidad.', 'hdfull.', 'gogoanime3.net', 'hianime.to'
+        'pelisflix.', 'cuevana.', 'tiocalidad.', 'hdfull.',
+        'gogoanime3.net', 'hianime.to',
+        // Nuevas fuentes Latino 2025
+        'cuevana3.', 'repelis.', 'pelispedia.', 'estrenosgo.',
+        'pelislatino.', 'hackstore.', 'pelisplus2.', 'cinelatino.',
+        'pelis24.'
     ];
     if (!allowedDomains.some(d => targetUrl.includes(d))) {
         return NextResponse.json({ error: 'Dominio no permitido' }, { status: 403 });
