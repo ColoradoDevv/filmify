@@ -36,7 +36,8 @@ export default function Sidebar() {
 
     return (
         <aside
-            className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 bg-surface/30 backdrop-blur-xl border-r border-white/10 z-50 transition-all duration-300 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'
+            style={{ top: 'var(--announcement-height, 0px)' }}
+            className={`hidden lg:flex lg:flex-col lg:fixed lg:bottom-0 bg-surface/30 backdrop-blur-xl border-r border-white/10 z-50 transition-all duration-300 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'
                 }`}
         >
             <div className="flex flex-col flex-1 min-h-0 relative">

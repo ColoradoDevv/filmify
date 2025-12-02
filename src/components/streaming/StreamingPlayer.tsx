@@ -65,8 +65,8 @@ export const StreamingPlayer = ({
 
                 // 1. Try Latino Sources First (if language is Spanish and not forced manual)
                 if (language === 'es') {
-                    const { getLatinoStream } = await import('@/services/latinoSources');
-                    const latinoStream = await getLatinoStream(imdbId, mediaType !== 'tv', season, episode);
+                    const { getBestLatinoStream } = await import('@/services/latinoStream');
+                    const latinoStream = await getBestLatinoStream(imdbId, mediaType !== 'tv', season, episode);
 
                     if (latinoStream) {
                         setStream(latinoStream);

@@ -35,6 +35,9 @@ export default function SettingsPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const [modalContent, setModalContent] = useState({ title: "", message: "", type: "success" })
 
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+
     useEffect(() => {
         loadData()
     }, [])
@@ -81,12 +84,21 @@ export default function SettingsPage() {
         setPublishing(false)
     }
 
-    const handleDeactivate = async (id: string) => {
-        if (!confirm("¿Estás seguro de desactivar este anuncio?")) return;
+    const confirmDeactivate = (id: string) => {
+        setItemToDelete(id)
+        setDeleteModalOpen(true)
+    }
 
-        const result = await deactivateAnnouncement(id)
+    const handleDeactivate = async () => {
+        if (!itemToDelete) return;
+
+        const result = await deactivateAnnouncement(itemToDelete)
+        setDeleteModalOpen(false)
+        setItemToDelete(null)
+
         if (result.success) {
             await loadData()
+            showModal("Anuncio Desactivado", "El anuncio global ha sido desactivado correctamente.", "success")
         } else {
             showModal("Error", "No se pudo desactivar: " + result.error, "error")
         }
@@ -112,6 +124,7 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto pb-20">
+            {/* Success/Error Modal */}
             <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={modalContent.title}>
                 <div className="flex flex-col items-center text-center space-y-4">
                     {modalContent.type === "success" ? (
@@ -123,6 +136,33 @@ export default function SettingsPage() {
                     <Button onClick={() => setModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700">
                         Entendido
                     </Button>
+                </div>
+            </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="¿Desactivar anuncio?">
+                <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+                        <Trash2 className="w-8 h-8 text-red-500" />
+                    </div>
+                    <p className="text-slate-300">
+                        ¿Estás seguro de que quieres desactivar este anuncio global? Dejará de ser visible para todos los usuarios.
+                    </p>
+                    <div className="flex gap-3 w-full mt-4">
+                        <Button
+                            onClick={() => setDeleteModalOpen(false)}
+                            variant="outline"
+                            className="flex-1 border-slate-700 hover:bg-slate-800 text-slate-300"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleDeactivate}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Desactivar
+                        </Button>
+                    </div>
                 </div>
             </Modal>
 
@@ -235,20 +275,20 @@ export default function SettingsPage() {
                             {/* Active Announcement Display */}
                             {activeAnnouncementRecord ? (
                                 <div className={`border rounded-lg p-5 relative overflow-hidden ${activeAnnouncementRecord.type === 'warning' ? 'bg-amber-950/20 border-amber-500/20' :
-                                        activeAnnouncementRecord.type === 'success' ? 'bg-emerald-950/20 border-emerald-500/20' :
-                                            'bg-blue-950/20 border-blue-500/20'
+                                    activeAnnouncementRecord.type === 'success' ? 'bg-emerald-950/20 border-emerald-500/20' :
+                                        'bg-blue-950/20 border-blue-500/20'
                                     }`}>
                                     <div className="flex justify-between items-start mb-2">
                                         <h4 className={`text-sm font-semibold uppercase tracking-wider ${activeAnnouncementRecord.type === 'warning' ? 'text-amber-500' :
-                                                activeAnnouncementRecord.type === 'success' ? 'text-emerald-500' :
-                                                    'text-blue-500'
+                                            activeAnnouncementRecord.type === 'success' ? 'text-emerald-500' :
+                                                'text-blue-500'
                                             }`}>
                                             Mensaje Actual
                                         </h4>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => handleDeactivate(activeAnnouncementRecord.id)}
+                                            onClick={() => confirmDeactivate(activeAnnouncementRecord.id)}
                                             className="h-6 text-xs text-slate-400 hover:text-red-400 hover:bg-red-500/10 -mt-1 -mr-2"
                                         >
                                             Desactivar
@@ -289,8 +329,8 @@ export default function SettingsPage() {
                                                 key={type.id}
                                                 onClick={() => setNewType(type.id as any)}
                                                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${newType === type.id
-                                                        ? `${type.color} text-white shadow-lg`
-                                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                                    ? `${type.color} text-white shadow-lg`
+                                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                                     }`}
                                             >
                                                 {type.label}
@@ -338,8 +378,8 @@ export default function SettingsPage() {
                                             <TableCell className="py-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'warning' ? 'bg-amber-500' :
-                                                            item.type === 'success' ? 'bg-emerald-500' :
-                                                                'bg-blue-500'
+                                                        item.type === 'success' ? 'bg-emerald-500' :
+                                                            'bg-blue-500'
                                                         }`} />
                                                     <span className={`text-xs ${item.is_active ? 'text-emerald-400' : 'text-slate-500'}`}>
                                                         {item.is_active ? 'Activo' : 'Inactivo'}
