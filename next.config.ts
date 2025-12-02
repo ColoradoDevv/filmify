@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    unoptimized: true, // Deshabilita optimización para evitar límites de Vercel
     remotePatterns: [
       {
         protocol: 'https',
