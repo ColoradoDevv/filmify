@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
                 // Bloquear fetch a endpoints sospechosos
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {
-                    if (typeof input === 'string' && (input.includes('_fd') || input.includes('bhkchXscA'))) {
+                    if (typeof input === 'string' && (input.includes('_fd') || input.includes('_tr') || input.includes('bhkchXscA'))) {
                         console.log('Blocked fetch:', input);
                         return Promise.resolve(new Response('', { status: 404 }));
                     }
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
                 // Bloquear XHR a endpoints sospechosos
                 const originalOpen = XMLHttpRequest.prototype.open;
                 XMLHttpRequest.prototype.open = function(method, url) {
-                    if (typeof url === 'string' && (url.includes('_fd') || url.includes('bhkchXscA'))) {
+                    if (typeof url === 'string' && (url.includes('_fd') || url.includes('_tr') || url.includes('bhkchXscA'))) {
                         console.log('Blocked XHR:', url);
                         return;
                     }
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
                 // Bloquear postMessage sospechosos
                 const originalPostMessage = window.postMessage;
                 window.postMessage = function(message, targetOrigin, transfer) {
-                    if (typeof message === 'string' && (message.includes('_fd') || message.includes('bhkchXscA'))) {
+                    if (typeof message === 'string' && (message.includes('_fd') || message.includes('_tr') || message.includes('bhkchXscA'))) {
                          console.log('Blocked postMessage:', message);
                          return;
                     }
@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
 
                 // Neutralizar variables globales sospechosas
                 window._fd = null;
+                window._tr = null;
             </script>
         `;
 
