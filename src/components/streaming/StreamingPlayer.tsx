@@ -203,7 +203,8 @@ export const StreamingPlayer = ({
                                 src={stream.url}
                                 className="w-full h-full border-0"
                                 allowFullScreen
-                                allow="autoplay; fullscreen; picture-in-picture"
+                                allow="autoplay; fullscreen; picture-in-picture; encrypted-media *"
+                                sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
                                 title={`${title} - Player`}
                             />
                         </div>
@@ -253,17 +254,17 @@ export const StreamingPlayer = ({
                         </button>
 
                         {showSourceSelector && (
-                            <div className="absolute bottom-full left-0 mb-2 w-56 bg-[#1a1d21] border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                                <div className="p-2 border-b border-white/10">
+                            <div className="absolute bottom-full left-0 mb-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200 z-50">
+                                <div className="p-2 border-b border-white/10 bg-gray-950/50">
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Fuente de Video</p>
                                 </div>
-                                <div className="max-h-60 overflow-y-auto">
+                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                     <button
                                         onClick={() => {
                                             setManualSource(null);
                                             setShowSourceSelector(false);
                                         }}
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${!manualSource ? 'text-purple-400 font-bold' : 'text-white'}`}
+                                        className={`w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition-colors ${!manualSource ? 'text-purple-400 font-bold bg-white/5' : 'text-gray-100'}`}
                                     >
                                         Automático (Recomendado)
                                     </button>
@@ -274,7 +275,7 @@ export const StreamingPlayer = ({
                                                 setManualSource(src.name);
                                                 setShowSourceSelector(false);
                                             }}
-                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${manualSource === src.name ? 'text-purple-400 font-bold' : 'text-white'}`}
+                                            className={`w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition-colors ${manualSource === src.name ? 'text-purple-400 font-bold bg-white/5' : 'text-gray-100'}`}
                                         >
                                             {src.name}
                                         </button>

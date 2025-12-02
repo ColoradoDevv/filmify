@@ -126,13 +126,13 @@ export default async function LandingPage() {
               {/* Animated Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-2 glass-effect rounded-full mb-8 animate-fade-in-up">
                 <Film className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-text-secondary">
+                <span className="text-sm font-medium text-gray-300">
                   Película #1 en Tendencias
                 </span>
               </div>
 
               {/* Main Heading with Premium Gradient */}
-              <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-2">
+              <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-2 text-white">
                 {heroMovie?.title || (
                   <>
                     Tu Universo de{' '}
@@ -141,7 +141,7 @@ export default async function LandingPage() {
                 )}
               </h1>
 
-              <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3">
+              <p className="text-xl sm:text-2xl text-gray-300 max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3">
                 {heroMovie?.overview || "Descubre, organiza y disfruta de miles de películas. Tu colección personal de películas en un solo lugar."}
               </p>
 
@@ -168,23 +168,23 @@ export default async function LandingPage() {
               </div>
 
               {/* Stats Section - Minimalist Design */}
-              <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto mt-16 animate-fade-in-up delay-400">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto mt-16 animate-fade-in-up delay-400">
                 <div className="group relative p-6 text-center transition-all duration-300">
                   <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
                   <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">10K+</div>
-                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">Películas</div>
+                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Películas</div>
                 </div>
 
                 <div className="group relative p-6 text-center transition-all duration-300">
                   <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
                   <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">4K</div>
-                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">En HD</div>
+                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">En HD</div>
                 </div>
 
                 <div className="group relative p-6 text-center transition-all duration-300">
                   <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
                   <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">24/7</div>
-                  <div className="text-sm font-medium text-text-secondary uppercase tracking-wider">Actualizado</div>
+                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Actualizado</div>
                 </div>
               </div>
             </div>
@@ -211,16 +211,16 @@ export default async function LandingPage() {
             <div className="text-center mb-20 animate-fade-in-up">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-surface/50 backdrop-blur-sm rounded-full mb-6 border border-surface-light/30">
                 <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-text-secondary">
+                <span className="text-sm font-medium text-gray-300">
                   Experiencia Premium
                 </span>
               </div>
 
-              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6">
+              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 text-white">
                 ¿Por qué <span className="text-gradient-premium">FilmiFy</span>?
               </h2>
 
-              <p className="text-xl text-text-secondary max-w-3xl mx-auto leading-relaxed">
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
                 Descubre la plataforma de cine más avanzada y elegante.
                 <br />
                 <span className="text-primary font-semibold">Diseñada para verdaderos cinéfilos.</span>
@@ -231,7 +231,7 @@ export default async function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
               {/* Feature 1 - Smart Search */}
               <div className="group relative">
-                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in border-l-2 border-l-primary/30">
+                <div className="relative card-premium p-6 md:p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in border-l-2 border-l-primary/30">
                   {/* Icon Container */}
                   <div className="relative mb-8">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-all">
@@ -240,15 +240,15 @@ export default async function LandingPage() {
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-3xl font-bold mb-4 group-hover:text-primary transition-colors duration-300">
+                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-primary transition-colors duration-300">
                     Búsqueda Inteligente
                   </h3>
-                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                  <p className="text-gray-300 leading-relaxed text-lg mb-6">
                     Encuentra cualquier película al instante con nuestra potente búsqueda impulsada por IA y filtros avanzados.
                   </p>
 
                   {/* Feature Highlights */}
-                  <ul className="space-y-2 text-sm text-text-secondary">
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       Resultados instantáneos
@@ -263,7 +263,7 @@ export default async function LandingPage() {
 
               {/* Feature 2 - Favorites */}
               <div className="group relative">
-                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-100 border-l-2 border-l-accent/30">
+                <div className="relative card-premium p-6 md:p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-100 border-l-2 border-l-accent/30">
                   {/* Icon Container */}
                   <div className="relative mb-8">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-accent/15 to-accent/5 rounded-2xl border border-accent/20 group-hover:border-accent/40 transition-all">
@@ -272,15 +272,15 @@ export default async function LandingPage() {
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-3xl font-bold mb-4 group-hover:text-accent transition-colors duration-300">
+                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-accent transition-colors duration-300">
                     Colección Personal
                   </h3>
-                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                  <p className="text-gray-300 leading-relaxed text-lg mb-6">
                     Crea y organiza tus listas personalizadas. Guarda favoritos, marca vistas y comparte con amigos.
                   </p>
 
                   {/* Feature Highlights */}
-                  <ul className="space-y-2 text-sm text-text-secondary">
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-accent" />
                       Listas ilimitadas
@@ -295,7 +295,7 @@ export default async function LandingPage() {
 
               {/* Feature 3 - Infinite Catalog */}
               <div className="group relative">
-                <div className="relative card-premium p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-200 border-l-2 border-l-primary/30">
+                <div className="relative card-premium p-6 md:p-10 h-full hover:scale-[1.02] transition-all duration-300 animate-scale-in delay-200 border-l-2 border-l-primary/30">
                   {/* Icon Container */}
                   <div className="relative mb-8">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-all">
@@ -304,15 +304,15 @@ export default async function LandingPage() {
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-3xl font-bold mb-4 group-hover:text-primary transition-colors duration-300">
+                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-primary transition-colors duration-300">
                     Catálogo Infinito
                   </h3>
-                  <p className="text-text-secondary leading-relaxed text-lg mb-6">
+                  <p className="text-gray-300 leading-relaxed text-lg mb-6">
                     Accede a una biblioteca masiva de películas y series, actualizada diariamente con los últimos estrenos.
                   </p>
 
                   {/* Feature Highlights */}
-                  <ul className="space-y-2 text-sm text-text-secondary">
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       Actualizaciones diarias
@@ -348,14 +348,14 @@ export default async function LandingPage() {
                     <span className="text-xs font-medium text-white/90">Únete a miles de cinéfilos</span>
                   </div>
 
-                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight">
+                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white">
                     Únete a la <br />
                     <span className="text-gradient-premium relative inline-block">
                       Revolución Cinematográfica
                     </span>
                   </h3>
 
-                  <p className="text-lg text-text-secondary mb-8 max-w-xl mx-auto leading-relaxed">
+                  <p className="text-lg text-gray-300 mb-8 max-w-xl mx-auto leading-relaxed">
                     Deja de perder tiempo buscando qué ver. <br />
                     <span className="text-white font-medium">Descubre, organiza y comparte</span> tu pasión por el cine.
                   </p>

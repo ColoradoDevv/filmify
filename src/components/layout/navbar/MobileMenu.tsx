@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { Search, Heart, LogOut } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
+import SearchInput from '@/components/features/SearchInput';
+import { Clapperboard, Users, Tv } from 'lucide-react';
+
 interface MobileMenuProps {
     isOpen: boolean;
     onClose: () => void;
@@ -20,19 +23,40 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
             id="mobile-menu"
         >
             <div className="px-4 py-6 space-y-3">
+                {/* Search Input */}
+                <div className="mb-4">
+                    <SearchInput className="w-full" placeholder="Buscar películas..." />
+                </div>
+
                 {user ? (
                     <>
                         <Link
                             href="/browse"
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
                             onClick={onClose}
                         >
-                            <Search className="w-5 h-5 text-primary" />
+                            <Clapperboard className="w-5 h-5 text-primary" />
                             <span className="font-medium">Explorar</span>
                         </Link>
                         <Link
+                            href="/rooms"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                            onClick={onClose}
+                        >
+                            <Users className="w-5 h-5 text-primary" />
+                            <span className="font-medium">Watch Parties</span>
+                        </Link>
+                        <Link
+                            href="/live-tv"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                            onClick={onClose}
+                        >
+                            <Tv className="w-5 h-5 text-primary" />
+                            <span className="font-medium">TV en Vivo</span>
+                        </Link>
+                        <Link
                             href="/favorites"
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
                             onClick={onClose}
                         >
                             <Heart className="w-5 h-5 text-accent" />
@@ -53,7 +77,7 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                     <>
                         <Link
                             href="/login"
-                            className="block px-4 py-3 rounded-xl hover:bg-surface/50 transition-all font-medium text-center focus:outline-none focus:bg-surface/50"
+                            className="block px-4 py-3 rounded-xl hover:bg-surface/50 transition-all font-medium text-center focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
                             onClick={onClose}
                         >
                             Iniciar Sesión

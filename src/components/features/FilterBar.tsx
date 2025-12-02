@@ -59,12 +59,12 @@ export default function FilterBar({ genres }: FilterBarProps) {
     const CategoryIcon = currentCategory.icon;
 
     return (
-        <div className="flex flex-wrap items-center gap-4 mb-8">
+        <div className="flex flex-nowrap overflow-x-auto pb-4 md:pb-0 md:flex-wrap items-center gap-4 mb-8 custom-scrollbar scroll-smooth">
             {/* Category Filter */}
             <div className="relative">
                 <button
                     onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-gray-300 hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
@@ -91,7 +91,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                         onClick={() => { updateFilter('category', category.id); setIsCategoryOpen(false); }}
                                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeCategory === category.id
                                             ? 'bg-primary/10 text-white'
-                                            : 'text-text-secondary hover:bg-surface-light hover:text-white'
+                                            : 'text-gray-300 hover:bg-surface-light hover:text-white'
                                             }`}
                                     >
                                         <Icon className={`w-4 h-4 ${category.color}`} />
@@ -111,7 +111,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                     onClick={() => setIsGenreOpen(!isGenreOpen)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary ${activeGenre
                         ? 'bg-primary/20 border-primary text-primary'
-                        : 'bg-surface border-surface-light text-text-secondary hover:border-primary/50'
+                        : 'bg-surface border-surface-light text-gray-300 hover:border-primary/50'
                         }`}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -130,7 +130,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                         <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
                             <button
                                 onClick={() => { updateFilter('genre', null); setIsGenreOpen(false); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeGenre ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeGenre ? 'bg-primary/10 text-primary' : 'text-gray-300 hover:bg-surface-light'
                                     }`}
                             >
                                 Todos
@@ -141,7 +141,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                     onClick={() => { updateFilter('genre', String(genre.id)); setIsGenreOpen(false); }}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeGenre === genre.id
                                         ? 'bg-primary/10 text-primary'
-                                        : 'text-text-secondary hover:bg-surface-light'
+                                        : 'text-gray-300 hover:bg-surface-light'
                                         }`}
                                 >
                                     {genre.name}
@@ -159,7 +159,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                     onClick={() => setIsYearOpen(!isYearOpen)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary ${activeYear
                         ? 'bg-primary/20 border-primary text-primary'
-                        : 'bg-surface border-surface-light text-text-secondary hover:border-primary/50'
+                        : 'bg-surface border-surface-light text-gray-300 hover:border-primary/50'
                         }`}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -178,7 +178,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                         <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
                             <button
                                 onClick={() => { updateFilter('year', null); setIsYearOpen(false); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeYear ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:bg-surface-light'
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors tv-focusable focus:outline-none focus:bg-surface-light/80 ${!activeYear ? 'bg-primary/10 text-primary' : 'text-gray-300 hover:bg-surface-light'
                                     }`}
                             >
                                 Todos
@@ -189,7 +189,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                     onClick={() => { updateFilter('year', String(year)); setIsYearOpen(false); }}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${activeYear === year
                                         ? 'bg-primary/10 text-primary'
-                                        : 'text-text-secondary hover:bg-surface-light'
+                                        : 'text-gray-300 hover:bg-surface-light'
                                         }`}
                                 >
                                     {year}
@@ -205,7 +205,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
             <div className="relative">
                 <button
                     onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-text-secondary hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-light text-gray-300 hover:border-primary/50 transition-all tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
@@ -226,7 +226,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                                     onClick={() => { updateFilter('sort_by', option.id); setIsSortOpen(false); }}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between tv-focusable focus:outline-none focus:bg-surface-light/80 ${sortBy === option.id
                                         ? 'bg-primary/10 text-primary'
-                                        : 'text-text-secondary hover:bg-surface-light'
+                                        : 'text-gray-300 hover:bg-surface-light'
                                         }`}
                                 >
                                     {option.name}
@@ -255,7 +255,7 @@ export default function FilterBar({ genres }: FilterBarProps) {
                     )}
                     <button
                         onClick={() => router.push('?')}
-                        className="text-xs text-text-secondary hover:text-white transition-colors tv-focusable focus:outline-none focus:text-white"
+                        className="text-xs text-gray-300 hover:text-white transition-colors tv-focusable focus:outline-none focus:text-white"
                     >
                         Limpiar todo
                     </button>

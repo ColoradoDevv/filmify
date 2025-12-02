@@ -103,7 +103,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                                 {isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
                             </span>
                         </div>
-                        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
+                        <h1 className="text-4xl sm:text-5xl text-white font-bold tracking-tight">
                             Explora <span className="text-gradient-premium">{isTV ? 'Series' : 'Películas'}</span>
                         </h1>
                         <p className="text-text-secondary text-lg">

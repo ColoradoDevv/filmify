@@ -102,7 +102,7 @@ export default async function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body
         style={{ paddingTop: 'var(--announcement-height, 0px)' }}
-        className={`${geistSans.variable} ${geistMono.variable} antialiased ${isTV ? 'tv-mode' : ''}`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased text-white ${isTV ? 'tv-mode' : ''}`}
       >
         <SystemAnnouncement />
         <BroadcastListener />

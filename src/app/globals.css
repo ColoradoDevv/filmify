@@ -56,18 +56,6 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Base Styles */
-@layer base {
-  body {
-    @apply bg-background text-text-primary antialiased;
-  }
-
-  * {
-    @apply border-surface-light;
-  }
 }
 
 /* Custom Utilities */
@@ -402,65 +390,6 @@ body.tv-mode ::-webkit-scrollbar-thumb {
   background-color: rgba(0, 194, 255, 0.5);
   border-radius: 20px;
   border: 2px solid transparent;
-}
-
-body.tv-mode ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 194, 255, 0.7);
-}
-
-/* Focus within - show content when parent is focused */
-.tv-focus-within:focus-within {
-  outline: 3px solid #00c2ff;
-  outline-offset: 4px;
-  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
-    0 0 20px rgba(0, 194, 255, 0.4);
-}
-
-/* Skip to content link for accessibility */
-.skip-to-content {
-  position: absolute;
-  top: -40px;
-  left: 0;
-  background: #00c2ff;
-  color: white;
-  padding: 8px 16px;
-  outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tv-focusable:focus {
-  outline: 3px solid #00c2ff;
-  outline-offset: 4px;
-  transform: scale(1.05);
-  z-index: 10;
-  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.2),
-    0 0 20px rgba(0, 194, 255, 0.4),
-    0 0 40px rgba(0, 194, 255, 0.2);
-}
-
-.tv-focusable:focus-visible {
-  outline: 3px solid #00c2ff;
-  outline-offset: 4px;
-}
-
-/* Prominent focus for cards */
-.tv-card-focus:focus {
-  outline: 4px solid #00c2ff;
-  outline-offset: 6px;
-  transform: scale(1.08);
-  box-shadow: 0 0 0 6px rgba(0, 194, 255, 0.3),
-    0 0 30px rgba(0, 194, 255, 0.5),
-    0 0 60px rgba(0, 194, 255, 0.3),
-    0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-/* Focus for buttons */
-.tv-button-focus:focus {
-  outline: 3px solid #00c2ff;
-  outline-offset: 3px;
-  transform: scale(1.1);
-  box-shadow: 0 0 0 4px rgba(0, 194, 255, 0.3),
-    0 0 20px rgba(0, 194, 255, 0.5);
 }
 
 /* 10-Foot UI Optimizations */
@@ -1143,6 +1072,7 @@ body.tv-mode main {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

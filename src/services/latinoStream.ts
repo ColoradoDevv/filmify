@@ -1,4 +1,5 @@
 import { checkUrlAvailability } from '@/app/actions/streams';
+import { getLatinoUrl } from '@/services/getLatinoUrl';
 
 const LATINO_MIRRORS = [
     // CINE CALIDAD (la que más doblaje tiene)
@@ -29,24 +30,21 @@ export async function getBestLatinoStream(
 
         const directUrl = `${mirror.base}${path}`;
 
-        // En localhost → forzamos proxy
-        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-
-        const finalUrl = isLocal
-            ? `/api/latino-proxy?url=${encodeURIComponent(directUrl)}`
-            : directUrl;
-
         try {
             // FIX: Always check the direct URL availability. 
-            // The server action runs on the server and can fetch the external URL directly.
-            // Passing the relative proxy URL (/api/...) to the server action fails because it needs an absolute URL.
             const available = await checkUrlAvailability(directUrl);
+
             if (available) {
                 console.log(`LATINO ENCONTRADO: ${mirror.name} → ${mirror.base}`);
+
+                // Use helper to generate the final URL (proxy if local, direct if prod)
+                const finalUrl = getLatinoUrl(directUrl);
+                const isProxy = finalUrl !== directUrl;
+
                 return {
                     url: finalUrl,
-                    source: `${mirror.name} (${isLocal ? 'proxy' : 'directo'})`,
-                    type: isLocal ? 'proxy' : 'direct'
+                    source: `${mirror.name} (${isProxy ? 'proxy' : 'directo'})`,
+                    type: isProxy ? 'proxy' : 'direct'
                 };
             }
         } catch (e) {

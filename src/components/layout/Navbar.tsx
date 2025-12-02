@@ -103,7 +103,12 @@ export default function Navbar() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 group relative" aria-label="Ir al inicio">
+                        <Link
+                            href="/"
+                            className="flex items-center gap-2 group relative z-50"
+                            aria-label="Ir al inicio"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
                             <img
                                 src="/logo-full.svg"
                                 alt="FilmiFy Logo"
@@ -124,7 +129,7 @@ export default function Navbar() {
                                                         href="/admin"
                                                         className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-red-500/50 ${pathname?.startsWith('/admin')
                                                             ? 'text-red-500'
-                                                            : 'text-text-secondary hover:text-text-primary'
+                                                            : 'text-gray-300 hover:text-text-primary'
                                                             }`}
                                                     >
                                                         <span className="relative z-10 flex items-center gap-2">
@@ -141,7 +146,7 @@ export default function Navbar() {
                                                     href="/browse"
                                                     className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/browse')
                                                         ? 'text-primary'
-                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        : 'text-gray-300 hover:text-text-primary'
                                                         }`}
                                                 >
                                                     <span className="relative z-10 flex items-center gap-2">
@@ -158,7 +163,7 @@ export default function Navbar() {
                                                     href="/rooms"
                                                     className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/rooms')
                                                         ? 'text-primary'
-                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        : 'text-gray-300 hover:text-text-primary'
                                                         }`}
                                                 >
                                                     <span className="relative z-10 flex items-center gap-2">
@@ -175,7 +180,7 @@ export default function Navbar() {
                                                     href="/live-tv"
                                                     className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/live-tv')
                                                         ? 'text-primary'
-                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        : 'text-gray-300 hover:text-text-primary'
                                                         }`}
                                                 >
                                                     <span className="relative z-10 flex items-center gap-2">
@@ -192,7 +197,7 @@ export default function Navbar() {
                                                     href="/favorites"
                                                     className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-accent/50 ${pathname === '/favorites'
                                                         ? 'text-accent'
-                                                        : 'text-text-secondary hover:text-text-primary'
+                                                        : 'text-gray-300 hover:text-text-primary'
                                                         }`}
                                                 >
                                                     <span className="relative z-10 flex items-center gap-2">
@@ -221,7 +226,7 @@ export default function Navbar() {
                                         <div className="flex items-center gap-3">
                                             <Link
                                                 href="/login"
-                                                className="px-5 py-2.5 text-text-secondary hover:text-text-primary transition-all font-medium rounded-xl hover:bg-surface/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                className="px-5 py-2.5 text-gray-300 hover:text-text-primary transition-all font-medium rounded-xl hover:bg-surface/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
                                             >
                                                 Iniciar Sesión
                                             </Link>
@@ -272,7 +277,7 @@ export default function Navbar() {
                                 <LogOut className="w-6 h-6 text-red-500" />
                             </div>
                             <h3 id="logout-title" className="text-xl font-bold mb-2">¿Cerrar Sesión?</h3>
-                            <p className="text-text-secondary mb-6">
+                            <p className="text-gray-300 mb-6">
                                 ¿Estás seguro que deseas salir de tu cuenta? Tendrás que iniciar sesión nuevamente para acceder a tu contenido.
                             </p>
                             <div className="flex gap-3 w-full">

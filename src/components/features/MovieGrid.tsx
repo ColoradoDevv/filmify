@@ -101,7 +101,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
             {/* Movies Grid */}
             <div
                 ref={gridRef}
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 tv-grid tv-grid-movies"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 md:gap-8 tv-grid tv-grid-movies"
                 role="grid"
                 aria-label={`${mediaType === 'tv' ? 'Series' : 'Películas'} grid`}
             >
@@ -124,7 +124,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
                     onClick={handleLoadMore}
                     onKeyDown={handleLoadMoreKeyDown}
                     disabled={loading}
-                    className="group relative px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none"
+                    className="group relative px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none text-white"
                     tabIndex={0}
                     data-focusable="true"
                     aria-label={`Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}
