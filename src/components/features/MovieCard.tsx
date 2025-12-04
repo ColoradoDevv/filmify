@@ -86,7 +86,8 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
     return (
         <div
             ref={cardRef}
-            className="group relative rounded-xl overflow-hidden bg-surface-light/20 border border-white/5 shadow-lg transition-all duration-500 hover:shadow-primary/20 hover:scale-[1.02] hover:-translate-y-1 h-full tv-focusable tv-card-focus focus:outline-none"
+            onClick={() => router.push(linkHref)}
+            className="group relative rounded-xl overflow-hidden bg-surface-light/20 border border-white/5 shadow-lg transition-all duration-500 hover:shadow-primary/20 hover:scale-[1.02] hover:-translate-y-1 h-full tv-focusable tv-card-focus focus:outline-none cursor-pointer"
             tabIndex={0}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
@@ -110,8 +111,8 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
                     </div>
                 )}
 
-                {/* Gradient Overlay (Always visible but subtle, stronger on hover/focus) */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-60 group-hover:opacity-90 group-focus:opacity-90 transition-opacity duration-300" />
+                {/* Gradient Overlay (Minimalist) */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
 
                 {/* Top Badges */}
                 <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-20">
@@ -132,46 +133,30 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
                     </div>
                 </div>
 
-                {/* Hover/Focus Content Overlay */}
-                <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-300 z-20 translate-y-4 group-hover:translate-y-0 group-focus:translate-y-0 pointer-events-none">
-                    <p className="text-gray-300 text-xs line-clamp-3 mb-4 leading-relaxed">
-                        {movie.overview || "Sin descripción disponible."}
-                    </p>
-
-                    <div className="flex gap-2 items-center pointer-events-auto">
-                        <Link
-                            href={linkHref}
-                            className="flex-1 h-10 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors tv-button-focus"
-                            tabIndex={-1}
-                        >
-                            <Play className="w-4 h-4 fill-current" />
-                            <span>Ver</span>
-                        </Link>
-
-                        <button
-                            onClick={handleToggleFavorite}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    handleToggleFavorite(e);
-                                }
-                            }}
-                            className={`h-10 w-10 rounded-full flex items-center justify-center border transition-colors tv-button-focus ${isLiked
-                                ? 'bg-accent border-accent text-white'
-                                : 'bg-black/40 border-white/20 text-white hover:bg-white hover:text-black'
-                                }`}
-                            tabIndex={-1}
-                            aria-label={isLiked ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                        >
-                            <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-                        </button>
+                {/* Minimalist Hover Actions (Centered Play Button) */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
+                    <div className="transform scale-50 group-hover:scale-100 transition-transform duration-300">
+                        <div className="w-16 h-16 rounded-full bg-primary/90 text-white flex items-center justify-center shadow-xl backdrop-blur-sm border border-white/20">
+                            <Play className="w-8 h-8 fill-current ml-1" />
+                        </div>
                     </div>
+                </div>
+
+                {/* Favorite Button (Top Right on Hover) */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30">
+                    {/* Moved Star badge to left or adjust layout if needed, but for now let's keep it simple. 
+                         Actually, the Star badge is already top right. Let's put the heart below it or top left?
+                         Let's put the heart top right and move Star to top left next to Lang? 
+                         Or just put Heart next to Star? 
+                         Let's place Heart in the center-bottom or just keep it simple.
+                         User asked for minimalist.
+                      */}
                 </div>
             </div>
 
-            {/* Always Visible Info (Bottom) */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 group-hover:-translate-y-full group-hover:opacity-0 group-focus:-translate-y-full group-focus:opacity-0">
-                <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 mb-1 drop-shadow-md">
+            {/* Always Visible Info (Bottom) - No slide animation */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
+                <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 mb-1 drop-shadow-md group-hover:text-primary transition-colors">
                     {title}
                 </h3>
                 <div className="flex items-center justify-between text-xs text-gray-300">

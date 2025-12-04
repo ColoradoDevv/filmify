@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    unoptimized: true, // Deshabilita optimización para evitar límites de Vercel
     remotePatterns: [
       {
         protocol: 'https',
@@ -18,12 +19,49 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp'],
     minimumCacheTTL: 60,
+    qualities: [75, 95, 100],
   },
   async rewrites() {
     return [
       {
         source: '/portal.php',
         destination: '/api/portal',
+      },
+    ];
+
+  },
+  async headers() {
+    return [
+      {
+        source: '/api/proxy/latino',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: '*' },
+        ],
+      },
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: `
+              default-src 'self';
+              script-src 'self' 'unsafe-eval' 'unsafe-inline' https: http:;
+              style-src 'self' 'unsafe-inline' https:;
+              img-src * data: blob: 'unsafe-inline';
+              media-src * blob:;
+              connect-src *;
+              font-src 'self' data: https:;
+              frame-src *;
+              frame-ancestors *;
+              object-src 'none';
+              base-uri 'self';
+              form-action 'self';
+              upgrade-insecure-requests;
+            `.replace(/\s{2,}/g, ' ').trim(),
+          },
+        ],
       },
     ];
   },

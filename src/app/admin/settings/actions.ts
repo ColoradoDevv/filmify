@@ -1,7 +1,7 @@
 'use server';
 
 import { getSettings, saveSettings, AdminSettings } from '@/lib/admin-settings';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function fetchSettings() {
@@ -9,19 +9,20 @@ export async function fetchSettings() {
 }
 
 export async function updateSettings(newSettings: AdminSettings) {
-    const supabase = await createAdminClient();
+    const supabaseAuth = await createClient();
+    const supabaseAdmin = createServiceRoleClient();
 
     // Verify admin privileges
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    const { data: requesterProfile } = await supabase
+    const { data: requesterProfile } = await supabaseAdmin
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-    if (requesterProfile?.role !== 'admin') {
+    if (requesterProfile?.role !== 'admin' && requesterProfile?.role !== 'super_admin') {
         return { success: false, error: 'Unauthorized' };
     }
 
@@ -33,23 +34,24 @@ export async function updateSettings(newSettings: AdminSettings) {
 }
 
 export async function updateAnnouncement(announcement: string, type: 'info' | 'warning' | 'success' = 'info') {
-    const supabase = await createAdminClient();
+    const supabaseAuth = await createClient();
+    const supabaseAdmin = createServiceRoleClient();
 
     // Verify admin privileges
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    const { data: requesterProfile } = await supabase
+    const { data: requesterProfile } = await supabaseAdmin
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-    if (requesterProfile?.role !== 'admin') {
+    if (requesterProfile?.role !== 'admin' && requesterProfile?.role !== 'super_admin') {
         return { success: false, error: 'Unauthorized' };
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from('announcements')
         .insert({
             message: announcement,
@@ -70,9 +72,32 @@ export async function updateAnnouncement(announcement: string, type: 'info' | 'w
 }
 
 export async function deactivateAnnouncement(id: string) {
-    const supabase = await createAdminClient();
+    const supabaseAuth = await createClient();
+    const supabaseAdmin = createServiceRoleClient();
 
-    const { error } = await supabase
+    // Verify admin privileges
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (!user) {
+        console.error('DeactivateAnnouncement: No user found', authError);
+        return { success: false, error: 'Unauthorized: No user session' };
+    }
+
+    const { data: requesterProfile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profileError || (requesterProfile?.role !== 'admin' && requesterProfile?.role !== 'super_admin')) {
+        console.error('DeactivateAnnouncement: Not admin', {
+            userId: user.id,
+            role: requesterProfile?.role,
+            error: profileError
+        });
+        return { success: false, error: 'Unauthorized: Not admin' };
+    }
+
+    const { error } = await supabaseAdmin
         .from('announcements')
         .update({ is_active: false, end_at: new Date().toISOString() })
         .eq('id', id);
@@ -85,17 +110,39 @@ export async function deactivateAnnouncement(id: string) {
 }
 
 export async function getAnnouncementHistory() {
-    const supabase = await createAdminClient();
+    const supabase = createServiceRoleClient();
 
-    const { data, error } = await supabase
+    const { data: announcements, error } = await supabase
         .from('announcements')
-        .select('*, profiles(email)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
     if (error) {
         console.error('Error fetching history:', error);
+        return [];
     }
 
-    return data || [];
+    if (!announcements || announcements.length === 0) return [];
+
+    // Manually fetch profiles to avoid missing FK relationship error
+    const userIds = [...new Set(announcements.map(a => a.created_by).filter(Boolean))];
+
+    if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+        return announcements.map(a => ({
+            ...a,
+            profiles: profileMap.get(a.created_by) || { email: 'Unknown' }
+        }));
+    }
+
+    const result = announcements.map(a => ({ ...a, profiles: { email: 'Unknown' } }));
+    console.log('getAnnouncementHistory returning:', result.length, 'records. Active:', result.filter(r => r.is_active).length);
+    return result;
 }

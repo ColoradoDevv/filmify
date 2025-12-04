@@ -7,6 +7,9 @@ import { Analytics } from "@vercel/analytics/react";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
+import SystemAnnouncement from "@/components/SystemAnnouncement";
+import { Toaster } from "sonner";
+import { isTVDevice } from "@/lib/device-detection";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -90,15 +93,6 @@ export const viewport: Viewport = {
   ],
 };
 
-
-
-import SystemAnnouncement from "@/components/SystemAnnouncement";
-import { Toaster } from "sonner";
-
-// ...
-
-import { isTVDevice } from "@/lib/device-detection";
-
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -109,7 +103,8 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased ${isTV ? 'tv-mode' : ''}`}
+        style={{ paddingTop: 'var(--announcement-height, 0px)' }}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased text-white ${isTV ? 'tv-mode' : ''}`}
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />

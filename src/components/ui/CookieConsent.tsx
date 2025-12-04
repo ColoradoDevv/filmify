@@ -16,29 +16,63 @@ export const CookieConsent = () => {
         marketing: false
     });
 
+    // Helper to set cookie
+    const setCookie = (name: string, value: string, days: number) => {
+        if (typeof document === 'undefined') return;
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + date.toUTCString();
+        document.cookie = name + "=" + value + ";" + expires + ";path=/;SameSite=Lax";
+    };
+
+    // Helper to get cookie
+    const getCookie = (name: string) => {
+        if (typeof document === 'undefined') return null;
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    };
+
     useEffect(() => {
-        const stored = localStorage.getItem('cookie_consent');
-        if (!stored) {
-            // Small delay for animation
-            const timer = setTimeout(() => setIsVisible(true), 1000);
-            return () => clearTimeout(timer);
-        } else {
-            // Restore preferences if available (optional, usually we just don't show it)
-            // But if we wanted to let them edit, we'd load it here.
-            // For now, just apply the stored consent to GTM
-            try {
-                const parsed = JSON.parse(stored);
-                // If it's the old format (string), treat as 'granted' -> all true
-                if (typeof parsed === 'string') {
-                    applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
-                } else {
-                    applyConsent(parsed);
+        try {
+            // Check both localStorage and cookies for redundancy
+            const storedLocal = localStorage.getItem('cookie_consent');
+            const storedCookie = getCookie('cookie_consent');
+            
+            const stored = storedLocal || storedCookie;
+
+            if (!stored) {
+                // Small delay for animation
+                const timer = setTimeout(() => setIsVisible(true), 1000);
+                return () => clearTimeout(timer);
+            } else {
+                // Restore preferences if available
+                try {
+                    const parsed = JSON.parse(stored);
+                    if (typeof parsed === 'string') {
+                        applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
+                    } else {
+                        applyConsent(parsed);
+                    }
+                    // Ensure it's synced to both storages
+                    if (!storedLocal) localStorage.setItem('cookie_consent', stored);
+                    if (!storedCookie) setCookie('cookie_consent', stored, 365);
+                } catch (e) {
+                    // Fallback for simple string format
+                    if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
+                    else applyConsent({ analytics: false, marketing: false });
                 }
-            } catch (e) {
-                // Fallback for simple string format
-                if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
-                else applyConsent({ analytics: false, marketing: false });
             }
+        } catch (e) {
+            console.error("Error checking cookie consent:", e);
+            // If error accessing storage, show banner just in case? 
+            // Or assume no consent? Better to show it.
+            setIsVisible(true);
         }
     }, []);
 
@@ -57,9 +91,15 @@ export const CookieConsent = () => {
     };
 
     const savePreferences = (state: ConsentState) => {
-        applyConsent(state);
-        localStorage.setItem('cookie_consent', JSON.stringify(state));
-        setIsVisible(false);
+        try {
+            applyConsent(state);
+            const value = JSON.stringify(state);
+            localStorage.setItem('cookie_consent', value);
+            setCookie('cookie_consent', value, 365); // Save for 1 year
+            setIsVisible(false);
+        } catch (e) {
+            console.error("Error saving cookie preferences:", e);
+        }
     };
 
     const handleAcceptAll = () => {

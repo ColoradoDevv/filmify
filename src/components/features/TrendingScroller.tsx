@@ -29,16 +29,16 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                 Tendencias
                             </span>
                         </div>
-                        <h2 className="text-5xl font-bold mb-2">
+                        <h2 className="text-5xl font-bold mb-2 text-white">
                             Lo Más <span className="text-gradient-premium">Popular</span>
                         </h2>
-                        <p className="text-text-secondary text-lg">
+                        <p className="text-gray-300 text-lg">
                             Las películas que todos están viendo ahora
                         </p>
                     </div>
                     <Link
                         href="/browse"
-                        className="hidden md:flex items-center gap-2 px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group"
+                        className="hidden md:flex items-center gap-2 px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white"
                     >
                         Explorar Todo
                         <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -85,12 +85,12 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                         </div>
                                     )}
 
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    {/* Hover Overlay (Minimalist) */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                                     {/* Movie Info */}
-                                    <div className="absolute inset-x-0 bottom-0 p-5 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                                        <h3 className="text-base font-bold line-clamp-2 mb-3 text-white">
+                                    <div className="absolute inset-x-0 bottom-0 p-5 transition-transform duration-300">
+                                        <h3 className="text-base font-bold line-clamp-2 mb-3 text-white group-hover:text-primary transition-colors">
                                             {movie.title}
                                         </h3>
 
@@ -122,7 +122,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
             <div className="md:hidden relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
                 <Link
                     href="/browse"
-                    className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300"
+                    className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 text-white"
                 >
                     Explorar Todo
                     <span>→</span>

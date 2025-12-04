@@ -44,7 +44,10 @@ export default function PlatformHeader() {
 
     return (
         <>
-            <div className="sticky top-0 z-40 bg-surface border-b border-surface-light px-4 py-4 flex items-center justify-between gap-4">
+            <div
+                style={{ top: 'var(--announcement-height, 0px)' }}
+                className="sticky z-40 bg-surface border-b border-surface-light px-4 py-4 flex items-center justify-between gap-4"
+            >
                 <div className="flex items-center gap-2 lg:hidden">
                     <span className="text-2xl font-bold text-gradient">FilmiFy</span>
                 </div>

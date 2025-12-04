@@ -55,7 +55,10 @@ export default function TVSidebar() {
     };
 
     return (
-        <aside className="tv-sidebar hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-24 bg-surface/40 backdrop-blur-xl border-r border-white/10 z-50">
+        <aside
+            style={{ top: 'var(--announcement-height, 0px)' }}
+            className="tv-sidebar hidden lg:flex lg:flex-col lg:fixed lg:bottom-0 lg:w-24 bg-surface/40 backdrop-blur-xl border-r border-white/10 z-50"
+        >
             <div className="flex flex-col flex-1 min-h-0 relative">
                 {/* Logo */}
                 <div className="flex items-center justify-center py-8 mb-4">

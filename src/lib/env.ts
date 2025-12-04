@@ -13,13 +13,13 @@ export function getRequiredEnv(key: string): string {
     // Next.js carga automáticamente las variables de .env.local
     // Las variables con prefijo NEXT_PUBLIC_ están disponibles en cliente y servidor
     const value = process.env[key];
-    
+
     if (!value) {
         const isClient = typeof window !== 'undefined';
         const errorMessage = isClient
             ? `Missing required environment variable: ${key}. Please check your .env.local file and ensure ${key} is set. Make sure to restart the dev server after creating/updating .env.local`
             : `Missing required environment variable: ${key}. Please add ${key} to your .env.local file and restart the dev server.`;
-        
+
         console.error('❌', errorMessage);
         console.error('\n🔍 Debug info:');
         console.error('   - Variable buscada:', key);
@@ -28,7 +28,7 @@ export function getRequiredEnv(key: string): string {
             .filter(k => k.includes('SUPABASE') || k.includes('TMDB') || k.includes('NEXT_PUBLIC'))
             .map(k => `     • ${k}`)
             .join('\n') || '     (ninguna encontrada)');
-        
+
         // En desarrollo, dar instrucciones más claras
         if (process.env.NODE_ENV === 'development') {
             console.error('\n💡 Solución:');
@@ -39,7 +39,7 @@ export function getRequiredEnv(key: string): string {
             console.error('      - Ejecuta: npm run dev');
             console.error('   4. Ejecuta: npm run check-env para verificar la configuración\n');
         }
-        
+
         throw new Error(errorMessage);
     }
     return value;
@@ -57,8 +57,8 @@ export function getOptionalEnv(key: string, defaultValue: string = ''): string {
  */
 export function getSupabaseConfig() {
     return {
-        url: getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-        anonKey: getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+        url: getOptionalEnv('NEXT_PUBLIC_SUPABASE_URL'),
+        anonKey: getOptionalEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
         serviceRoleKey: getOptionalEnv('SUPABASE_SERVICE_ROLE_KEY'),
     };
 }

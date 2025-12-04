@@ -10,6 +10,32 @@ export async function middleware(request: NextRequest) {
     });
 
     const { url, anonKey } = getSupabaseConfig();
+    const hasSupabase = url && anonKey;
+
+    // --- SECURITY HEADERS ---
+    const securityHeaders = {
+        'X-DNS-Prefetch-Control': 'on',
+        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'origin-when-cross-origin',
+    };
+
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
+
+    // If Supabase is not configured, allow public access but block admin/protected routes
+    if (!hasSupabase) {
+        const protectedRoutes = ['/browse', '/favorites', '/settings', '/admin'];
+        const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+
+        if (isProtectedRoute) {
+            // If trying to access protected route without DB, redirect to home
+            return NextResponse.redirect(new URL('/', request.url));
+        }
+        return response;
+    }
 
     const supabase = createServerClient(
         url,
@@ -91,21 +117,6 @@ export async function middleware(request: NextRequest) {
     if (user && isAuthRoute && !request.nextUrl.pathname.startsWith('/confirm-email')) {
         return NextResponse.redirect(new URL('/browse', request.url));
     }
-
-    // --- SECURITY HEADERS ---
-    const securityHeaders = {
-        'X-DNS-Prefetch-Control': 'on',
-        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-        'X-Frame-Options': 'SAMEORIGIN',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'origin-when-cross-origin',
-        // Content-Security-Policy is intentionally omitted to allow third-party scripts (AdSense, analytics, etc.)
-        // A strict CSP would require careful configuration of all allowed sources
-    };
-
-    Object.entries(securityHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
 
     return response;
 }

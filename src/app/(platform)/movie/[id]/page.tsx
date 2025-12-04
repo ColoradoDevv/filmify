@@ -332,7 +332,7 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                     {/* Main Content Area */}
                     <div className="md:col-span-2 space-y-10">
                         {/* Where to Watch */}
-                        <div className="bg-surface-light/5 rounded-xl p-6 border border-white/5">
+                        <div id="where-to-watch" className="bg-surface-light/5 rounded-xl p-6 border border-white/5">
                             <h2 className="text-2xl font-bold text-white mb-6">Dónde Ver</h2>
                             {providers ? (
                                 <div className="space-y-6">
