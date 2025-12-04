@@ -50,7 +50,7 @@ export default function CommunicationPage() {
             const channel = supabase.channel('system_broadcasts');
 
             await new Promise((resolve, reject) => {
-                channel.subscribe(async (status) => {
+                channel.subscribe(async (status: string) => {
                     if (status === 'SUBSCRIBED') {
                         await channel.send({
                             type: 'broadcast',
