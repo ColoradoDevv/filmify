@@ -39,14 +39,6 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                             <span className="font-medium">Explorar</span>
                         </Link>
                         <Link
-                            href="/rooms"
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
-                            onClick={onClose}
-                        >
-                            <Users className="w-5 h-5 text-primary" />
-                            <span className="font-medium">Watch Parties</span>
-                        </Link>
-                        <Link
                             href="/live-tv"
                             className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
                             onClick={onClose}

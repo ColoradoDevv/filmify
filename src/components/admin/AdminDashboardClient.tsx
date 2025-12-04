@@ -7,7 +7,6 @@ import { getRecentAuditLogs } from '@/app/admin/actions';
 
 interface DashboardStats {
     totalUsers: number;
-    activeUsers: number; // Active Rooms
     conversionRate: string; // Total Reviews
     costs: string;
 }
@@ -37,26 +36,6 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
             )
             .subscribe();
 
-        // Channel for Watch Parties (Active Rooms)
-        const roomsChannel = supabase
-            .channel('realtime-rooms')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'parties' },
-                async (payload: any) => {
-                    if (payload.eventType === 'INSERT') {
-                        setStats(prev => ({ ...prev, activeUsers: prev.activeUsers + 1 }));
-                    } else if (payload.eventType === 'DELETE') {
-                        setStats(prev => ({ ...prev, activeUsers: Math.max(0, prev.activeUsers - 1) }));
-                    } else if (payload.eventType === 'UPDATE') {
-                        const newStatus = (payload.new as any).status;
-                        if (newStatus === 'finished') {
-                            setStats(prev => ({ ...prev, activeUsers: Math.max(0, prev.activeUsers - 1) }));
-                        }
-                    }
-                }
-            )
-            .subscribe();
 
         // Channel for Reviews (Conversion)
         const reviewsChannel = supabase
@@ -84,7 +63,6 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
 
         return () => {
             supabase.removeChannel(profilesChannel);
-            supabase.removeChannel(roomsChannel);
             supabase.removeChannel(reviewsChannel);
             clearInterval(interval);
         };
@@ -113,13 +91,6 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
                     icon={<Users className="w-5 h-5 text-blue-400" />}
                     trend="Live Updates"
                     color="blue"
-                />
-                <StatCard
-                    title="Active Sessions"
-                    value={stats.activeUsers.toString()}
-                    icon={<Activity className="w-5 h-5 text-emerald-400" />}
-                    trend="Live Updates"
-                    color="emerald"
                 />
                 <StatCard
                     title="System Revenue"

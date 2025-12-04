@@ -24,7 +24,7 @@ export default function Navbar() {
 
     const favorites = useFavorites();
     let supabase: SupabaseClient | undefined;
-    
+
     try {
         supabase = createClient();
     } catch (error) {
@@ -45,33 +45,33 @@ export default function Navbar() {
 
         const getUser = async () => {
             if (!supabase) return;
-            
+
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 setUser(user);
 
-            if (user && supabase) {
-                try {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', user.id)
-                        .single();
+                if (user && supabase) {
+                    try {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('role')
+                            .eq('id', user.id)
+                            .single();
 
-                    // Check if user has admin privileges
-                    if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
-                        setIsAdmin(true);
+                        // Check if user has admin privileges
+                        if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
+                            setIsAdmin(true);
+                        }
+                    } catch (profileError) {
+                        console.error('Error fetching profile:', profileError);
                     }
-                } catch (profileError) {
-                    console.error('Error fetching profile:', profileError);
                 }
-            }
 
-            setLoading(false);
-        } catch (error) {
-            console.error('Error getting user:', error);
-            setLoading(false);
-        }
+                setLoading(false);
+            } catch (error) {
+                console.error('Error getting user:', error);
+                setLoading(false);
+            }
         };
 
         getUser();
@@ -193,22 +193,6 @@ export default function Navbar() {
                                                     <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </Link>
 
-                                                <Link
-                                                    href="/rooms"
-                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/rooms')
-                                                        ? 'text-primary'
-                                                        : 'text-gray-300 hover:text-text-primary'
-                                                        }`}
-                                                >
-                                                    <span className="relative z-10 flex items-center gap-2">
-                                                        <Users className="w-4 h-4" />
-                                                        Watch Parties
-                                                    </span>
-                                                    {pathname?.startsWith('/rooms') && (
-                                                        <div className="absolute inset-0 bg-primary/10 rounded-xl" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                </Link>
 
                                                 <Link
                                                     href="/live-tv"

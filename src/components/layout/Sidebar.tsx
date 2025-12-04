@@ -9,7 +9,6 @@ import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 const navigation = [
     { name: 'Inicio', href: '/browse', icon: Home },
-    { name: 'Salas', href: '/rooms', icon: Film },
     { name: 'Favoritos', href: '/favorites', icon: Heart },
     { name: 'Ajustes', href: '/settings', icon: Settings },
 ];

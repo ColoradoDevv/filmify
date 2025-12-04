@@ -40,11 +40,6 @@ export async function getDashboardStats() {
             .from('profiles')
             .select('*', { count: 'exact', head: true });
 
-        // Get active rooms count
-        const { count: activeRooms } = await supabase
-            .from('watch_parties')
-            .select('*', { count: 'exact', head: true })
-            .neq('status', 'finished');
 
         // Get total reviews count
         const { count: totalReviews } = await supabase
@@ -53,7 +48,6 @@ export async function getDashboardStats() {
 
         return {
             totalUsers: totalUsers || 0,
-            activeUsers: activeRooms || 0, // Using Active Rooms as "Active Users" metric for now
             conversionRate: totalReviews?.toString() || "0", // Using Total Reviews as "Conversion" metric for now
             costs: "$0.00",
         };
@@ -61,7 +55,6 @@ export async function getDashboardStats() {
         console.error('Error fetching dashboard stats:', error);
         return {
             totalUsers: 0,
-            activeUsers: 0,
             conversionRate: "0",
             costs: "$0.00",
         };
@@ -221,167 +214,6 @@ export async function banUser(userId: string) {
 
 
 
-// --- Live Ops Actions ---
-
-export async function getRooms() {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        // Fetch active rooms (not finished)
-        const { data, error } = await supabase
-            .from('parties')
-            .select('*')
-            .neq('status', 'finished')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching rooms:', error);
-            return [];
-        }
-
-        return data || [];
-    } catch (error) {
-        return [];
-    }
-}
-
-export async function terminateRoom(roomId: string) {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        const { error } = await supabase
-            .from('parties')
-            .update({ status: 'finished', ended_at: new Date().toISOString() })
-            .eq('id', roomId);
-
-        if (error) return { success: false, error: error.message };
-
-        revalidatePath('/admin/live-ops');
-        revalidatePath('/admin');
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'Unauthorized' };
-    }
-}
-
-export async function broadcastRoomMessage(roomId: string, message: string) {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        // Assuming 'party_messages' table exists
-        const { error } = await supabase
-            .from('party_messages')
-            .insert({
-                party_id: roomId,
-                content: `[SYSTEM ALERT]: ${message}`,
-                is_system: true, // If column exists, otherwise we rely on content format
-                user_id: (await supabase.auth.getUser()).data.user?.id // Admin ID
-            });
-
-        if (error) return { success: false, error: error.message };
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'Unauthorized' };
-    }
-}
-
-export async function getRoomUsers(roomId: string) {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        // Fetch party members
-        const { data: members, error: membersError } = await supabase
-            .from('party_members')
-            .select('*')
-            .eq('party_id', roomId);
-
-        if (membersError) {
-            console.error('Error fetching room users:', membersError);
-            return [];
-        }
-
-        if (!members || members.length === 0) return [];
-
-        // Fetch profiles for these members
-        const userIds = members.map(m => m.user_id);
-        const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, email, avatar_url')
-            .in('id', userIds);
-
-        if (profilesError) {
-            console.error('Error fetching member profiles:', profilesError);
-            // Return members without profile data if profile fetch fails
-            return members.map(member => ({
-                ...member,
-                profiles: { full_name: 'Unknown', email: 'Unknown', avatar_url: null }
-            }));
-        }
-
-        // Merge data
-        const membersWithProfiles = members.map(member => {
-            const profile = profiles?.find(p => p.id === member.user_id);
-            return {
-                ...member,
-                profiles: profile || { full_name: 'Unknown', email: 'Unknown', avatar_url: null }
-            };
-        });
-
-        return membersWithProfiles;
-    } catch (error) {
-        return [];
-    }
-}
-
-export async function kickUserFromRoom(roomId: string, userId: string) {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        const { error } = await supabase
-            .from('party_members')
-            .delete()
-            .eq('party_id', roomId)
-            .eq('user_id', userId);
-
-        if (error) return { success: false, error: error.message };
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'Unauthorized' };
-    }
-}
-
-export async function warnUser(roomId: string, userId: string, message: string) {
-    try {
-        await requireAdmin();
-        const supabase = await createAdminClient();
-
-        // Send a private system message (or just a system message tagged for that user if schema supported, 
-        // but for now we'll send a general system message mentioning the user)
-
-        // First get user name for better context
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
-        const userName = profile?.full_name || 'User';
-
-        const { error } = await supabase
-            .from('party_messages')
-            .insert({
-                party_id: roomId,
-                content: `[WARNING to ${userName}]: ${message}`,
-                is_system: true,
-                user_id: (await supabase.auth.getUser()).data.user?.id
-            });
-
-        if (error) return { success: false, error: error.message };
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'Unauthorized' };
-    }
-}
 
 // --- Moderation Actions ---
 

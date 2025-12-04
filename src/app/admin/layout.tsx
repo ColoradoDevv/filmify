@@ -40,7 +40,6 @@ export default function AdminLayout({
                 <nav className="flex-1 p-4 space-y-1">
                     <div className="px-3 py-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-mono">Operations</div>
                     <NavLink href="/admin" icon={<LayoutDashboard size={18} />} label="Command Center" />
-                    <NavLink href="/admin/live-ops" icon={<Activity size={18} />} label="Live Operations" />
 
                     <div className="px-3 py-2 mt-6 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-mono">Security</div>
                     <NavLink href="/admin/users" icon={<Users size={18} />} label="User Database" />

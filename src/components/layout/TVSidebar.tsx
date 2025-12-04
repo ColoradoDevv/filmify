@@ -10,7 +10,6 @@ const navigation = [
     { name: 'Inicio', href: '/browse', icon: Home, exact: true },
     { name: 'Buscar', href: '/search', icon: Search },
     { name: 'Tendencias', href: '/browse?category=trending', icon: TrendingUp },
-    { name: 'Salas', href: '/rooms', icon: Film },
     { name: 'Favoritos', href: '/favorites', icon: Heart },
     { name: 'Ajustes', href: '/settings', icon: Settings },
 ];
