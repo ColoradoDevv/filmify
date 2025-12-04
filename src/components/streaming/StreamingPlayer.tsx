@@ -40,9 +40,11 @@ export const StreamingPlayer = ({
     const [showSourceSelector, setShowSourceSelector] = useState(false);
     const [language, setLanguage] = useState<'es' | 'en'>(initialLanguage);
     const [manualSource, setManualSource] = useState<string | null>(null);
+    const [iframeError, setIframeError] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Fetch Stream URL
     useEffect(() => {
@@ -65,28 +67,37 @@ export const StreamingPlayer = ({
 
                 // 1. Try Latino Sources First (if language is Spanish and not forced manual)
                 if (language === 'es') {
-                    const { getLatinoStream } = await import('@/services/latinoSources');
-                    const latinoStream = await getLatinoStream(imdbId, mediaType !== 'tv', season, episode);
+                    try {
+                        const { getLatinoStream } = await import('@/services/latinoSources');
+                        const latinoStream = await getLatinoStream(imdbId, mediaType !== 'tv', season, episode);
 
-                    if (latinoStream) {
-                        setStream(latinoStream);
-                        setIsLoadingEmbed(false);
-                        return;
+                        if (latinoStream) {
+                            setStream(latinoStream);
+                            setIsLoadingEmbed(false);
+                            return;
+                        }
+                    } catch (latinoError) {
+                        console.warn('Latino sources failed, trying international:', latinoError);
                     }
                 }
 
                 // 2. Auto mode (find working stream - fallback to international)
-                const result = await getWorkingStream(
-                    imdbId,
-                    language,
-                    mediaType !== 'tv',
-                    season,
-                    episode,
-                    tmdbId,
-                    undefined, // isAnimeOverride
-                    failedSources // excludedSources
-                );
-                setStream(result);
+                try {
+                    const result = await getWorkingStream(
+                        imdbId,
+                        language,
+                        mediaType !== 'tv',
+                        season,
+                        episode,
+                        tmdbId,
+                        undefined, // isAnimeOverride
+                        failedSources // excludedSources
+                    );
+                    setStream(result);
+                } catch (streamError) {
+                    console.error('Error getting working stream:', streamError);
+                    setStream(null);
+                }
 
             } catch (error) {
                 console.error('Error fetching stream:', error);
@@ -96,8 +107,21 @@ export const StreamingPlayer = ({
             }
         };
 
-        fetchStream();
-    }, [imdbId, mediaType, season, episode, language, manualSource, failedSources]);
+        if (imdbId) {
+            fetchStream();
+        } else {
+            console.warn('No IMDB ID provided');
+            setStream(null);
+            setIsLoadingEmbed(false);
+        }
+
+        // Cleanup timeout on unmount
+        return () => {
+            if (loadTimeoutRef.current) {
+                clearTimeout(loadTimeoutRef.current);
+            }
+        };
+    }, [imdbId, mediaType, season, episode, language, manualSource, failedSources, tmdbId]);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -112,7 +136,16 @@ export const StreamingPlayer = ({
     const handleReportBroken = () => {
         if (!stream) return;
         const sourceName = stream.source.split(' ')[0];
-        setFailedSources(prev => [...prev, sourceName]);
+        setFailedSources(prev => {
+            if (prev.includes(sourceName)) return prev;
+            return [...prev, sourceName];
+        });
+        // Try to reload with a different source
+        setStream(null);
+        setIsLoadingEmbed(true);
+        setTimeout(() => {
+            setIsLoadingEmbed(false);
+        }, 1000);
     };
 
     const handleForceLatino = () => {
@@ -195,26 +228,95 @@ export const StreamingPlayer = ({
                         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                         <p>Buscando mejor fuente...</p>
                     </div>
-                ) : stream ? (
+                ) : stream && !iframeError ? (
                     <div className="w-full h-full flex flex-col">
                         <div className="flex-1 relative">
                             <iframe
-                                ref={iframeRef}
+                                ref={(el) => {
+                                    if (el) {
+                                        iframeRef.current = el;
+                                        // Set timeout to detect if iframe doesn't load
+                                        if (loadTimeoutRef.current) {
+                                            clearTimeout(loadTimeoutRef.current);
+                                        }
+                                        loadTimeoutRef.current = setTimeout(() => {
+                                            // Check if iframe has content
+                                            try {
+                                                if (el.contentDocument?.body?.children.length === 0) {
+                                                    console.warn('Iframe appears empty after timeout');
+                                                    setIframeError(true);
+                                                }
+                                            } catch (e) {
+                                                // Cross-origin, can't check - assume it's loading
+                                                console.log('Cannot check iframe content (cross-origin)');
+                                            }
+                                        }, 10000); // 10 second timeout
+                                    }
+                                }}
                                 src={stream.url}
                                 className="w-full h-full border-0"
                                 allowFullScreen
-                                allow="autoplay; fullscreen; picture-in-picture"
+                                allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; clipboard-read; web-share"
+                                referrerPolicy="no-referrer-when-downgrade"
+                                sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation allow-top-navigation-by-user-activation allow-downloads"
+                                loading="eager"
                                 title={`${title} - Player`}
+                                onLoad={() => {
+                                    console.log('Iframe loaded successfully:', stream.url);
+                                    setIframeError(false);
+                                    if (loadTimeoutRef.current) {
+                                        clearTimeout(loadTimeoutRef.current);
+                                    }
+                                }}
                             />
+                            {/* Fallback message if iframe fails to load */}
+                            {iframeError && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white p-6 text-center">
+                                    <div>
+                                        <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+                                        <h3 className="text-lg font-bold mb-2">Error al cargar el reproductor</h3>
+                                        <p className="text-sm text-gray-300 mb-4">
+                                            El embed no se pudo cargar. Esto puede deberse a restricciones del navegador o que la fuente esté bloqueada.
+                                        </p>
+                                        <div className="flex gap-2 justify-center">
+                                            <button
+                                                onClick={() => {
+                                                    setIframeError(false);
+                                                    if (iframeRef.current) {
+                                                        iframeRef.current.src = stream.url;
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium"
+                                            >
+                                                Reintentar
+                                            </button>
+                                            <button
+                                                onClick={handleReportBroken}
+                                                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium"
+                                            >
+                                                Probar Otra Fuente
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
                     <div className="text-center max-w-md text-white px-6">
                         <Film size={64} className="mx-auto mb-4 text-gray-500" />
                         <h3 className="text-xl font-bold mb-2">Contenido no disponible</h3>
-                        <p className="text-gray-400 text-sm">
+                        <p className="text-gray-400 text-sm mb-4">
                             No se encontraron fuentes de streaming para este título.
                         </p>
+                        <div className="flex flex-col gap-2 text-xs text-gray-500">
+                            <p>• Verifica que el IMDB ID sea correcto</p>
+                            <p>• Intenta cambiar el idioma (ES/EN)</p>
+                            <p>• Prueba seleccionar una fuente manualmente</p>
+                            {imdbId && (
+                                <p className="mt-2 text-gray-600">IMDB ID: {imdbId}</p>
+                            )}
+                        </div>
                     </div>
                 )}
 

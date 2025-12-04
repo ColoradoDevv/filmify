@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, Clapperboard, Heart, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
 import SearchInput from '@/components/features/SearchInput';
 import UserMenu from './navbar/UserMenu';
@@ -22,45 +22,78 @@ export default function Navbar() {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    const supabase = createClient();
     const favorites = useFavorites();
+    let supabase: SupabaseClient | undefined;
+    
+    try {
+        supabase = createClient();
+    } catch (error) {
+        console.error('Failed to create Supabase client:', error);
+        // En desarrollo, continuar sin Supabase
+        if (process.env.NODE_ENV === 'development') {
+            console.warn('Continuing without Supabase. Please configure your .env.local file.');
+        }
+    }
 
     const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/register');
 
     useEffect(() => {
+        if (!supabase) {
+            setLoading(false);
+            return;
+        }
+
         const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+            if (!supabase) return;
+            
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                setUser(user);
 
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', user.id)
-                    .single();
+            if (user && supabase) {
+                try {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .single();
 
-                // Check if user has admin privileges
-                if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
-                    setIsAdmin(true);
+                    // Check if user has admin privileges
+                    if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
+                        setIsAdmin(true);
+                    }
+                } catch (profileError) {
+                    console.error('Error fetching profile:', profileError);
                 }
             }
 
             setLoading(false);
+        } catch (error) {
+            console.error('Error getting user:', error);
+            setLoading(false);
+        }
         };
 
         getUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (!supabase) return;
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
             setUser(session?.user ?? null);
-            if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
-                if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
-                    setIsAdmin(true);
-                } else {
+            if (session?.user && supabase) {
+                try {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single();
+                    if (profile?.role === 'admin' || profile?.role === 'owner' || profile?.role === 'superadmin') {
+                        setIsAdmin(true);
+                    } else {
+                        setIsAdmin(false);
+                    }
+                } catch (error) {
+                    console.error('Error fetching profile on auth change:', error);
                     setIsAdmin(false);
                 }
             } else {
@@ -86,6 +119,7 @@ export default function Navbar() {
     };
 
     const confirmLogout = async () => {
+        if (!supabase) return;
         await supabase.auth.signOut();
         setShowLogoutConfirm(false);
         router.refresh();

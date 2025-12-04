@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from '@/lib/env';
 
 export function createAdminClient() {
+    const { url, serviceRoleKey } = getSupabaseConfig();
+
+    if (!serviceRoleKey) {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for admin operations');
+    }
+
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        url,
+        serviceRoleKey,
         {
             auth: {
                 autoRefreshToken: false,

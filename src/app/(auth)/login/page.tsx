@@ -139,14 +139,16 @@ export default function LoginPage() {
                     </div>
 
                     {/* hCaptcha */}
-                    <div className="flex justify-center py-2">
-                        <HCaptcha
-                            sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
-                            onVerify={(token) => setCaptchaToken(token)}
-                            ref={captchaRef}
-                            theme="dark"
-                        />
-                    </div>
+                    {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+                        <div className="flex justify-center py-2">
+                            <HCaptcha
+                                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                                onVerify={(token) => setCaptchaToken(token)}
+                                ref={captchaRef}
+                                theme="dark"
+                            />
+                        </div>
+                    )}
 
                     {/* Submit Button */}
                     <button

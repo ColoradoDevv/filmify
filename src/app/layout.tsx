@@ -6,6 +6,7 @@ import { GoogleAnalytics } from '@next/third-parties/google';
 import { Analytics } from "@vercel/analytics/react";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import Script from "next/script";
+import { getOptionalApiKeys } from '@/lib/env';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +18,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const { appUrl, gaId, adsenseClientId } = getOptionalApiKeys();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(appUrl),
   title: "FilmiFy - Tu Universo de Películas | Descubre y Organiza Cine",
   description: "Descubre, organiza y disfruta de miles de películas y series. Tu colección personal de cine en un solo lugar. Búsqueda inteligente, listas personalizadas y catálogo actualizado diariamente.",
   keywords: [
@@ -112,7 +115,7 @@ export default async function RootLayout({
         <Toaster position="top-center" richColors />
         {children}
         <SpeedInsights />
-        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ""} />
+        <GoogleAnalytics gaId={gaId} />
         <Analytics />
         <CookieConsent />
         <Script id="google-consent-mode" strategy="beforeInteractive">
@@ -129,10 +132,10 @@ export default async function RootLayout({
         </Script>
 
         {/* Google AdSense */}
-        {process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID && (
+        {adsenseClientId && (
           <Script
             async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}`}
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
             crossOrigin="anonymous"
             strategy="afterInteractive"
           />

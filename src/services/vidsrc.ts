@@ -18,8 +18,6 @@ export const getMovieEmbedUrl = (imdbId: string, lang: 'es' | 'en' = 'es'): stri
  * @param imdbId - The IMDB ID of the TV show
  * @param season - Season number
  * @param episode - Episode number
- * @param season - Season number
- * @param episode - Episode number
  * @param lang - Audio language ('es' or 'en')
  * @returns The full embed URL
  */

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getSupabaseConfig } from '@/lib/env';
 
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
@@ -8,23 +9,24 @@ export async function middleware(request: NextRequest) {
         },
     });
 
+    const { url, anonKey } = getSupabaseConfig();
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        url,
+        anonKey,
         {
             cookies: {
                 getAll() {
                     return request.cookies.getAll();
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        request.cookies.set(name, value)
-                    );
+                    // Create new response for cookie updates
                     response = NextResponse.next({
                         request: {
                             headers: request.headers,
                         },
                     });
+                    // Set cookies on response only
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     );
@@ -97,7 +99,8 @@ export async function middleware(request: NextRequest) {
         'X-Frame-Options': 'SAMEORIGIN',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'origin-when-cross-origin',
-        // 'Content-Security-Policy': "default-src 'self'; ..." // TODO: Configure strict CSP later to avoid breaking scripts
+        // Content-Security-Policy is intentionally omitted to allow third-party scripts (AdSense, analytics, etc.)
+        // A strict CSP would require careful configuration of all allowed sources
     };
 
     Object.entries(securityHeaders).forEach(([key, value]) => {

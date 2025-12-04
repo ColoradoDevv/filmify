@@ -14,11 +14,13 @@ import {
 import { getWorkingStream } from '@/services/streamingSources';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
+import { getOptionalApiKeys } from '@/lib/env';
+
 // Configuration
 const PORTAL_NAME = 'FilmiFy TV';
 const PORTAL_VERSION = '1.0.0';
 const TIMEZONE = 'America/New_York';
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const BASE_URL = getOptionalApiKeys().appUrl;
 
 /**
  * Helper to generate a token based on MAC address

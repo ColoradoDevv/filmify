@@ -133,12 +133,38 @@ export async function getWorkingStream(
     // Detecta anime vía TMDB (género 16 o keywords)
     if (!isAnime && tmdbId) {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}&language=en`);
-            const data = await res.json();
-            const genres = data.genres?.map((g: any) => g.id);
-            const keywordsRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}/keywords?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}`);
-            const keywords = await keywordsRes.json();
-            const hasAnimeKeyword = keywords.keywords?.some((k: any) => k.name.toLowerCase().includes('anime'));
+            const { getTmdbApiKey } = await import('@/lib/env');
+            const apiKey = getTmdbApiKey();
+            
+            interface Genre {
+                id: number;
+                name: string;
+            }
+            
+            interface Keyword {
+                id: number;
+                name: string;
+            }
+            
+            interface MovieResponse {
+                genres?: Genre[];
+            }
+            
+            interface KeywordsResponse {
+                keywords?: Keyword[];
+            }
+            
+            const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}&language=en`);
+            if (!res.ok) throw new Error('Failed to fetch movie data');
+            
+            const data: MovieResponse = await res.json();
+            const genres = data.genres?.map((g: Genre) => g.id);
+            
+            const keywordsRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}/keywords?api_key=${apiKey}`);
+            if (!keywordsRes.ok) throw new Error('Failed to fetch keywords');
+            
+            const keywords: KeywordsResponse = await keywordsRes.json();
+            const hasAnimeKeyword = keywords.keywords?.some((k: Keyword) => k.name.toLowerCase().includes('anime'));
             isAnime = genres?.includes(16) || hasAnimeKeyword;
         } catch (e) {
             console.warn('Anime detection failed, assuming general');

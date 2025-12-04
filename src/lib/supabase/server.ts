@@ -1,12 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSupabaseConfig } from '@/lib/env';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export async function createClient() {
     const cookieStore = await cookies();
+    const { url, anonKey } = getSupabaseConfig();
 
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        url,
+        anonKey,
         {
             cookies: {
                 getAll() {
@@ -31,10 +34,15 @@ export async function createClient() {
 
 export async function createAdminClient() {
     const cookieStore = await cookies();
+    const { url, serviceRoleKey } = getSupabaseConfig();
+
+    if (!serviceRoleKey) {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for admin operations');
+    }
 
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        url,
+        serviceRoleKey,
         {
             cookies: {
                 getAll() {
@@ -56,12 +64,16 @@ export async function createAdminClient() {
     );
 }
 
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
 export function createServiceRoleClient() {
+    const { url, serviceRoleKey } = getSupabaseConfig();
+
+    if (!serviceRoleKey) {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for service role operations');
+    }
+
     return createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        url,
+        serviceRoleKey,
         {
             auth: {
                 autoRefreshToken: false,

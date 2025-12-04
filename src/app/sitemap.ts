@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getPopular, getTrending } from '@/lib/tmdb/service';
+import { getOptionalApiKeys } from '@/lib/env';
 
 /**
  * Dynamic Sitemap for FilmiFy
@@ -7,7 +8,7 @@ import { getPopular, getTrending } from '@/lib/tmdb/service';
  * This helps Google discover and index our most valuable content first
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://filmify.vercel.app';
+const BASE_URL = getOptionalApiKeys().appUrl;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const currentDate = new Date();

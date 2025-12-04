@@ -1,11 +1,12 @@
 import { MetadataRoute } from 'next';
+import { getOptionalApiKeys } from '@/lib/env';
 
 /**
  * Robots.txt configuration for FilmiFy
  * Tells search engines what to index and what to avoid
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://filmify.vercel.app';
+const BASE_URL = getOptionalApiKeys().appUrl;
 
 export default function robots(): MetadataRoute.Robots {
     return {

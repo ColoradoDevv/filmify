@@ -1,10 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { getOptionalApiKeys } from '@/lib/env';
 
 export async function GET(request: Request) {
     // Check for authorization header to secure it with a secret
+    const { cronSecret } = getOptionalApiKeys();
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

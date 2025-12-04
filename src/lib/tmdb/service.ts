@@ -8,6 +8,7 @@ import type {
     MultiSearchResult,
     SearchFilters,
 } from '@/types/tmdb';
+import { getSupabaseConfig, getTmdbApiKey } from '@/lib/env';
 
 /**
  * TMDB API Service
@@ -31,10 +32,7 @@ const getBlacklist = async (): Promise<Set<number>> => {
     try {
         // We use a direct fetch to Supabase REST API to avoid importing the client and causing circular deps or bundle issues
         // assuming RLS allows public read (which we set)
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        if (!supabaseUrl || !supabaseKey) return new Set();
+        const { url: supabaseUrl, anonKey: supabaseKey } = getSupabaseConfig();
 
         const response = await fetch(`${supabaseUrl}/rest/v1/content_blacklist?select=tmdb_id`, {
             headers: {
@@ -47,7 +45,10 @@ const getBlacklist = async (): Promise<Set<number>> => {
         if (!response.ok) return new Set();
 
         const data = await response.json();
-        blacklistCache = new Set(data.map((item: any) => item.tmdb_id));
+        interface BlacklistItem {
+            tmdb_id: number;
+        }
+        blacklistCache = new Set(data.map((item: BlacklistItem) => item.tmdb_id));
         lastBlacklistFetch = now;
         return blacklistCache;
     } catch (e) {
@@ -60,11 +61,7 @@ const getBlacklist = async (): Promise<Set<number>> => {
  * Get API key from environment variables
  */
 const getApiKey = (): string => {
-    const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-    if (!apiKey) {
-        throw new Error('TMDB_API_KEY is not defined in environment variables');
-    }
-    return apiKey;
+    return getTmdbApiKey();
 };
 
 /**

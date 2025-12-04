@@ -1,9 +1,10 @@
 'use server';
 
 import Groq from 'groq-sdk';
-import { getSettings } from "./admin-settings";
+import { getSettings } from '@/lib/admin-settings';
+import { getOptionalApiKeys } from '@/lib/env';
 
-const apiKey = process.env.GROQ_API_KEY;
+const { groqApiKey: apiKey } = getOptionalApiKeys();
 
 // Initialize Groq
 const groq = apiKey ? new Groq({ apiKey }) : null;

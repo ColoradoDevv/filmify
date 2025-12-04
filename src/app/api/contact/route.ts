@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { getOptionalApiKeys } from '@/lib/env';
 
 export async function POST(request: Request) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { resendApiKey } = getOptionalApiKeys();
+
+    if (!resendApiKey) {
+        return NextResponse.json(
+            { error: 'Servicio de email no configurado' },
+            { status: 503 }
+        );
+    }
+
+    const resend = new Resend(resendApiKey);
 
     // Rate Limiting
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';

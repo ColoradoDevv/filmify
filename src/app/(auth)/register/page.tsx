@@ -533,14 +533,16 @@ export default function RegisterPage() {
                     </div>
 
                     {/* hCaptcha */}
-                    <div className="flex justify-center py-2">
-                        <HCaptcha
-                            sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
-                            onVerify={(token) => setCaptchaToken(token)}
-                            ref={captchaRef}
-                            theme="dark"
-                        />
-                    </div>
+                    {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+                        <div className="flex justify-center py-2">
+                            <HCaptcha
+                                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                                onVerify={(token) => setCaptchaToken(token)}
+                                ref={captchaRef}
+                                theme="dark"
+                            />
+                        </div>
+                    )}
 
                     {/* Terms and Conditions Checkbox */}
                     <div className="flex items-start gap-3 p-4 bg-surface/50 border border-surface-light rounded-xl">
