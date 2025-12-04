@@ -56,9 +56,9 @@ export default function AuditLogsPage() {
                 // Actually, profiles usually has username or full_name. Let's use what we have.
                 .in('id', adminIds);
 
-            const logsWithDetails = data.map((log) => ({
+            const logsWithDetails = data.map((log: AdminLog) => ({
                 ...log,
-                admin_email: profiles?.find((p) => p.id === log.admin_id)?.email || log.admin_id,
+                admin_email: profiles?.find((p: { id: string; email: string }) => p.id === log.admin_id)?.email || log.admin_id,
             }));
 
             setLogs(logsWithDetails);
