@@ -3,10 +3,10 @@
 export async function checkUrlAvailability(url: string): Promise<boolean> {
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout (aumentado)
+        const timeout = setTimeout(() => controller.abort(), 8000);
 
         const res = await fetch(url, {
-            method: 'GET', // Cambiado a GET para leer contenido
+            method: 'GET',
             signal: controller.signal,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -18,13 +18,11 @@ export async function checkUrlAvailability(url: string): Promise<boolean> {
 
         clearTimeout(timeout);
 
-        // Check HTTP status
         if (!res.ok) {
             console.log(`❌ ${url} - HTTP ${res.status}`);
             return false;
         }
 
-        // Check content to detect parking pages
         const html = await res.text();
         const lowerHtml = html.toLowerCase();
 
@@ -52,15 +50,18 @@ export async function checkUrlAvailability(url: string): Promise<boolean> {
             return false;
         }
 
-        // Verificar que tenga contenido de video/streaming
+        // Verificar que tenga contenido de video/streaming O sea una página de redirección válida
         const hasStreamingContent =
             lowerHtml.includes('iframe') ||
             lowerHtml.includes('video') ||
             lowerHtml.includes('player') ||
-            lowerHtml.includes('embed');
+            lowerHtml.includes('embed') ||
+            lowerHtml.includes('redirecting') ||
+            lowerHtml.includes('loading') ||
+            lowerHtml.includes('window.location');
 
         if (!hasStreamingContent) {
-            console.log(`⚠️ ${url} - No streaming content found`);
+            console.log(`⚠️ ${url} - No streaming/redirect content found`);
             return false;
         }
 

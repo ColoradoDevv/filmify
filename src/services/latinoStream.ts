@@ -76,34 +76,56 @@ export async function getBestLatinoStream(
     episode?: number
 ): Promise<{ url: string; source: string; type: 'proxy' | 'direct' } | null> {
 
+    // PRIORITY 1: Try reliable embed APIs first (vidsrc, 2embed, etc.)
+    try {
+        const { getBestEmbedApi } = await import('@/services/embedApis');
+        const embedResult = getBestEmbedApi(imdbId, isMovie, season, episode);
+
+        console.log(`✅ Using Embed API: ${embedResult.source} → ${embedResult.url}`);
+
+        return {
+            url: embedResult.url,
+            source: embedResult.source,
+            type: 'direct' // Embed APIs don't need proxy
+        };
+    } catch (error) {
+        console.log(`⚠️ Embed APIs failed, trying Latino sites...`);
+    }
+
+    // PRIORITY 2: Fallback to Latino sites if APIs fail
     for (const mirror of LATINO_MIRRORS) {
         const path = isMovie
             ? `${mirror.path}${imdbId}`
             : `${mirror.path.replace('/pelicula/', '/serie/')}${imdbId}/temporada-${season}/episodio-${episode}`;
 
-        const directUrl = `${mirror.base}${path}`;
+        const pageUrl = `${mirror.base}${path}`;
 
         try {
-            // FIX: Always check the direct URL availability. 
-            const available = await checkUrlAvailability(directUrl);
+            console.log(`🔍 Trying ${mirror.name}: ${pageUrl}`);
+
+            const available = await checkUrlAvailability(pageUrl);
 
             if (available) {
-                console.log(`LATINO ENCONTRADO: ${mirror.name} → ${mirror.base}`);
+                console.log(`✅ LATINO ENCONTRADO: ${mirror.name} → ${pageUrl}`);
 
-                // Use helper to generate the final URL (proxy if local, direct if prod)
-                const finalUrl = getLatinoUrl(directUrl);
-                const isProxy = finalUrl !== directUrl;
+                const finalUrl = getLatinoUrl(pageUrl);
+                const isProxy = finalUrl !== pageUrl;
 
                 return {
                     url: finalUrl,
                     source: `${mirror.name} (${isProxy ? 'proxy' : 'directo'})`,
                     type: isProxy ? 'proxy' : 'direct'
                 };
+            } else {
+                console.log(`⚠️ ${mirror.name} - Not available`);
             }
+
         } catch (e) {
+            console.error(`❌ ${mirror.name} failed:`, e);
             continue;
         }
     }
 
+    console.log('❌ No streams found after trying all sources');
     return null;
 }

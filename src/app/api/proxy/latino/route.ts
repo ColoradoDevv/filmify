@@ -16,14 +16,21 @@ export async function GET(request: NextRequest) {
 
     // Dominios permitidos (agrega más si necesitas)
     const allowedDomains = [
-        // Fuentes existentes
+        // Fuentes Latino (páginas principales)
         'cinecalidad.', 'pelisplus.', 'repelisplus.', 'gnula.',
         'pelisflix.', 'cuevana.', 'tiocalidad.', 'hdfull.',
         'gogoanime3.net', 'hianime.to',
-        // Nuevas fuentes Latino 2025
         'cuevana3.', 'repelis.', 'pelispedia.', 'estrenosgo.',
         'pelislatino.', 'hackstore.', 'pelisplus2.', 'cinelatino.',
-        'pelis24.'
+        'pelis24.',
+        // Servidores embed (donde están los videos reales)
+        'filemoon.', 'doodstream.', 'streamtape.', 'wolfstream.',
+        'streamwish.', 'voe.', 'mixdrop.', 'upstream.', 'streamhub.',
+        'vidoza.', 'fembed.', 'streamsb.', 'streamlare.', 'dood.',
+        // APIs de embed verificadas
+        'vidsrc.', 'autoembed.', '2embed.', 'vidlink.',
+        'moviesapi.club', 'vidcloud.', 'fsapi.', 'gomo.',
+        'multiembed.mov'
     ];
     if (!allowedDomains.some(d => targetUrl.includes(d))) {
         return NextResponse.json({ error: 'Dominio no permitido' }, { status: 403 });
