@@ -28,7 +28,7 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'profiles' },
-                (payload) => {
+                (payload: any) => {
                     setStats(prev => ({
                         ...prev,
                         totalUsers: prev.totalUsers + 1
@@ -43,7 +43,7 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'parties' },
-                async (payload) => {
+                async (payload: any) => {
                     if (payload.eventType === 'INSERT') {
                         setStats(prev => ({ ...prev, activeUsers: prev.activeUsers + 1 }));
                     } else if (payload.eventType === 'DELETE') {
@@ -64,7 +64,7 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'reviews' },
-                (payload) => {
+                (payload: any) => {
                     setStats(prev => ({
                         ...prev,
                         conversionRate: (parseInt(prev.conversionRate) + 1).toString()
