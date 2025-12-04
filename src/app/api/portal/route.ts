@@ -11,7 +11,6 @@ import {
     getImageUrl,
     getExternalIds
 } from '@/lib/tmdb/service';
-import { getWorkingStream } from '@/services/streamingSources';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 import { getOptionalApiKeys } from '@/lib/env';
@@ -286,40 +285,8 @@ async function handleVODRequest(action: string, mac: string, params: URLSearchPa
             });
 
         case 'create_link':
-            const linkVodId = params.get('vod_id') || '';
-            if (!linkVodId) return NextResponse.json({ error: 'Missing vod_id' }, { status: 400 });
-
-            // 1. Get External IDs (IMDB)
-            const externalIds = await getExternalIds(parseInt(linkVodId));
-            const imdbId = externalIds.imdb_id;
-
-            if (!imdbId) {
-                return NextResponse.json({ error: 'IMDB ID not found' }, { status: 404 });
-            }
-
-            // 2. Get Real Stream URL
-            // Try movie first, then TV if needed
-            let streamResult = await getWorkingStream(imdbId, 'es', true, undefined, undefined, parseInt(linkVodId));
-
-            if (!streamResult) {
-                // Try as TV show (S1E1 default)
-                streamResult = await getWorkingStream(imdbId, 'es', false, 1, 1, parseInt(linkVodId));
-            }
-
-            if (!streamResult) {
-                return NextResponse.json({ error: 'Stream not found' }, { status: 404 });
-            }
-
-            return NextResponse.json({
-                js: {
-                    id: linkVodId,
-                    cmd: streamResult.url,
-                    storage: 'local',
-                    streamer_id: '1',
-                    load: 100,
-                    token: generateToken(mac)
-                }
-            });
+            // Streaming functionality has been removed
+            return NextResponse.json({ error: 'Streaming service unavailable' }, { status: 404 });
 
         default:
             return NextResponse.json({ error: 'Unknown VOD action' }, { status: 400 });
