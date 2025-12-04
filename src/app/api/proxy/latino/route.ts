@@ -16,21 +16,10 @@ export async function GET(request: NextRequest) {
 
     // Dominios permitidos (agrega más si necesitas)
     const allowedDomains = [
-        // Fuentes Latino (páginas principales)
-        'cinecalidad.', 'pelisplus.', 'repelisplus.', 'gnula.',
-        'pelisflix.', 'cuevana.', 'tiocalidad.', 'hdfull.',
-        'gogoanime3.net', 'hianime.to',
-        'cuevana3.', 'repelis.', 'pelispedia.', 'estrenosgo.',
-        'pelislatino.', 'hackstore.', 'pelisplus2.', 'cinelatino.',
-        'pelis24.',
-        // Servidores embed (donde están los videos reales)
-        'filemoon.', 'doodstream.', 'streamtape.', 'wolfstream.',
-        'streamwish.', 'voe.', 'mixdrop.', 'upstream.', 'streamhub.',
-        'vidoza.', 'fembed.', 'streamsb.', 'streamlare.', 'dood.',
-        // APIs de embed verificadas
-        'vidsrc.', 'autoembed.', '2embed.', 'vidlink.',
-        'moviesapi.club', 'vidcloud.', 'fsapi.', 'gomo.',
-        'multiembed.mov'
+        // Solo permitir dominios seguros/legales si es necesario para alguna funcionalidad futura
+        // Por ahora, dejar vacío o solo dominios de confianza
+        'filmify.me',
+        'localhost'
     ];
     if (!allowedDomains.some(d => targetUrl.includes(d))) {
         return NextResponse.json({ error: 'Dominio no permitido' }, { status: 403 });
