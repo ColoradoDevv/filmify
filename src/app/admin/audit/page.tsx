@@ -49,7 +49,7 @@ export default function AuditLogsPage() {
             // Fetch admin emails manually since we might not have a relation set up or want to join profiles
             // For now, let's just display the ID or try to fetch profiles if possible.
             // Assuming we can fetch profiles:
-            const adminIds = [...new Set(data.map((log) => log.admin_id))];
+            const adminIds = [...new Set(data.map((log: AdminLog) => log.admin_id))];
             const { data: profiles } = await supabase
                 .from('profiles')
                 .select('id, email') // Assuming profiles has email, or we use auth.users which we can't select from client easily.
