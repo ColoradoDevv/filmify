@@ -48,6 +48,7 @@ export function createClient() {
                     on: () => ({ subscribe: () => { } }),
                     subscribe: () => { },
                     removeChannel: () => { },
+                    unsubscribe: () => { },
                 }),
                 removeChannel: () => { },
             } as any;

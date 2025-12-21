@@ -4,16 +4,12 @@
  */
 
 /**
- * Get required environment variable or throw error
+ * Validate required environment variable
  * 
  * IMPORTANT: In Next.js, environment variables are loaded at build/start time.
  * If you modify .env.local, you MUST restart the dev server for changes to take effect.
  */
-export function getRequiredEnv(key: string): string {
-    // Next.js carga automáticamente las variables de .env.local
-    // Las variables con prefijo NEXT_PUBLIC_ están disponibles en cliente y servidor
-    const value = process.env[key];
-
+function validateEnv(key: string, value: string | undefined): string {
     if (!value) {
         const isClient = typeof window !== 'undefined';
         const errorMessage = isClient
@@ -24,10 +20,8 @@ export function getRequiredEnv(key: string): string {
         console.error('\n🔍 Debug info:');
         console.error('   - Variable buscada:', key);
         console.error('   - NODE_ENV:', process.env.NODE_ENV);
-        console.error('   - Variables disponibles:', Object.keys(process.env)
-            .filter(k => k.includes('SUPABASE') || k.includes('TMDB') || k.includes('NEXT_PUBLIC'))
-            .map(k => `     • ${k}`)
-            .join('\n') || '     (ninguna encontrada)');
+        // Cannot list all env vars on client side due to replacing mechanism, 
+        // but we can check if any relevant ones are showing up if needed.
 
         // En desarrollo, dar instrucciones más claras
         if (process.env.NODE_ENV === 'development') {
@@ -48,8 +42,8 @@ export function getRequiredEnv(key: string): string {
 /**
  * Get optional environment variable with default value
  */
-export function getOptionalEnv(key: string, defaultValue: string = ''): string {
-    return process.env[key] || defaultValue;
+function getOptionalEnvValue(value: string | undefined, defaultValue: string = ''): string {
+    return value || defaultValue;
 }
 
 /**
@@ -57,9 +51,9 @@ export function getOptionalEnv(key: string, defaultValue: string = ''): string {
  */
 export function getSupabaseConfig() {
     return {
-        url: getOptionalEnv('NEXT_PUBLIC_SUPABASE_URL'),
-        anonKey: getOptionalEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-        serviceRoleKey: getOptionalEnv('SUPABASE_SERVICE_ROLE_KEY'),
+        url: getOptionalEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL),
+        anonKey: getOptionalEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+        serviceRoleKey: getOptionalEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY),
     };
 }
 
@@ -67,7 +61,7 @@ export function getSupabaseConfig() {
  * Validate TMDB API key
  */
 export function getTmdbApiKey(): string {
-    return getRequiredEnv('NEXT_PUBLIC_TMDB_API_KEY');
+    return validateEnv('NEXT_PUBLIC_TMDB_API_KEY', process.env.NEXT_PUBLIC_TMDB_API_KEY);
 }
 
 /**
@@ -75,13 +69,26 @@ export function getTmdbApiKey(): string {
  */
 export function getOptionalApiKeys() {
     return {
-        groqApiKey: getOptionalEnv('GROQ_API_KEY'),
-        resendApiKey: getOptionalEnv('RESEND_API_KEY'),
-        cronSecret: getOptionalEnv('CRON_SECRET'),
-        hcaptchaSiteKey: getOptionalEnv('NEXT_PUBLIC_HCAPTCHA_SITE_KEY'),
-        gaId: getOptionalEnv('NEXT_PUBLIC_GA_ID'),
-        adsenseClientId: getOptionalEnv('NEXT_PUBLIC_ADSENSE_CLIENT_ID'),
-        appUrl: getOptionalEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000'),
+        groqApiKey: getOptionalEnvValue(process.env.GROQ_API_KEY),
+        resendApiKey: getOptionalEnvValue(process.env.RESEND_API_KEY),
+        cronSecret: getOptionalEnvValue(process.env.CRON_SECRET),
+        hcaptchaSiteKey: getOptionalEnvValue(process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY),
+        gaId: getOptionalEnvValue(process.env.NEXT_PUBLIC_GA_ID),
+        adsenseClientId: getOptionalEnvValue(process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID),
+        appUrl: getOptionalEnvValue(process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3000'),
     };
+}
+
+// Deprecated: These generic accessors do not work client-side with Next.js 
+// but are kept for server-side compatibility if needed (though discouraged).
+// Creating wrappers that assume server-side or hope for the best if used elsewhere.
+// Since we verified they were only used in this file, we can safely remove them 
+// or implement them knowing they might fail client-side if used with non-inlined keys.
+export function getRequiredEnv(key: string): string {
+    return validateEnv(key, process.env[key]);
+}
+
+export function getOptionalEnv(key: string, defaultValue: string = ''): string {
+    return getOptionalEnvValue(process.env[key], defaultValue);
 }
 
