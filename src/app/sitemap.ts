@@ -1,16 +1,18 @@
 import { MetadataRoute } from 'next';
-import { getPopular, getTrending } from '@/lib/tmdb/service';
-import { getOptionalApiKeys } from '@/lib/env';
+import { getPopular, getTrending } from '@/server/services/tmdb';
+import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
 
 /**
  * Dynamic Sitemap for FilmiFy
  * Generates sitemap.xml with static pages and top popular movies/TV shows
- * This helps Google discover and index our most valuable content first
+ * This helps Google discover and index our most valuable content first.
+ *
+ * Safe-by-default: if TMDB is not configured (e.g. during a cold build without
+ * secrets), we still emit the static pages instead of crashing the route.
  */
 
-const BASE_URL = getOptionalApiKeys().appUrl;
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+    const BASE_URL = getOptionalApiKeys().appUrl;
     const currentDate = new Date();
 
     // Static pages with high priority
@@ -64,6 +66,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.3,
         },
     ];
+
+    // If TMDB is not configured at build time, emit only static pages.
+    if (!hasRequiredEnv()) {
+        console.warn('[sitemap] TMDB not configured — emitting static pages only');
+        return staticPages;
+    }
 
     try {
         // Fetch top popular movies (multiple pages for better coverage)

@@ -1,21 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { createClient } from '@/lib/supabase/client';
+import { resendSignupConfirmation } from './actions';
+
+const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
+const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
 export default function ConfirmEmailPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const email = searchParams.get('email');
+    const emailFromQuery = searchParams.get('email')?.trim() ?? '';
+    const [manualEmail, setManualEmail] = useState('');
     const [checking, setChecking] = useState(false);
     const [resending, setResending] = useState(false);
     const [resendSuccess, setResendSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resendError, setResendError] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [infoMessage, setInfoMessage] = useState<string | null>(null);
+    const captchaRef = useRef<HCaptcha>(null);
     const supabase = createClient();
+
+    const effectiveEmail = (emailFromQuery || manualEmail.trim()).toLowerCase();
+
+    useEffect(() => {
+        if (!resendSuccess) return;
+        const t = window.setTimeout(() => setResendSuccess(false), 8000);
+        return () => window.clearTimeout(t);
+    }, [resendSuccess]);
+
+    useEffect(() => {
+        if (!resendError) return;
+        captchaRef.current?.resetCaptcha();
+        setCaptchaToken(null);
+    }, [resendError]);
 
     const handleCheckConfirmation = async () => {
         setChecking(true);
@@ -48,29 +71,37 @@ export default function ConfirmEmailPage() {
     };
 
     const handleResend = async () => {
-        if (!email) {
-            setResendError('No se encontró el email para reenviar.');
+        if (!effectiveEmail) {
+            setResendError('Indica el correo con el que te registraste para reenviar el enlace.');
+            return;
+        }
+
+        if (hcaptchaConfigured && !captchaToken) {
+            setResendError('Completa la verificación “No soy un robot” antes de reenviar el correo.');
             return;
         }
 
         setResending(true);
         setResendError(null);
         setResendSuccess(false);
+        setInfoMessage(null);
 
         try {
-            const { error } = await supabase.auth.resend({
-                type: 'signup',
-                email: email,
-                options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
-                },
+            const result = await resendSignupConfirmation({
+                email: effectiveEmail,
+                captchaToken: hcaptchaConfigured ? captchaToken : undefined,
             });
 
-            if (error) {
-                console.error('Resend error:', error);
-                setResendError(error.message || 'Error al reenviar el correo.');
-            } else {
+            if (result.error) {
+                setResendError(result.error);
+            } else if (result.status === 'already_confirmed') {
+                setResendSuccess(false);
+                setResendError(null);
+                setInfoMessage('Este correo ya está confirmado. Puedes iniciar sesión con tu contraseña.');
+            } else if (result.ok) {
                 setResendSuccess(true);
+                captchaRef.current?.resetCaptcha();
+                setCaptchaToken(null);
             }
         } catch (err) {
             console.error('Unexpected resend error:', err);
@@ -100,8 +131,33 @@ export default function ConfirmEmailPage() {
                         ¡Cuenta <span className="text-gradient-premium">Creada</span>!
                     </h1>
                     <p className="text-text-secondary text-lg mb-8">
-                        Revisa tu correo electrónico {email && <span className="font-semibold text-text-primary block mt-1">{email}</span>}
+                        Revisa tu correo electrónico{' '}
+                        {effectiveEmail ? (
+                            <span className="font-semibold text-text-primary block mt-1">{effectiveEmail}</span>
+                        ) : (
+                            <span className="block mt-1 text-sm">Si no ves la dirección abajo, escríbela para poder reenviar el enlace.</span>
+                        )}
                     </p>
+
+                    {!emailFromQuery && (
+                        <div className="text-left mb-6">
+                            <label htmlFor="resend-email" className="block text-sm font-semibold text-text-primary mb-1.5">
+                                Correo de registro
+                            </label>
+                            <input
+                                id="resend-email"
+                                type="email"
+                                autoComplete="email"
+                                value={manualEmail}
+                                onChange={(e) => {
+                                    setManualEmail(e.target.value);
+                                    setResendError(null);
+                                }}
+                                placeholder="tu@correo.com"
+                                className="w-full px-4 py-3 rounded-xl bg-surface border border-surface-light text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                    )}
 
                     {/* Instructions */}
                     <div className="bg-surface/50 border border-surface-light rounded-xl p-6 mb-8 text-left">
@@ -182,9 +238,24 @@ export default function ConfirmEmailPage() {
                     <div className="text-sm text-text-muted space-y-2">
                         <div className="flex flex-col items-center gap-2">
                             <p>¿No recibiste el correo?</p>
+                            {hcaptchaConfigured && (
+                                <div className="w-full flex justify-center py-3">
+                                    <HCaptcha
+                                        sitekey={HCAPTCHA_SITE_KEY}
+                                        theme="dark"
+                                        ref={captchaRef}
+                                        onVerify={(token) => setCaptchaToken(token)}
+                                    />
+                                </div>
+                            )}
                             <button
+                                type="button"
                                 onClick={handleResend}
-                                disabled={resending || !email || resendSuccess}
+                                disabled={
+                                    resending ||
+                                    !effectiveEmail ||
+                                    (hcaptchaConfigured && !captchaToken)
+                                }
                                 className="text-primary hover:text-accent font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {resending ? (
@@ -192,14 +263,27 @@ export default function ConfirmEmailPage() {
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                         Reenviando...
                                     </>
-                                ) : resendSuccess ? (
-                                    <span className="text-green-500">¡Correo reenviado!</span>
                                 ) : (
                                     'Reenviar correo'
                                 )}
                             </button>
+                            {resendSuccess && (
+                                <p className="text-green-500 text-xs font-medium max-w-sm text-center">
+                                    Hemos procesado tu solicitud. Revisa la bandeja de entrada y la carpeta de spam en los
+                                    próximos minutos. Si no recibes nada, el administrador del sitio debe revisar el envío de
+                                    correos (SMTP en Supabase o proveedor propio como Resend).
+                                </p>
+                            )}
                             {resendError && (
                                 <p className="text-red-400 text-xs mt-1">{resendError}</p>
+                            )}
+                            {infoMessage && (
+                                <p className="text-sky-400 text-xs mt-2 max-w-sm text-center">
+                                    {infoMessage}{' '}
+                                    <Link href="/login" className="font-semibold underline hover:text-sky-300">
+                                        Ir a iniciar sesión
+                                    </Link>
+                                </p>
                             )}
                         </div>
                         <p className="pt-4">

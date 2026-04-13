@@ -130,9 +130,9 @@ export default function Navbar() {
         <>
             <nav
                 style={{ top: 'var(--announcement-height, 0px)' }}
-                className={`fixed left-0 right-0 z-50 transition-all duration-300 ${scrolled
-                    ? 'glass-effect shadow-lg shadow-primary/5'
-                    : 'bg-background/60 backdrop-blur-md'
+                className={`fixed left-0 right-0 z-50 transition-all duration-500 ${scrolled
+                    ? 'bg-background/80 backdrop-blur-xl border-b border-white/5 shadow-2xl shadow-black/50'
+                    : 'bg-transparent'
                     }`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
@@ -146,117 +146,86 @@ export default function Navbar() {
                             <img
                                 src="/logo-full.svg"
                                 alt="FilmiFy Logo"
-                                className="h-12 w-auto group-hover:scale-105 transition-transform duration-300"
+                                className="h-10 w-auto transition-all duration-300 group-hover:brightness-110"
                             />
                         </Link>
 
                         {/* Desktop Navigation */}
-                        <div className="hidden md:flex items-center gap-8">
+                        <div className="hidden md:flex items-center gap-6">
                             {!loading && !isAuthPage && (
                                 <>
                                     {user ? (
                                         <>
                                             {/* Navigation Links */}
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
                                                 {isAdmin && (
                                                     <Link
                                                         href="/admin"
-                                                        className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-red-500/50 ${pathname?.startsWith('/admin')
-                                                            ? 'text-red-500'
-                                                            : 'text-gray-300 hover:text-text-primary'
+                                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/admin')
+                                                            ? 'bg-red-500/10 text-red-500'
+                                                            : 'text-text-secondary hover:text-white hover:bg-white/5'
                                                             }`}
                                                     >
-                                                        <span className="relative z-10 flex items-center gap-2">
-                                                            <ShieldCheck className="w-4 h-4" />
-                                                            Admin
-                                                        </span>
-                                                        {pathname?.startsWith('/admin') && (
-                                                            <div className="absolute inset-0 bg-red-500/10 rounded-xl" />
-                                                        )}
-                                                        <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        Admin
                                                     </Link>
                                                 )}
                                                 <Link
                                                     href="/browse"
-                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/browse')
-                                                        ? 'text-primary'
-                                                        : 'text-gray-300 hover:text-text-primary'
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/browse')
+                                                        ? 'bg-primary/10 text-primary'
+                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <span className="relative z-10 flex items-center gap-2">
-                                                        <Clapperboard className="w-4 h-4" />
-                                                        Explorar
-                                                    </span>
-                                                    {pathname?.startsWith('/browse') && (
-                                                        <div className="absolute inset-0 bg-primary/10 rounded-xl" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    Explorar
                                                 </Link>
 
 
                                                 <Link
                                                     href="/live-tv"
-                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary/50 ${pathname?.startsWith('/live-tv')
-                                                        ? 'text-primary'
-                                                        : 'text-gray-300 hover:text-text-primary'
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
+                                                        ? 'bg-primary/10 text-primary'
+                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <span className="relative z-10 flex items-center gap-2">
-                                                        <Tv className="w-4 h-4" />
-                                                        TV en Vivo
-                                                    </span>
-                                                    {pathname?.startsWith('/live-tv') && (
-                                                        <div className="absolute inset-0 bg-primary/10 rounded-xl" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    TV en Vivo
                                                 </Link>
 
                                                 <Link
                                                     href="/favorites"
-                                                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-accent/50 ${pathname === '/favorites'
-                                                        ? 'text-accent'
-                                                        : 'text-gray-300 hover:text-text-primary'
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname === '/favorites'
+                                                        ? 'bg-accent/10 text-accent'
+                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <span className="relative z-10 flex items-center gap-2">
-                                                        <Heart className="w-4 h-4" />
-                                                        Favoritos
-                                                    </span>
-                                                    {pathname === '/favorites' && (
-                                                        <div className="absolute inset-0 bg-accent/10 rounded-xl" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-surface/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    Favoritos
                                                 </Link>
                                             </div>
 
                                             {/* Search Bar */}
+                                            <div className="h-8 w-px bg-white/10 mx-2" />
                                             <SearchInput className="w-64" />
 
                                             {/* Notification Center */}
                                             <NotificationCenter user={user} favorites={favorites} />
 
                                             {/* User Menu */}
-                                            <div className="pl-6 border-l border-surface-light/50">
+                                            <div className="pl-4 border-l border-white/10">
                                                 <UserMenu onLogoutClick={handleLogoutClick} />
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-4">
                                             <Link
                                                 href="/login"
-                                                className="px-5 py-2.5 text-gray-300 hover:text-text-primary transition-all font-medium rounded-xl hover:bg-surface/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                className="text-sm font-medium text-text-secondary hover:text-white transition-colors"
                                             >
                                                 Iniciar Sesión
                                             </Link>
                                             <Link
                                                 href="/register"
-                                                className="relative px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold overflow-hidden group focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                                                className="px-6 py-2.5 rounded-full bg-primary text-black font-bold text-sm hover:bg-primary-hover hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20"
                                             >
-                                                <span className="relative z-10 flex items-center gap-2">
-                                                    <Sparkles className="w-4 h-4" />
-                                                    Registrarse
-                                                </span>
-                                                <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                Comenzar Gratis
                                             </Link>
                                         </div>
                                     )}

@@ -38,10 +38,6 @@ export default function SettingsPage() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
-    useEffect(() => {
-        loadData()
-    }, [])
-
     const loadData = async () => {
         setLoading(true)
         const [settings, historyData] = await Promise.all([
@@ -52,6 +48,11 @@ export default function SettingsPage() {
         setHistory(historyData)
         setLoading(false)
     }
+
+    useEffect(() => {
+        loadData()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const handleToggle = (key: keyof typeof flags) => {
         setFlags(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))

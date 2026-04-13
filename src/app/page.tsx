@@ -4,12 +4,18 @@ import { ArrowRight, Film, Heart, Search, Sparkles, Zap, Star, Clapperboard } fr
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
-import { getTrending, getBackdropUrl } from '@/lib/tmdb/service';
+import { getTrending, getBackdropUrl } from '@/server/services/tmdb';
+import type { Movie } from '@/types/tmdb';
 
 export default async function LandingPage() {
-  // Fetch trending movies for the day
-  const trendingData = await getTrending('movie', 'day');
-  const trendingMovies = trendingData.results;
+  // Fetch trending movies for the day (gracefully degrade if TMDB unavailable).
+  let trendingMovies: Movie[] = [];
+  try {
+    const trendingData = await getTrending('movie', 'day');
+    trendingMovies = trendingData.results;
+  } catch (err) {
+    console.warn('[landing] Failed to fetch trending movies:', err);
+  }
 
   // Select the top trending movie for the hero
   const heroMovie = trendingMovies[0];
@@ -95,7 +101,7 @@ export default async function LandingPage() {
         {/* Hero Section with Cinematic Background */}
         <section className="relative overflow-hidden min-h-[90vh] flex items-center" aria-label="Sección principal de bienvenida">
           {/* Dynamic Backdrop Image */}
-          {backdropUrl && (
+          {heroMovie && backdropUrl && (
             <div className="absolute inset-0">
               <Image
                 src={backdropUrl}

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash([ -d node_modules ])",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(node node_modules/next/dist/bin/next build)",
+      "Bash(node node_modules/next/dist/bin/next lint)",
+      "Bash(node node_modules/eslint/bin/eslint.js .)",
+      "Bash(node node_modules/eslint/bin/eslint.js . --fix)",
+      "Bash(node node_modules/eslint/bin/eslint.js src/app/admin/content/page.tsx)",
+      "Bash(node node_modules/eslint/bin/eslint.js src/app/admin/content/page.tsx --no-color)",
+      "Bash(node node_modules/eslint/bin/eslint.js . --no-color)",
+      "Bash(grep -E \"^C:\\\\\\\\\\\\\\\\\")",
+      "Bash(ls -la C:/Users/jmcol/OneDrive/Documents/filmify/.env*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"frame-src\\\\|Content-Security\\\\|X-Frame\" C:/Users/jmcol/OneDrive/Documents/filmify/src/proxy.ts C:/Users/jmcol/OneDrive/Documents/filmify/next.config.*)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npx eslint:*)",
+      "WebSearch",
+      "WebFetch(domain:forobeta.com)",
+      "WebFetch(domain:unlimplay.com)",
+      "WebFetch(domain:cinesrc.st)",
+      "WebFetch(domain:watch.rivestream.app)",
+      "WebFetch(domain:frembed.com)",
+      "WebFetch(domain:frembed.icu)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:vixsrc.to)",
+      "WebFetch(domain:moviesapi.club)"
+    ]
+  }
+}

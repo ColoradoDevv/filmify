@@ -103,6 +103,7 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         style={{ paddingTop: 'var(--announcement-height, 0px)' }}
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-white ${isTV ? 'tv-mode' : ''}`}
       >

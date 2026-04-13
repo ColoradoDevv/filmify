@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRef, useEffect, useState, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import MovieCard from './MovieCard';
 import type { Movie, TVShow } from '@/types/tmdb';
 
@@ -10,9 +10,10 @@ interface HorizontalRowProps {
     items: (Movie | TVShow)[];
     mediaType?: 'movie' | 'tv';
     onFocus?: () => void;
+    icon?: LucideIcon;
 }
 
-export default function HorizontalRow({ title, items, mediaType = 'movie', onFocus }: HorizontalRowProps) {
+export default function HorizontalRow({ title, items, mediaType = 'movie', onFocus, icon: Icon }: HorizontalRowProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
@@ -88,10 +89,17 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
     return (
         <div className="mb-12 tv-row" onFocus={onFocus}>
             {/* Row Title */}
-            <div className="flex items-center justify-between mb-4 px-4 sm:px-6 lg:px-8">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tv-text-xl">
-                    {title}
-                </h2>
+            <div className="flex items-center justify-between mb-6 px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center gap-4">
+                    {Icon && (
+                        <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" strokeWidth={2.5} />
+                        </div>
+                    )}
+                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                        {title}
+                    </h2>
+                </div>
 
                 {/* Scroll Buttons (visible on hover/focus) */}
                 <div className="hidden lg:flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

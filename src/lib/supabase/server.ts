@@ -29,19 +29,45 @@ export async function createClient() {
                 contains: () => builder,
                 order: () => builder,
                 limit: () => builder,
-                single: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
-                maybeSingle: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
-                then: (resolve: any) => resolve({ data: null, error: new Error('Supabase not configured') }),
+                single: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', name: 'SupabaseNotConfigured' } }),
+                maybeSingle: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', name: 'SupabaseNotConfigured' } }),
+                then: (resolve: any) => resolve({ data: null, error: { message: 'Supabase not configured', name: 'SupabaseNotConfigured' } }),
             };
             return builder;
         };
 
+        const notConfigured = () => ({ message: 'Supabase not configured', name: 'SupabaseNotConfigured' });
         return {
             auth: {
-                getUser: async () => ({ data: { user: null }, error: new Error('Supabase not configured') }),
-                getSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
+                getUser: async () => ({ data: { user: null }, error: notConfigured() }),
+                getSession: async () => ({ data: { session: null }, error: notConfigured() }),
+                signInWithPassword: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                signInWithOtp: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                signInWithOAuth: async () => ({ data: { url: null, provider: null }, error: notConfigured() }),
+                signUp: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                signOut: async () => ({ error: notConfigured() }),
+                resetPasswordForEmail: async () => ({ data: null, error: notConfigured() }),
+                updateUser: async () => ({ data: { user: null }, error: notConfigured() }),
+                verifyOtp: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                refreshSession: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                exchangeCodeForSession: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                admin: {
+                    getUserById: async () => ({ data: { user: null }, error: notConfigured() }),
+                    listUsers: async () => ({ data: { users: [] }, error: notConfigured() }),
+                    createUser: async () => ({ data: { user: null }, error: notConfigured() }),
+                    deleteUser: async () => ({ data: null, error: notConfigured() }),
+                    updateUserById: async () => ({ data: { user: null }, error: notConfigured() }),
+                },
             },
             from: () => createDummyBuilder(),
+            rpc: () => Promise.resolve({ data: null, error: notConfigured() }),
+            channel: () => ({
+                on: () => ({ subscribe: () => { } }),
+                subscribe: () => { },
+                unsubscribe: () => { },
+            }),
+            removeChannel: () => { },
         } as any;
     }
 

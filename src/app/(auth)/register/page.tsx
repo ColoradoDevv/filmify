@@ -1,22 +1,28 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useActionState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, User, AlertCircle, Loader2, ArrowLeft, Eye, EyeOff, Sparkles, Check, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { registerAction, type RegisterState } from './actions';
+
+const initialState: RegisterState = { error: '' };
+
+const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
+const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
 export default function RegisterPage() {
     const router = useRouter();
+    const [state, formAction, isPending] = useActionState(registerAction, initialState);
+
     const [formData, setFormData] = useState({
         name: '',
         username: '',
         email: '',
         password: '',
     });
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -28,18 +34,70 @@ export default function RegisterPage() {
     const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const supabase = createClient();
 
-    // Check registration setting
+    // Registration kill-switch check (admin setting).
     const [registrationAllowed, setRegistrationAllowed] = useState(true);
     const [checkingSettings, setCheckingSettings] = useState(true);
 
+    // Blacklist — client mirror of the server list, used only for real-time
+    // UX feedback. The server action is the source of truth.
+    const blacklist = useMemo(() => [
+        'admin', 'administrator', 'root', 'sysadmin', 'system', 'support', 'help', 'mod', 'moderator',
+        'staff', 'official', 'filmify', 'owner', 'ceo', 'webmaster', 'dev', 'developer',
+        'puto', 'puta', 'mierda', 'cabron', 'pendejo', 'verga', 'pito', 'culo', 'coño',
+        'mamaguevo', 'zorra', 'perra', 'maricon', 'marica', 'idiota', 'estupido', 'imbecil',
+        'bastardo', 'polla', 'semen', 'tetas', 'vagina', 'concha', 'chupala', 'gonorrea',
+        'malparido', 'carechimba', 'pajero', 'pajera',
+        'dick', 'ass', 'bitch', 'fuck', 'shit', 'bastard', 'cunt', 'whore', 'slut',
+        'nigger', 'nigga', 'faggot', 'rape', 'sex', 'porn', 'cock', 'pussy', 'tit', 'boob',
+        'anus', 'anal', 'penis', 'nazi', 'hitler', 'kkk',
+    ], []);
+
+    const passwordValidation = useMemo(() => {
+        const password = formData.password;
+        return {
+            minLength: password.length >= 8,
+            hasUppercase: /[A-Z]/.test(password),
+            hasLowercase: /[a-z]/.test(password),
+            hasNumber: /[0-9]/.test(password),
+            hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+        };
+    }, [formData.password]);
+
+    const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+
     useEffect(() => {
-        import('@/app/admin/settings/actions').then(({ fetchSettings }) => {
-            fetchSettings().then(settings => {
+        import('@/app/admin/settings/actions')
+            .then(({ fetchSettings }) => fetchSettings())
+            .then(settings => {
                 setRegistrationAllowed(settings.allowRegistration);
                 setCheckingSettings(false);
+            })
+            .catch(err => {
+                // Fail-secure: if we can't read the setting, assume open
+                // (otherwise new deployments would be locked out).
+                console.warn('Could not fetch registration settings:', err);
+                setCheckingSettings(false);
             });
-        });
     }, []);
+
+    // Reset captcha whenever the server action returns an error.
+    useEffect(() => {
+        if (state?.error) {
+            captchaRef.current?.resetCaptcha();
+            setCaptchaToken(null);
+        }
+    }, [state?.error]);
+
+    // On successful signup the server action returns one of:
+    //   - needsEmailConfirmation: true → go to /confirm-email?email=...
+    //   - no error and no needsEmailConfirmation → session was issued, go /browse
+    useEffect(() => {
+        if (isPending) return;
+        if (state?.error) return;
+        if (state?.needsEmailConfirmation && state.email) {
+            router.push(`/confirm-email?email=${encodeURIComponent(state.email)}`);
+        }
+    }, [state, isPending, router]);
 
     if (!checkingSettings && !registrationAllowed) {
         return (
@@ -66,45 +124,12 @@ export default function RegisterPage() {
         );
     }
 
-    // Blacklist validation
-    const blacklist = useMemo(() => [
-        // Roles & System
-        'admin', 'administrator', 'root', 'sysadmin', 'system', 'support', 'help', 'mod', 'moderator',
-        'staff', 'official', 'filmify', 'owner', 'ceo', 'webmaster', 'dev', 'developer',
-
-        // Offensive (Spanish)
-        'puto', 'puta', 'mierda', 'cabron', 'pendejo', 'verga', 'pito', 'culo', 'coño',
-        'mamaguevo', 'zorra', 'perra', 'maricon', 'marica', 'idiota', 'estupido', 'imbecil',
-        'bastardo', 'polla', 'semen', 'tetas', 'vagina', 'concha', 'chupala', 'gonorrea',
-        'malparido', 'carechimba', 'pajero', 'pajera',
-
-        // Offensive (English)
-        'dick', 'ass', 'bitch', 'fuck', 'shit', 'bastard', 'cunt', 'whore', 'slut',
-        'nigger', 'nigga', 'faggot', 'rape', 'sex', 'porn', 'cock', 'pussy', 'tit', 'boob',
-        'anus', 'anal', 'penis', 'vagina', 'nazi', 'hitler', 'kkk'
-    ], []);
-
-    // Password validation rules
-    const passwordValidation = useMemo(() => {
-        const password = formData.password;
-        return {
-            minLength: password.length >= 8,
-            hasUppercase: /[A-Z]/.test(password),
-            hasLowercase: /[a-z]/.test(password),
-            hasNumber: /[0-9]/.test(password),
-            hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-        };
-    }, [formData.password]);
-
-    const isPasswordValid = Object.values(passwordValidation).every(Boolean);
-
     const checkUsernameUnique = async (username: string) => {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('profiles')
             .select('username')
             .eq('username', username)
-            .single();
-
+            .maybeSingle();
         return !data;
     };
 
@@ -113,20 +138,17 @@ export default function RegisterPage() {
         const randomSuffix = () => Math.floor(Math.random() * 1000);
 
         if (isBlacklisted) {
-            // Generate completely different thematic names
             const prefixes = ['Cinefilo', 'MovieBuff', 'FilmFan', 'Director', 'Actor', 'Viewer'];
             for (let i = 0; i < 3; i++) {
                 const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
                 newSuggestions.push(`${prefix}_${randomSuffix()}`);
             }
         } else {
-            // Generate variations of the base name
             newSuggestions.push(`${baseName}_${randomSuffix()}`);
             newSuggestions.push(`${baseName}${randomSuffix()}`);
             newSuggestions.push(`The${baseName}`);
         }
 
-        // Verify suggestions are unique
         const verifiedSuggestions: string[] = [];
         for (const suggestion of newSuggestions) {
             const isUnique = await checkUsernameUnique(suggestion);
@@ -147,7 +169,6 @@ export default function RegisterPage() {
         setUsernameStatus('loading');
         setSuggestions([]);
 
-        // Check blacklist
         const lowerVal = username.toLowerCase();
         const isBlacklisted = blacklist.some(word => lowerVal.includes(word));
 
@@ -158,7 +179,6 @@ export default function RegisterPage() {
             return;
         }
 
-        // Check uniqueness
         const isUnique = await checkUsernameUnique(username);
         if (!isUnique) {
             setUsernameStatus('error');
@@ -170,101 +190,13 @@ export default function RegisterPage() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-
-        if (!isPasswordValid) {
-            setError('Por favor, cumple con todos los requisitos de seguridad de la contraseña.');
-            return;
-        }
-
-        if (!captchaToken) {
-            setError('Por favor, completa el captcha para continuar.');
-            return;
-        }
-
-        if (usernameStatus !== 'success') {
-            setError('Por favor, elige un nickname válido.');
-            return;
-        }
-
-        if (!acceptedTerms) {
-            setError('Debes aceptar los Términos y Condiciones para continuar.');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            // Final check just to be sure
-            const isUnique = await checkUsernameUnique(formData.username);
-            if (!isUnique) {
-                setError('Este nickname ya está en uso. Por favor elige otro.');
-                setUsernameStatus('error');
-                setLoading(false);
-                return;
-            }
-
-            const fullName = formData.name.trim() || formData.username;
-
-            const { data, error } = await supabase.auth.signUp({
-                email: formData.email,
-                password: formData.password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                        username: formData.username,
-                    },
-                    captchaToken,
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
-                },
-            });
-
-            if (error) {
-                console.error('Supabase signup error:', error);
-                setError(error.message || 'Error al crear la cuenta. Intenta con otro email.');
-                captchaRef.current?.resetCaptcha();
-                setCaptchaToken(null);
-                return;
-            }
-
-            if (data?.user && !data.session) {
-                // If email confirmation is enabled in Supabase but we want to skip the screen,
-                // we redirect to login (or browse, which will redirect to login).
-                // Since the user wants "no confirmation", we assume they disabled it in Supabase.
-                // If they didn't, this will just take them to login where they might be stuck if they can't confirm.
-                // But we strictly follow "disable confirmation screen".
-                router.push('/login');
-                return;
-            }
-
-            router.push('/browse');
-            router.refresh();
-        } catch (err) {
-            console.error('Unexpected error:', err);
-            setError('Ocurrió un error inesperado');
-            captchaRef.current?.resetCaptcha();
-            setCaptchaToken(null);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value,
-        }));
+        setFormData(prev => ({ ...prev, [name]: value }));
 
         if (name === 'username') {
-            // Clear previous timeout
-            if (checkTimeoutRef.current) {
-                clearTimeout(checkTimeoutRef.current);
-            }
+            if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
 
-            // Immediate feedback for length
             if (value.length > 0 && value.length < 3) {
                 setUsernameStatus('error');
                 setSuggestions([]);
@@ -272,11 +204,8 @@ export default function RegisterPage() {
                 setUsernameStatus('default');
                 setSuggestions([]);
             } else {
-                // Debounce validation
                 setUsernameStatus('loading');
-                checkTimeoutRef.current = setTimeout(() => {
-                    validateUsername(value);
-                }, 500);
+                checkTimeoutRef.current = setTimeout(() => validateUsername(value), 500);
             }
         }
     };
@@ -287,9 +216,38 @@ export default function RegisterPage() {
         setSuggestions([]);
     };
 
+    // Form submit handler: injects the captcha + terms into FormData before
+    // handing off to the server action, and does a client-side pre-flight to
+    // give instant feedback.
+    const handleSubmit = (fd: FormData) => {
+        if (!isPasswordValid) return;
+        if (usernameStatus !== 'success') return;
+        if (!acceptedTerms) return;
+        if (hcaptchaConfigured && !captchaToken) return;
+
+        if (hcaptchaConfigured && captchaToken) {
+            fd.set('captchaToken', captchaToken);
+        }
+        fd.set('acceptedTerms', acceptedTerms ? 'true' : 'false');
+        formAction(fd);
+    };
+
+    const displayError =
+        state?.error ||
+        (!isPasswordValid && formData.password.length > 0 ? 'Completa todos los requisitos de contraseña' : '') ||
+        (usernameStatus === 'error' ? 'Elige un nickname válido' : '') ||
+        '';
+
+    const canSubmit =
+        isPasswordValid &&
+        usernameStatus === 'success' &&
+        acceptedTerms &&
+        (!hcaptchaConfigured || !!captchaToken) &&
+        !!formData.email &&
+        !isPending;
+
     return (
         <div className="relative">
-            {/* Back to home button */}
             <Link
                 href="/"
                 className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
@@ -298,9 +256,7 @@ export default function RegisterPage() {
                 <span className="text-sm font-medium">Volver al inicio</span>
             </Link>
 
-            {/* Register Card */}
             <div className="card-premium p-6 sm:p-8 border border-surface-light/50 backdrop-blur-xl bg-surface/95">
-                {/* Logo */}
                 <div className="flex justify-center mb-4">
                     <Link href="/" className="group">
                         <img
@@ -311,7 +267,6 @@ export default function RegisterPage() {
                     </Link>
                 </div>
 
-                {/* Header */}
                 <div className="text-center mb-5">
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2">
                         Únete a <span className="text-gradient-premium">FilmiFy</span>
@@ -321,22 +276,17 @@ export default function RegisterPage() {
                     </p>
                 </div>
 
-                {/* Error Message */}
-                {error && (
+                {displayError && (
                     <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2.5 rounded-xl mb-4 flex items-center gap-3 animate-fade-in-up">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <span className="text-sm font-medium">{error}</span>
+                        <span className="text-sm font-medium">{displayError}</span>
                     </div>
                 )}
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Username Field (Nickname) */}
+                <form action={handleSubmit} className="space-y-4">
+                    {/* Username */}
                     <div>
-                        <label
-                            htmlFor="username"
-                            className="block text-sm font-semibold mb-1.5 text-text-primary"
-                        >
+                        <label htmlFor="username" className="block text-sm font-semibold mb-1.5 text-text-primary">
                             Nickname (Usuario) <span className="text-red-400">*</span>
                         </label>
                         <div className="relative">
@@ -349,6 +299,7 @@ export default function RegisterPage() {
                                 onChange={handleChange}
                                 required
                                 minLength={3}
+                                maxLength={20}
                                 autoComplete="username"
                                 className={`w-full pl-12 pr-4 py-3 bg-surface border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all ${usernameStatus === 'error'
                                     ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
@@ -365,7 +316,10 @@ export default function RegisterPage() {
                             )}
                         </div>
 
-                        {/* Suggestions */}
+                        {state?.fieldErrors?.username && (
+                            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.username}</p>
+                        )}
+
                         {suggestions.length > 0 && (
                             <div className="mt-2 animate-fade-in-up">
                                 <p className="text-xs text-text-secondary mb-1.5">Sugerencias disponibles:</p>
@@ -385,12 +339,9 @@ export default function RegisterPage() {
                         )}
                     </div>
 
-                    {/* Name Field (Display Name) */}
+                    {/* Display name */}
                     <div>
-                        <label
-                            htmlFor="name"
-                            className="block text-sm font-semibold mb-1.5 text-text-primary"
-                        >
+                        <label htmlFor="name" className="block text-sm font-semibold mb-1.5 text-text-primary">
                             Nombre para mostrar <span className="text-text-secondary font-normal text-xs">(Opcional)</span>
                         </label>
                         <div className="relative">
@@ -402,8 +353,9 @@ export default function RegisterPage() {
                                 value={formData.name}
                                 onChange={handleChange}
                                 autoComplete="name"
+                                maxLength={60}
                                 className="w-full pl-12 pr-4 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                                placeholder={formData.username || "Tu nombre visible"}
+                                placeholder={formData.username || 'Tu nombre visible'}
                             />
                         </div>
                         <p className="text-xs text-text-secondary mt-1 ml-1">
@@ -411,12 +363,9 @@ export default function RegisterPage() {
                         </p>
                     </div>
 
-                    {/* Email Field */}
+                    {/* Email */}
                     <div>
-                        <label
-                            htmlFor="email"
-                            className="block text-sm font-semibold mb-1.5 text-text-primary"
-                        >
+                        <label htmlFor="email" className="block text-sm font-semibold mb-1.5 text-text-primary">
                             Correo Electrónico <span className="text-red-400">*</span>
                         </label>
                         <div className="relative">
@@ -433,14 +382,14 @@ export default function RegisterPage() {
                                 placeholder="tu@email.com"
                             />
                         </div>
+                        {state?.fieldErrors?.email && (
+                            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.email}</p>
+                        )}
                     </div>
 
-                    {/* Password Field */}
+                    {/* Password */}
                     <div>
-                        <label
-                            htmlFor="password"
-                            className="block text-sm font-semibold mb-1.5 text-text-primary"
-                        >
+                        <label htmlFor="password" className="block text-sm font-semibold mb-1.5 text-text-primary">
                             Contraseña <span className="text-red-400">*</span>
                         </label>
                         <div className="relative">
@@ -464,79 +413,45 @@ export default function RegisterPage() {
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
                                 aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
-                                {showPassword ? (
-                                    <EyeOff className="w-5 h-5" />
-                                ) : (
-                                    <Eye className="w-5 h-5" />
-                                )}
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
                         </div>
 
-                        {/* Password Requirements Checklist */}
                         {(passwordFocused || formData.password.length > 0) && (
                             <div className="mt-3 p-3 bg-surface/50 border border-surface-light rounded-lg space-y-2 animate-fade-in-up">
                                 <p className="text-xs font-semibold text-text-secondary mb-2">Requisitos de seguridad:</p>
                                 <div className="space-y-1.5">
-                                    <div className="flex items-center gap-2">
-                                        {passwordValidation.minLength ? (
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-text-muted flex-shrink-0" />
-                                        )}
-                                        <span className={`text-xs ${passwordValidation.minLength ? 'text-green-500' : 'text-text-muted'}`}>
-                                            Mínimo 8 caracteres
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {passwordValidation.hasUppercase ? (
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-text-muted flex-shrink-0" />
-                                        )}
-                                        <span className={`text-xs ${passwordValidation.hasUppercase ? 'text-green-500' : 'text-text-muted'}`}>
-                                            Una mayúscula
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {passwordValidation.hasLowercase ? (
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-text-muted flex-shrink-0" />
-                                        )}
-                                        <span className={`text-xs ${passwordValidation.hasLowercase ? 'text-green-500' : 'text-text-muted'}`}>
-                                            Una minúscula
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {passwordValidation.hasNumber ? (
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-text-muted flex-shrink-0" />
-                                        )}
-                                        <span className={`text-xs ${passwordValidation.hasNumber ? 'text-green-500' : 'text-text-muted'}`}>
-                                            Un número
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {passwordValidation.hasSpecial ? (
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-text-muted flex-shrink-0" />
-                                        )}
-                                        <span className={`text-xs ${passwordValidation.hasSpecial ? 'text-green-500' : 'text-text-muted'}`}>
-                                            Un carácter especial (!@#$...)
-                                        </span>
-                                    </div>
+                                    {[
+                                        { ok: passwordValidation.minLength, label: 'Mínimo 8 caracteres' },
+                                        { ok: passwordValidation.hasUppercase, label: 'Una mayúscula' },
+                                        { ok: passwordValidation.hasLowercase, label: 'Una minúscula' },
+                                        { ok: passwordValidation.hasNumber, label: 'Un número' },
+                                        { ok: passwordValidation.hasSpecial, label: 'Un carácter especial (!@#$...)' },
+                                    ].map(({ ok, label }) => (
+                                        <div key={label} className="flex items-center gap-2">
+                                            {ok ? (
+                                                <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                            ) : (
+                                                <X className="w-4 h-4 text-text-muted flex-shrink-0" />
+                                            )}
+                                            <span className={`text-xs ${ok ? 'text-green-500' : 'text-text-muted'}`}>
+                                                {label}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+                        )}
+                        {state?.fieldErrors?.password && (
+                            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.password}</p>
                         )}
                     </div>
 
                     {/* hCaptcha */}
-                    {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+                    {hcaptchaConfigured && (
                         <div className="flex justify-center py-2">
                             <HCaptcha
-                                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                                sitekey={HCAPTCHA_SITE_KEY}
                                 onVerify={(token) => setCaptchaToken(token)}
                                 ref={captchaRef}
                                 theme="dark"
@@ -544,7 +459,7 @@ export default function RegisterPage() {
                         </div>
                     )}
 
-                    {/* Terms and Conditions Checkbox */}
+                    {/* Terms */}
                     <div className="flex items-start gap-3 p-4 bg-surface/50 border border-surface-light rounded-xl">
                         <input
                             type="checkbox"
@@ -575,14 +490,19 @@ export default function RegisterPage() {
                             {' '}de FilmiFy.
                         </label>
                     </div>
+                    {state?.fieldErrors?.terms && (
+                        <p className="text-xs text-red-400 -mt-2">{state.fieldErrors.terms}</p>
+                    )}
+                    {state?.fieldErrors?.captcha && (
+                        <p className="text-xs text-red-400 text-center">{state.fieldErrors.captcha}</p>
+                    )}
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={!canSubmit}
                         className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-5"
                     >
-                        {loading ? (
+                        {isPending ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
                                 Creando cuenta...
@@ -596,7 +516,6 @@ export default function RegisterPage() {
                     </button>
                 </form>
 
-                {/* Divider */}
                 <div className="relative my-5">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-surface-light/50" />
@@ -606,14 +525,10 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                {/* Sign up link */}
                 <div className="text-center">
                     <p className="text-text-secondary text-sm">
                         ¿Ya tienes cuenta?{' '}
-                        <Link
-                            href="/login"
-                            className="text-primary hover:text-accent font-semibold transition-colors"
-                        >
+                        <Link href="/login" className="text-primary hover:text-accent font-semibold transition-colors">
                             Inicia sesión aquí
                         </Link>
                     </p>

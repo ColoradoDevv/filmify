@@ -8,6 +8,8 @@ export function createClient() {
         if (!url || !anonKey) {
             console.warn('Supabase not configured. Using dummy client.');
 
+            const notConfigured = () => ({ message: 'Supabase not configured', name: 'SupabaseNotConfigured' });
+
             const createDummyBuilder = () => {
                 const builder = {
                     select: () => builder,
@@ -27,21 +29,21 @@ export function createClient() {
                     contains: () => builder,
                     order: () => builder,
                     limit: () => builder,
-                    single: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
-                    maybeSingle: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
-                    then: (resolve: any) => resolve({ data: null, error: new Error('Supabase not configured') }),
+                    single: () => Promise.resolve({ data: null, error: notConfigured() }),
+                    maybeSingle: () => Promise.resolve({ data: null, error: notConfigured() }),
+                    then: (resolve: any) => resolve({ data: null, error: notConfigured() }),
                 };
                 return builder;
             };
 
             return {
                 auth: {
-                    getUser: async () => ({ data: { user: null }, error: new Error('Supabase not configured') }),
-                    getSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
+                    getUser: async () => ({ data: { user: null }, error: notConfigured() }),
+                    getSession: async () => ({ data: { session: null }, error: notConfigured() }),
                     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-                    signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
-                    signUp: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
-                    signOut: async () => ({ error: new Error('Supabase not configured') }),
+                    signInWithPassword: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                    signUp: async () => ({ data: { user: null, session: null }, error: notConfigured() }),
+                    signOut: async () => ({ error: notConfigured() }),
                 },
                 from: () => createDummyBuilder(),
                 channel: () => ({

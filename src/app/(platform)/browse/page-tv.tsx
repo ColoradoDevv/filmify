@@ -1,6 +1,6 @@
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
 import HorizontalRow from '@/components/features/HorizontalRow';
-import { TrendingUp, Tv, Film, Star, Flame } from 'lucide-react';
+import { TrendingUp, Tv, Film, Star, Flame, PlayCircle, Clock, Sparkles } from 'lucide-react';
 
 interface BrowsePageTVProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -78,45 +78,52 @@ export default async function BrowsePageTV({ searchParams }: BrowsePageTVProps) 
             </div>
 
             {/* Horizontal Content Rows */}
-            <div className="space-y-8">
+            <div className="space-y-12">
                 <HorizontalRow
-                    title="🔥 Películas en Tendencia"
+                    title="Películas en Tendencia"
+                    icon={Flame}
                     items={trendingMovies.results}
                     mediaType="movie"
                 />
 
                 <HorizontalRow
-                    title="📺 Series Populares"
+                    title="Series Populares"
+                    icon={Tv}
                     items={trendingTV.results}
                     mediaType="tv"
                 />
 
                 <HorizontalRow
-                    title="⭐ Mejor Valoradas"
+                    title="Mejor Valoradas"
+                    icon={Star}
                     items={topRatedMovies.results}
                     mediaType="movie"
                 />
 
                 <HorizontalRow
-                    title="🎬 Acción y Aventura"
+                    title="Acción y Aventura"
+                    icon={PlayCircle}
                     items={actionMovies.results}
                     mediaType="movie"
                 />
 
                 <HorizontalRow
-                    title="😂 Comedias"
+                    title="Comedias"
+                    icon={Sparkles}
                     items={comedyMovies.results}
                     mediaType="movie"
                 />
 
                 <HorizontalRow
-                    title="🆕 Próximos Estrenos"
+                    title="Próximos Estrenos"
+                    icon={Clock}
                     items={upcomingMovies.results}
                     mediaType="movie"
                 />
 
                 <HorizontalRow
-                    title="🌟 Populares Ahora"
+                    title="Populares Ahora"
+                    icon={TrendingUp}
                     items={popularMovies.results}
                     mediaType="movie"
                 />

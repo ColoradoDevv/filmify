@@ -2,10 +2,29 @@
 
 import { useState } from 'react';
 import { Sparkles, Send, Loader2, Film, AlertCircle } from 'lucide-react';
-import { getMovieRecommendationsJSON } from '@/lib/ai';
+import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
+import { getMovieRecommendationsJSON, type MovieRecommendationPick } from '@/lib/ai';
 import { searchMovies } from '@/lib/tmdb/service';
 import MovieCard from '@/components/features/MovieCard';
 import type { Movie } from '@/types/tmdb';
+
+function pickMovieFromSearchResults(results: Movie[], year?: number): Movie | null {
+    const safe = results.filter((m) => !m.adult);
+    if (safe.length === 0) return null;
+    if (year) {
+        const y = String(year);
+        const byYear = safe.filter((m) => m.release_date?.startsWith(y));
+        if (byYear.length > 0) {
+            return [...byYear].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))[0];
+        }
+    }
+    return [...safe].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))[0];
+}
+
+async function resolveMoviePick(pick: MovieRecommendationPick): Promise<Movie | null> {
+    const searchResult = await searchMovies(pick.tmdbQuery);
+    return pickMovieFromSearchResults(searchResult.results, pick.year);
+}
 
 export default function AIRecommendations() {
     const [prompt, setPrompt] = useState('');
@@ -21,27 +40,34 @@ export default function AIRecommendations() {
         setError('');
         setMovies([]);
 
-        try {
-            // 1. Get titles from AI
-            const titles = await getMovieRecommendationsJSON(prompt);
+        const localSafety = assertMovieRecommendationPromptSafe(prompt);
+        if (!localSafety.ok) {
+            setError(localSafety.message);
+            setLoading(false);
+            return;
+        }
 
-            if (titles.length === 0) {
-                setError('No pude encontrar recomendaciones para esa búsqueda. Intenta ser más específico.');
+        try {
+            const ai = await getMovieRecommendationsJSON(prompt);
+
+            if (!ai.ok) {
+                setError(ai.error);
                 return;
             }
 
-            // 2. Fetch movie details from TMDB
-            const moviePromises = titles.map(async (title) => {
-                const searchResult = await searchMovies(title);
-                // Return the first exact-ish match
-                return searchResult.results[0] || null;
+            const moviePromises = ai.items.map((pick) => resolveMoviePick(pick));
+            const results = await Promise.all(moviePromises);
+            const seen = new Set<number>();
+            const validMovies = results.filter((m): m is Movie => {
+                if (!m || seen.has(m.id)) return false;
+                seen.add(m.id);
+                return true;
             });
 
-            const results = await Promise.all(moviePromises);
-            const validMovies = results.filter((m): m is Movie => m !== null);
-
             if (validMovies.length === 0) {
-                setError('Encontré títulos pero no pude localizarlos en nuestra base de datos.');
+                setError(
+                    'La IA sugirió títulos pero no logramos enlazarlos con TMDB. Prueba otra formulación o nombres de películas más conocidos.'
+                );
             } else {
                 setMovies(validMovies);
             }

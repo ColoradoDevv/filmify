@@ -10,6 +10,9 @@ const initialState = {
     error: '',
 };
 
+const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
+const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
+
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState(loginAction, initialState);
     const [showPassword, setShowPassword] = useState(false);
@@ -26,13 +29,10 @@ export default function LoginPage() {
     }, [state?.error]);
 
     const handleSubmit = (formData: FormData) => {
-        if (!captchaToken) {
-            // We can't block the action here easily without custom logic, 
-            // but the action also checks for captchaToken.
-            // Ideally we prevent submission or add token to formData.
-            return;
+        if (hcaptchaConfigured) {
+            if (!captchaToken) return;
+            formData.set('captchaToken', captchaToken);
         }
-        formData.set('captchaToken', captchaToken);
         formAction(formData);
     };
 
@@ -71,12 +71,10 @@ export default function LoginPage() {
                 </div>
 
                 {/* Error Message */}
-                {(state?.error || (!captchaToken && isPending)) && (
+                {state?.error && (
                     <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2.5 rounded-xl mb-4 flex items-center gap-3 animate-fade-in-up">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <span className="text-sm font-medium">
-                            {!captchaToken && isPending ? 'Por favor completa el captcha' : state.error}
-                        </span>
+                        <span className="text-sm font-medium">{state.error}</span>
                     </div>
                 )}
 
@@ -139,10 +137,10 @@ export default function LoginPage() {
                     </div>
 
                     {/* hCaptcha */}
-                    {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+                    {hcaptchaConfigured && (
                         <div className="flex justify-center py-2">
                             <HCaptcha
-                                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                                sitekey={HCAPTCHA_SITE_KEY}
                                 onVerify={(token) => setCaptchaToken(token)}
                                 ref={captchaRef}
                                 theme="dark"

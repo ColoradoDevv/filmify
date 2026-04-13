@@ -2,60 +2,91 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getOptionalApiKeys } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
-export async function loginAction(prevState: any, formData: FormData) {
-    const identifier = formData.get('email') as string; // Can be email or username
-    const password = formData.get('password') as string;
-    const captchaToken = formData.get('captchaToken') as string;
+export type LoginState = {
+    error: string;
+};
 
-    if (!identifier || !password || !captchaToken) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Mensaje único ante fallo de acceso (no distinguir usuario inexistente vs contraseña incorrecta). */
+const LOGIN_INVALID_CREDENTIALS =
+    'El correo o la contraseña son incorrectos o no son válidos. Comprueba tus datos e inténtalo de nuevo.';
+
+export async function loginAction(
+    _prevState: LoginState,
+    formData: FormData
+): Promise<LoginState> {
+    const identifier = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    const captchaToken = String(formData.get('captchaToken') ?? '');
+    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
+
+    if (!identifier || !password) {
         return { error: 'Por favor completa todos los campos' };
+    }
+
+    if (hcaptchaEnabled && !captchaToken) {
+        return { error: 'Por favor completa el captcha' };
     }
 
     let email = identifier;
 
-    // Check if identifier is NOT an email (simple regex)
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+    // If the identifier is not an email, resolve it from the username.
+    // This path requires the admin client (service role key). If that's not
+    // configured, we fall back to treating the input as email — which will
+    // fail the signInWithPassword call below with a generic error, so we
+    // don't leak information about whether usernames are resolvable.
+    if (!EMAIL_RE.test(identifier)) {
+        try {
+            const supabaseAdmin = createAdminClient();
 
-    if (!isEmail) {
-        // Assume it's a username, resolve to email using Admin Client
-        const supabaseAdmin = createAdminClient();
+            const { data: profile, error: profileError } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('username', identifier)
+                .maybeSingle();
 
-        const { data: profile, error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .select('id')
-            .eq('username', identifier)
-            .single();
+            if (profileError || !profile) {
+                return { error: LOGIN_INVALID_CREDENTIALS };
+            }
 
-        if (profileError || !profile) {
-            return { error: 'Credenciales inválidas' };
+            const { data: userData, error: userError } =
+                await supabaseAdmin.auth.admin.getUserById(profile.id);
+
+            if (userError || !userData.user?.email) {
+                return { error: LOGIN_INVALID_CREDENTIALS };
+            }
+
+            email = userData.user.email;
+        } catch (err) {
+            // Service role key missing or admin client exploded — log and
+            // bail out with a generic message (do not leak implementation).
+            console.error('[login] admin client error:', err);
+            return { error: LOGIN_INVALID_CREDENTIALS };
         }
-
-        // Get user email by ID
-        const { data: user, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
-
-        if (userError || !user.user?.email) {
-            return { error: 'Credenciales inválidas' };
-        }
-
-        email = user.user.email;
     }
 
-    // Perform standard login with resolved email
     const supabase = await createClient();
 
     const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-            captchaToken,
-        },
+        ...(hcaptchaEnabled && captchaToken
+            ? { options: { captchaToken } }
+            : {}),
     });
 
     if (error) {
-        // We removed the specific "Email not confirmed" check as requested.
-        return { error: 'Credenciales inválidas' };
+        // If email isn't confirmed, redirect user to confirm-email page with
+        // the email pre-filled so they can resend. Do NOT leak this via error
+        // text — just surface the confirm-email flow on next render.
+        if (error.message?.toLowerCase().includes('email not confirmed')) {
+            return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
+        }
+        return { error: LOGIN_INVALID_CREDENTIALS };
     }
 
     return redirect('/browse');

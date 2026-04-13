@@ -18,15 +18,16 @@ export default function ContentBlacklistPage() {
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        loadBlacklist();
-    }, []);
-
     const loadBlacklist = async () => {
         const data = await getBlacklist();
         setBlacklist(data);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadBlacklist();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();

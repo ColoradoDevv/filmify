@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
         if (bannedIp) {
             return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
         }
-    } catch (e) {
+    } catch {
         // Ignore error if table doesn't exist or query fails
     }
 

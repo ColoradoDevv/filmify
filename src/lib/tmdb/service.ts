@@ -85,34 +85,28 @@ const buildUrl = (endpoint: string, params: Record<string, string | number> = {}
  * Generic fetch wrapper with error handling
  */
 const fetchFromTMDB = async <T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> => {
-    try {
-        const url = buildUrl(endpoint, params);
-        const response = await fetch(url);
+    const url = buildUrl(endpoint, params);
+    const response = await fetch(url);
 
-        if (!response.ok) {
-            throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        // Apply blacklist filtering
-        const blacklist = await getBlacklist();
-
-        // If it's a paginated response or list
-        if (data.results && Array.isArray(data.results)) {
-            data.results = data.results.filter((item: any) => !blacklist.has(item.id));
-            // Adjust total results if needed, but it's just visual usually
-        }
-        // If it's a single item details
-        else if (data.id && blacklist.has(data.id)) {
-            throw new Error('Content is blacklisted');
-        }
-
-        return data;
-    } catch (error) {
-        console.error('TMDB API Error:', error);
-        throw error;
+    if (!response.ok) {
+        throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
     }
+
+    const data = await response.json();
+
+    // Apply blacklist filtering
+    const blacklist = await getBlacklist();
+
+    // If it's a paginated response or list
+    if (data.results && Array.isArray(data.results)) {
+        data.results = data.results.filter((item: any) => !blacklist.has(item.id));
+    }
+    // If it's a single item details
+    else if (data.id && blacklist.has(data.id)) {
+        throw new Error('Content is blacklisted');
+    }
+
+    return data;
 };
 
 /**
@@ -311,16 +305,19 @@ export const getPersonDetails = async (personId: number): Promise<Person> => {
 };
 
 /**
- * Get external IDs for a movie (IMDB, TVDB, etc.)
- * @param movieId - TMDB movie ID
+ * Get external IDs (IMDB, TVDB, etc.) for a movie or TV show.
+ * Defaults to 'movie' for backwards compatibility with existing callers.
  */
-export const getExternalIds = async (movieId: number): Promise<{
+export const getExternalIds = async (
+    id: number,
+    mediaType: 'movie' | 'tv' = 'movie'
+): Promise<{
     imdb_id: string | null;
     facebook_id: string | null;
     instagram_id: string | null;
     twitter_id: string | null;
 }> => {
-    return fetchFromTMDB(`/movie/${movieId}/external_ids`);
+    return fetchFromTMDB(`/${mediaType}/${id}/external_ids`);
 };
 
 /**

@@ -1,9 +1,10 @@
+import { Suspense } from 'react';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
 import FilterBar from '@/components/features/FilterBar';
 import AIRecommendations from '@/components/features/AIRecommendations';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
-import { TrendingUp, Tv, Film } from 'lucide-react';
+import { TrendingUp, Tv } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
@@ -118,11 +119,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             {/* AI Recommendations */}
             <AIRecommendations />
 
-            {/* Filters */}
-            <FilterBar genres={genres} />
-
-            {/* Movies Grid with Load More */}
-            <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
+            <Suspense
+                fallback={
+                    <div className="space-y-8">
+                        <div className="h-12 w-full max-w-3xl rounded-full bg-white/5 animate-pulse" />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {Array.from({ length: 10 }).map((_, i) => (
+                                <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse" />
+                            ))}
+                        </div>
+                    </div>
+                }
+            >
+                <FilterBar genres={genres} />
+                <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
+            </Suspense>
         </div>
     );
 }

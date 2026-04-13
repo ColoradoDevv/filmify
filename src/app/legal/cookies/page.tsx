@@ -1,4 +1,5 @@
 import React from 'react';
+import { Lock, Settings, BarChart, Shield, AlertTriangle } from 'lucide-react';
 
 export default function CookiesPage() {
     return (
@@ -25,7 +26,10 @@ export default function CookiesPage() {
 
                 <div className="space-y-4 mt-4">
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <h3 className="text-xl font-semibold text-white mb-2">🔒 Cookies Estrictamente Necesarias</h3>
+                        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                            <Lock className="w-5 h-5 text-primary" />
+                            Cookies Estrictamente Necesarias
+                        </h3>
                         <p className="text-gray-300 text-sm mb-2">
                             <strong>Propósito:</strong> Estas cookies son esenciales para que puedas navegar por el sitio web y utilizar sus funciones básicas.
                         </p>
@@ -46,7 +50,10 @@ export default function CookiesPage() {
                     </div>
 
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <h3 className="text-xl font-semibold text-white mb-2">⚙️ Cookies de Preferencias</h3>
+                        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                            <Settings className="w-5 h-5 text-primary" />
+                            Cookies de Preferencias
+                        </h3>
                         <p className="text-gray-300 text-sm mb-2">
                             <strong>Propósito:</strong> Estas cookies permiten que el sitio web recuerde tus preferencias y configuraciones personalizadas.
                         </p>
@@ -67,7 +74,10 @@ export default function CookiesPage() {
                     </div>
 
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <h3 className="text-xl font-semibold text-white mb-2">📊 Cookies Analíticas</h3>
+                        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                            <BarChart className="w-5 h-5 text-primary" />
+                            Cookies Analíticas
+                        </h3>
                         <p className="text-gray-300 text-sm mb-2">
                             <strong>Propósito:</strong> Estas cookies nos ayudan a entender cómo los usuarios interactúan con nuestro sitio web, qué páginas visitan y qué contenido es más popular.
                         </p>
@@ -90,7 +100,10 @@ export default function CookiesPage() {
                     </div>
 
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <h3 className="text-xl font-semibold text-white mb-2">🛡️ Cookies de Seguridad</h3>
+                        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-primary" />
+                            Cookies de Seguridad
+                        </h3>
                         <p className="text-gray-300 text-sm mb-2">
                             <strong>Propósito:</strong> Proteger la plataforma contra bots, spam y actividades maliciosas.
                         </p>
@@ -203,7 +216,10 @@ export default function CookiesPage() {
                 </ul>
 
                 <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30 mt-4">
-                    <p className="font-medium text-yellow-500 mb-2">⚠️ Importante</p>
+                    <p className="font-medium text-yellow-500 mb-2 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        Importante
+                    </p>
                     <p className="text-gray-300 text-sm">
                         Si bloqueas o eliminas las cookies, es posible que algunas funciones de FilmiFy no funcionen correctamente. Por ejemplo, es posible que tengas que iniciar sesión cada vez que visites el sitio o que tus preferencias no se guarden.
                     </p>

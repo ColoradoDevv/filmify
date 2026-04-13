@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle, XCircle, ShieldAlert, Ban, Fingerprint, Mail, UserMinus, ShieldOff, Info } from 'lucide-react';
 
 export default function TermsPage() {
     return (
@@ -34,7 +35,10 @@ export default function TermsPage() {
                 </ul>
 
                 <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30 mt-4">
-                    <p className="font-medium text-yellow-500 mb-2">⚠️ AVISO LEGAL IMPORTANTE</p>
+                    <p className="font-medium text-yellow-500 mb-2 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        AVISO LEGAL IMPORTANTE
+                    </p>
                     <p className="text-gray-300 text-sm">
                         <strong>FilmiFy NO aloja, almacena, transmite ni distribuye archivos de video, películas completas o series de televisión en sus servidores.</strong>
                     </p>
@@ -85,42 +89,66 @@ export default function TermsPage() {
 
                 <div className="space-y-3 mt-4">
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Actividades Ilegales</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <Ban className="w-4 h-4" />
+                            Actividades Ilegales
+                        </h4>
                         <p className="text-gray-300 text-sm">Utilizar el Servicio para cualquier propósito ilegal o no autorizado, incluyendo la violación de leyes locales, estatales, nacionales o internacionales.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Violación de Seguridad</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <ShieldOff className="w-4 h-4" />
+                            Violación de Seguridad
+                        </h4>
                         <p className="text-gray-300 text-sm">Intentar obtener acceso no autorizado a cuentas de otros usuarios, servidores, redes o sistemas informáticos conectados al Servicio.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Scraping y Automatización</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <Fingerprint className="w-4 h-4" />
+                            Scraping y Automatización
+                        </h4>
                         <p className="text-gray-300 text-sm">Realizar scraping, crawling, o recolección automatizada de datos sin nuestro permiso expreso por escrito. Esto incluye el uso de bots, spiders o herramientas automatizadas.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Contenido Ofensivo</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <UserMinus className="w-4 h-4" />
+                            Contenido Ofensivo
+                        </h4>
                         <p className="text-gray-300 text-sm">Publicar, transmitir o compartir contenido que sea difamatorio, obsceno, pornográfico, abusivo, ofensivo, discriminatorio, que incite al odio o que viole los derechos de terceros.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Spam y Phishing</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            Spam y Phishing
+                        </h4>
                         <p className="text-gray-300 text-sm">Enviar spam, correos electrónicos no solicitados, esquemas piramidales, o participar en actividades de phishing.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Ingeniería Inversa</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4" />
+                            Ingeniería Inversa
+                        </h4>
                         <p className="text-gray-300 text-sm">Realizar ingeniería inversa, descompilar, desensamblar o intentar derivar el código fuente de cualquier parte del Servicio.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Suplantación de Identidad</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <UserMinus className="w-4 h-4" />
+                            Suplantación de Identidad
+                        </h4>
                         <p className="text-gray-300 text-sm">Hacerse pasar por otra persona, entidad u organización, o falsificar tu afiliación con cualquier persona o entidad.</p>
                     </div>
 
                     <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/30">
-                        <h4 className="font-semibold text-red-400 mb-1">✗ Interferencia con el Servicio</h4>
+                        <h4 className="font-semibold text-red-400 mb-1 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Interferencia con el Servicio
+                        </h4>
                         <p className="text-gray-300 text-sm">Interferir o interrumpir el funcionamiento del Servicio, servidores o redes, incluyendo la introducción de virus, malware o código malicioso.</p>
                     </div>
                 </div>

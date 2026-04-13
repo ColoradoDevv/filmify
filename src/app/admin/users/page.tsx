@@ -40,10 +40,6 @@ export default function UsersPage() {
 
     const router = useRouter();
 
-    useEffect(() => {
-        loadUsers();
-    }, [page, search]);
-
     const loadUsers = async () => {
         setLoading(true);
         const { data, count } = await getUsers(page, 12, search);
@@ -51,6 +47,11 @@ export default function UsersPage() {
         setTotalUsers(count);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, search]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

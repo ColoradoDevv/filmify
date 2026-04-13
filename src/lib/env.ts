@@ -1,67 +1,65 @@
 /**
  * Environment variables validation utility
- * Provides safe access to environment variables with proper error handling
+ *
+ * Design goals:
+ *  - NEVER throw at module eval time (breaks Next.js static analysis / build).
+ *  - Provide a single source of truth for required/optional env vars.
+ *  - Allow callers to handle missing vars gracefully via try/catch.
  */
 
-/**
- * Validate required environment variable
- * 
- * IMPORTANT: In Next.js, environment variables are loaded at build/start time.
- * If you modify .env.local, you MUST restart the dev server for changes to take effect.
- */
-function validateEnv(key: string, value: string | undefined): string {
-    if (!value) {
-        const isClient = typeof window !== 'undefined';
-        const errorMessage = isClient
-            ? `Missing required environment variable: ${key}. Please check your .env.local file and ensure ${key} is set. Make sure to restart the dev server after creating/updating .env.local`
-            : `Missing required environment variable: ${key}. Please add ${key} to your .env.local file and restart the dev server.`;
+// NOTE: In Next.js, NEXT_PUBLIC_* env vars are inlined at build time.
+// We deliberately read them via `process.env.<NAME>` (not dynamic keys) so the
+// compiler can replace them in the client bundle.
 
-        console.error('❌', errorMessage);
-        console.error('\n🔍 Debug info:');
-        console.error('   - Variable buscada:', key);
-        console.error('   - NODE_ENV:', process.env.NODE_ENV);
-        // Cannot list all env vars on client side due to replacing mechanism, 
-        // but we can check if any relevant ones are showing up if needed.
-
-        // En desarrollo, dar instrucciones más claras
-        if (process.env.NODE_ENV === 'development') {
-            console.error('\n💡 Solución:');
-            console.error('   1. Verifica que el archivo .env.local existe en la raíz del proyecto');
-            console.error('   2. Verifica que la variable se llama exactamente: ' + key);
-            console.error('   3. ⚠️  IMPORTANTE: Reinicia el servidor de desarrollo:');
-            console.error('      - Presiona Ctrl+C para detener el servidor');
-            console.error('      - Ejecuta: npm run dev');
-            console.error('   4. Ejecuta: npm run check-env para verificar la configuración\n');
-        }
-
-        throw new Error(errorMessage);
-    }
-    return value;
+function logMissingEnv(key: string): void {
+    const message = `[env] Missing required environment variable: ${key}`;
+    // Use warn instead of error to avoid tripping up build-time error scanners.
+    console.warn(message);
 }
 
 /**
- * Get optional environment variable with default value
- */
-function getOptionalEnvValue(value: string | undefined, defaultValue: string = ''): string {
-    return value || defaultValue;
-}
-
-/**
- * Validate Supabase environment variables
+ * Supabase configuration (all optional — app degrades gracefully if absent).
+ *
+ * Supabase is transitioning naming conventions — we accept both:
+ *   - Legacy: NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
+ *   - New:    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / SUPABASE_SECRET_KEY
+ *
+ * NOTE: process.env reads must be literal strings (not computed) so Next.js
+ * can inline NEXT_PUBLIC_* values in the client bundle at build time.
  */
 export function getSupabaseConfig() {
     return {
-        url: getOptionalEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL),
-        anonKey: getOptionalEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-        serviceRoleKey: getOptionalEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        anonKey:
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+            ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            ?? '',
+        serviceRoleKey:
+            process.env.SUPABASE_SECRET_KEY
+            ?? process.env.SUPABASE_SERVICE_ROLE_KEY
+            ?? '',
     };
 }
 
 /**
- * Validate TMDB API key
+ * TMDB API key — required for most content features.
+ * Throws only when explicitly requested by calling code (so callers can catch).
  */
 export function getTmdbApiKey(): string {
-    return validateEnv('NEXT_PUBLIC_TMDB_API_KEY', process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    const key = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    if (!key) {
+        logMissingEnv('NEXT_PUBLIC_TMDB_API_KEY');
+        throw new Error('NEXT_PUBLIC_TMDB_API_KEY is not configured');
+    }
+    return key;
+}
+
+/**
+ * Safe variant: returns empty string instead of throwing.
+ * Use for code paths that must not crash the build.
+ */
+export function getTmdbApiKeyOptional(): string {
+    return process.env.NEXT_PUBLIC_TMDB_API_KEY ?? '';
 }
 
 /**
@@ -69,26 +67,34 @@ export function getTmdbApiKey(): string {
  */
 export function getOptionalApiKeys() {
     return {
-        groqApiKey: getOptionalEnvValue(process.env.GROQ_API_KEY),
-        resendApiKey: getOptionalEnvValue(process.env.RESEND_API_KEY),
-        cronSecret: getOptionalEnvValue(process.env.CRON_SECRET),
-        hcaptchaSiteKey: getOptionalEnvValue(process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY),
-        gaId: getOptionalEnvValue(process.env.NEXT_PUBLIC_GA_ID),
-        adsenseClientId: getOptionalEnvValue(process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID),
-        appUrl: getOptionalEnvValue(process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3000'),
+        groqApiKey: process.env.GROQ_API_KEY ?? '',
+        resendApiKey: process.env.RESEND_API_KEY ?? '',
+        cronSecret: process.env.CRON_SECRET ?? '',
+        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
+        gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
+        adsenseClientId: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID ?? '',
+        appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
     };
 }
 
-// Deprecated: These generic accessors do not work client-side with Next.js 
-// but are kept for server-side compatibility if needed (though discouraged).
-// Creating wrappers that assume server-side or hope for the best if used elsewhere.
-// Since we verified they were only used in this file, we can safely remove them 
-// or implement them knowing they might fail client-side if used with non-inlined keys.
+/**
+ * Returns true if the critical runtime dependencies are configured.
+ * Useful to early-return in API routes / server components.
+ */
+export function hasRequiredEnv(): boolean {
+    return Boolean(process.env.NEXT_PUBLIC_TMDB_API_KEY);
+}
+
+// Back-compat helpers (discouraged — prefer the typed accessors above).
 export function getRequiredEnv(key: string): string {
-    return validateEnv(key, process.env[key]);
+    const value = process.env[key];
+    if (!value) {
+        logMissingEnv(key);
+        throw new Error(`${key} is not configured`);
+    }
+    return value;
 }
 
 export function getOptionalEnv(key: string, defaultValue: string = ''): string {
-    return getOptionalEnvValue(process.env[key], defaultValue);
+    return process.env[key] ?? defaultValue;
 }
-

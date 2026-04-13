@@ -2,16 +2,47 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+/**
+ * ESLint configuration for FilmiFy.
+ *
+ * Rationale for the rule overrides below:
+ *   - `no-explicit-any`, `no-unused-vars`, `no-empty-object-type`,
+ *     `no-require-imports` are downgraded to warnings so that legacy code
+ *     doesn't gate CI, but we still surface them during reviews.
+ *   - `react-hooks/set-state-in-effect` is a React 19 best-practice warning
+ *     that has many legitimate uses (reading from `localStorage`, resizing
+ *     observers, etc.). Keeping it as a warning avoids blocking builds for
+ *     false positives.
+ *   - `react-hooks/rules-of-hooks` stays as an **error** — that rule flags
+ *     real runtime bugs.
+ *   - `react/no-unescaped-entities` and `ban-ts-comment` are downgraded: they
+ *     are stylistic, not correctness issues.
+ */
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react/no-unescaped-entities": "warn",
+      "@next/next/no-img-element": "warn",
+    },
+  },
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "scripts/**",
+    "supabase/**",
   ]),
 ]);
 

@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createServiceRoleClient } from './supabase/server';
+import { getSupabaseConfig } from './env';
+
+// Cheap pre-check so we can skip the DB path silently when the service role
+// key isn't configured, instead of constructing a client that throws.
+const hasServiceRoleKey = () => Boolean(getSupabaseConfig().serviceRoleKey);
 
 const SETTINGS_FILE = path.join(process.cwd(), 'admin-settings.json');
 
@@ -23,11 +28,12 @@ const DEFAULT_SETTINGS: AdminSettings = {
 };
 
 export async function getSettings(): Promise<AdminSettings> {
-    console.log('getSettings called');
     let dbSettings: AdminSettings | null = null;
 
-    // Try fetching from DB
-    try {
+    // Try fetching from DB only if Supabase service role is configured —
+    // otherwise fall straight through to the file-backed fallback without
+    // logging a scary warning on every page load.
+    if (hasServiceRoleKey()) try {
         const supabase = createServiceRoleClient();
 
         // Fetch System Settings
@@ -76,8 +82,8 @@ export async function saveSettings(settings: AdminSettings): Promise<boolean> {
     let dbSuccess = false;
     let fileSuccess = false;
 
-    // Save to DB
-    try {
+    // Save to DB — skipped silently if service role isn't configured.
+    if (hasServiceRoleKey()) try {
         const supabase = createServiceRoleClient();
         const { error } = await supabase
             .from('system_settings')

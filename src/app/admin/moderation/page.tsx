@@ -21,16 +21,17 @@ export default function ModerationPage() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        loadReviews();
-    }, []);
-
     const loadReviews = async () => {
         setLoading(true);
         const data = await getLatestReviews();
         setReviews(data);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadReviews();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleDelete = async (reviewId: string) => {
         if (!confirm('¿Estás seguro de eliminar esta reseña? Esta acción no se puede deshacer.')) return;

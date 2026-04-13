@@ -83,118 +83,121 @@ export const columns: ColumnDef<User>[] = [
     },
     {
         id: "actions",
-        cell: ({ row }) => {
-            const user = row.original
-            const router = useRouter()
-            const [loading, setLoading] = useState(false)
-
-            const handleRoleChange = async (newRole: string) => {
-                setLoading(true)
-                try {
-                    await updateUserRole(user.id, newRole as 'admin' | 'user')
-                    router.refresh()
-                } catch (error) {
-                    console.error(error)
-                    alert("Error al actualizar rol")
-                } finally {
-                    setLoading(false)
-                }
-            }
-
-            const handleBan = async () => {
-                if (!confirm("¿Estás seguro de banear a este usuario?")) return;
-                setLoading(true)
-                try {
-                    await banUser(user.id)
-                    router.refresh()
-                } catch (error) {
-                    console.error(error)
-                    alert("Error al banear usuario")
-                } finally {
-                    setLoading(false)
-                }
-            }
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-800 text-slate-400">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onClick={() => navigator.clipboard.writeText(user.id)}
-                            className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
-                        >
-                            Copiar ID
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-slate-800" />
-
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">
-                                <UserCog className="mr-2 h-4 w-4" />
-                                <span>Cambiar Rol</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="bg-slate-900 border-slate-800 text-slate-200">
-                                <DropdownMenuRadioGroup value={user.role} onValueChange={handleRoleChange}>
-                                    <DropdownMenuRadioItem value="user" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">User</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="beta" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">Beta Tester</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="moderator" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">Moderator</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="admin" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer text-red-400">Admin</DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-
-                        <DropdownMenuSeparator className="bg-slate-800" />
-                        <DropdownMenuItem onClick={handleBan} className="text-red-500 hover:bg-red-900/20 focus:bg-red-900/20 cursor-pointer">
-                            <Shield className="mr-2 h-4 w-4" />
-                            Banear Usuario
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                            onClick={async () => {
-                                setLoading(true);
-                                const res = await impersonateUser(user.id);
-                                if (res.success && res.url) {
-                                    window.open(res.url, '_blank');
-                                } else {
-                                    alert("Error al iniciar sesión como usuario");
-                                }
-                                setLoading(false);
-                            }}
-                            className="text-blue-400 hover:bg-blue-900/20 focus:bg-blue-900/20 cursor-pointer"
-                        >
-                            <Ghost className="mr-2 h-4 w-4" />
-                            Impersonate
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                            onClick={async () => {
-                                const ip = user.last_ip !== 'Unknown' ? user.last_ip : prompt("Ingrese la IP a banear:");
-                                if (!ip) return;
-                                if (!confirm(`¿Banear IP ${ip}?`)) return;
-
-                                setLoading(true);
-                                const res = await banIp(ip, user.id);
-                                if (res.success) {
-                                    alert("IP Baneada correctamente");
-                                    router.refresh();
-                                } else {
-                                    alert("Error al banear IP: " + res.error);
-                                }
-                                setLoading(false);
-                            }}
-                            className="text-orange-500 hover:bg-orange-900/20 focus:bg-orange-900/20 cursor-pointer"
-                        >
-                            <Lock className="mr-2 h-4 w-4" />
-                            Ban IP ({user.last_ip || '?'})
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )
-        },
+        cell: ({ row }) => <UserActionsCell user={row.original} />,
     },
 ]
+
+// Extracted into a real component so React Hooks (`useRouter`, `useState`)
+// are legally used (table `cell` callbacks are not components).
+function UserActionsCell({ user }: { user: User }) {
+    const router = useRouter()
+    const [, setLoading] = useState(false)
+
+    const handleRoleChange = async (newRole: string) => {
+        setLoading(true)
+        try {
+            await updateUserRole(user.id, newRole as 'admin' | 'user')
+            router.refresh()
+        } catch (error) {
+            console.error(error)
+            alert("Error al actualizar rol")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleBan = async () => {
+        if (!confirm("¿Estás seguro de banear a este usuario?")) return;
+        setLoading(true)
+        try {
+            await banUser(user.id)
+            router.refresh()
+        } catch (error) {
+            console.error(error)
+            alert("Error al banear usuario")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-800 text-slate-400">
+                    <span className="sr-only">Abrir menú</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                <DropdownMenuItem
+                    onClick={() => navigator.clipboard.writeText(user.id)}
+                    className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
+                >
+                    Copiar ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-slate-800" />
+
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">
+                        <UserCog className="mr-2 h-4 w-4" />
+                        <span>Cambiar Rol</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="bg-slate-900 border-slate-800 text-slate-200">
+                        <DropdownMenuRadioGroup value={user.role} onValueChange={handleRoleChange}>
+                            <DropdownMenuRadioItem value="user" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">User</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="beta" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">Beta Tester</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="moderator" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer">Moderator</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="admin" className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer text-red-400">Admin</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                <DropdownMenuSeparator className="bg-slate-800" />
+                <DropdownMenuItem onClick={handleBan} className="text-red-500 hover:bg-red-900/20 focus:bg-red-900/20 cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Banear Usuario
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    onClick={async () => {
+                        setLoading(true);
+                        const res = await impersonateUser(user.id);
+                        if (res.success && res.url) {
+                            window.open(res.url, '_blank');
+                        } else {
+                            alert("Error al iniciar sesión como usuario");
+                        }
+                        setLoading(false);
+                    }}
+                    className="text-blue-400 hover:bg-blue-900/20 focus:bg-blue-900/20 cursor-pointer"
+                >
+                    <Ghost className="mr-2 h-4 w-4" />
+                    Impersonate
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    onClick={async () => {
+                        const ip = user.last_ip !== 'Unknown' ? user.last_ip : prompt("Ingrese la IP a banear:");
+                        if (!ip) return;
+                        if (!confirm(`¿Banear IP ${ip}?`)) return;
+
+                        setLoading(true);
+                        const res = await banIp(ip, user.id);
+                        if (res.success) {
+                            alert("IP Baneada correctamente");
+                            router.refresh();
+                        } else {
+                            alert("Error al banear IP: " + res.error);
+                        }
+                        setLoading(false);
+                    }}
+                    className="text-orange-500 hover:bg-orange-900/20 focus:bg-orange-900/20 cursor-pointer"
+                >
+                    <Lock className="mr-2 h-4 w-4" />
+                    Ban IP ({user.last_ip || '?'})
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}

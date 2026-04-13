@@ -38,44 +38,6 @@ export const CookieConsent = () => {
         return null;
     };
 
-    useEffect(() => {
-        try {
-            // Check both localStorage and cookies for redundancy
-            const storedLocal = localStorage.getItem('cookie_consent');
-            const storedCookie = getCookie('cookie_consent');
-            
-            const stored = storedLocal || storedCookie;
-
-            if (!stored) {
-                // Small delay for animation
-                const timer = setTimeout(() => setIsVisible(true), 1000);
-                return () => clearTimeout(timer);
-            } else {
-                // Restore preferences if available
-                try {
-                    const parsed = JSON.parse(stored);
-                    if (typeof parsed === 'string') {
-                        applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
-                    } else {
-                        applyConsent(parsed);
-                    }
-                    // Ensure it's synced to both storages
-                    if (!storedLocal) localStorage.setItem('cookie_consent', stored);
-                    if (!storedCookie) setCookie('cookie_consent', stored, 365);
-                } catch (e) {
-                    // Fallback for simple string format
-                    if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
-                    else applyConsent({ analytics: false, marketing: false });
-                }
-            }
-        } catch (e) {
-            console.error("Error checking cookie consent:", e);
-            // If error accessing storage, show banner just in case? 
-            // Or assume no consent? Better to show it.
-            setIsVisible(true);
-        }
-    }, []);
-
     const applyConsent = (state: ConsentState) => {
         if (typeof window !== 'undefined' && window.gtag) {
             window.gtag('consent', 'update', {
@@ -113,6 +75,37 @@ export const CookieConsent = () => {
     const handleSavePreferences = () => {
         savePreferences(preferences);
     };
+
+    useEffect(() => {
+        try {
+            const storedLocal = localStorage.getItem('cookie_consent');
+            const storedCookie = getCookie('cookie_consent');
+            const stored = storedLocal || storedCookie;
+
+            if (!stored) {
+                const timer = setTimeout(() => setIsVisible(true), 1000);
+                return () => clearTimeout(timer);
+            }
+
+            try {
+                const parsed = JSON.parse(stored);
+                if (typeof parsed === 'string') {
+                    applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
+                } else {
+                    applyConsent(parsed);
+                }
+                if (!storedLocal) localStorage.setItem('cookie_consent', stored);
+                if (!storedCookie) setCookie('cookie_consent', stored, 365);
+            } catch {
+                if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
+                else applyConsent({ analytics: false, marketing: false });
+            }
+        } catch (e) {
+            console.error('Error checking cookie consent:', e);
+            setIsVisible(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     if (!isVisible) return null;
 
