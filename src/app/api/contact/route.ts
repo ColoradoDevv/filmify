@@ -12,11 +12,6 @@ export async function POST(request: Request) {
             { status: 503 }
         );
     }
-        return NextResponse.json(
-            { error: 'Servicio de email no configurado' },
-            { status: 503 }
-        );
-    }
 
     const resend = new Resend(resendApiKey);
 

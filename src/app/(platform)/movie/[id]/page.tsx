@@ -242,16 +242,16 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
             <div className="min-h-screen bg-background pb-20">
                 <MovieHero movie={movie} trailer={trailer} />
 
-            <div className="container mx-auto px-4 py-12 space-y-16">
+                <div className="container mx-auto px-4 py-12 space-y-16">
 
-                {/* Tagline */}
-                {movie.tagline && (
-                    <div className="text-center max-w-4xl mx-auto">
-                        <h2 className="text-2xl md:text-3xl font-light italic text-gray-300">
-                            "{movie.tagline}"
-                        </h2>
-                    </div>
-                )}
+                    {/* Tagline */}
+                    {movie.tagline && (
+                        <div className="text-center max-w-4xl mx-auto">
+                            <h2 className="text-2xl md:text-3xl font-light italic text-gray-300">
+                                "{movie.tagline}"
+                            </h2>
+                        </div>
+                    )}
 
                 {/* Cast Section */}
                 {cast.length > 0 && (
@@ -605,5 +605,6 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                 <ReviewsSection mediaId={movieId} mediaType="movie" />
             </div >
         </div >
+        </>
     );
 }
