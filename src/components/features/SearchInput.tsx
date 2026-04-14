@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Search, Film, Tv, User, Loader2, Clock, X } from 'lucide-react';
-import { searchMulti } from '@/lib/tmdb/client';
-import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/helpers';
-import { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
+import { Search, Film, Loader2, Clock, X } from 'lucide-react';
+import { searchMovies } from '@/lib/tmdb/client';
+import { getPosterUrl } from '@/lib/tmdb/helpers';
+import type { Movie } from '@/types/tmdb';
 import { addToHistory, getHistory, clearHistory, SearchHistoryItem } from '@/lib/supabase/history';
 import Image from 'next/image';
 
@@ -18,7 +18,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
     const router = useRouter();
     const pathname = usePathname();
     const [query, setQuery] = useState('');
-    const [suggestions, setSuggestions] = useState<MultiSearchResult[]>([]);
+    const [suggestions, setSuggestions] = useState<Movie[]>([]);
     const [history, setHistory] = useState<SearchHistoryItem[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -45,12 +45,8 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
             if (query.trim().length >= 2) {
                 setLoading(true);
                 try {
-                    const { results } = await searchMulti(query);
-                    // Filter out people without known for, and limit to 5 results
-                    const filtered = results
-                        .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
-                        .slice(0, 5);
-                    setSuggestions(filtered);
+                    const { results } = await searchMovies(query);
+                    setSuggestions(results.slice(0, 5));
                     setShowSuggestions(true);
                 } catch (error) {
                     console.error('Search error:', error);
@@ -109,53 +105,19 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
         setHistory([]);
     };
 
-    const handleSuggestionClick = async (item: MultiSearchResult) => {
-        // Add to history even if clicking a suggestion? Maybe not the query, but the title?
-        // Usually history tracks what you typed. But if you click a result, maybe that's enough.
-        // Let's stick to tracking typed queries for now, or maybe track the title if we want "Recently Viewed".
-        // The request was "historial de busqueda" (search history).
-        // If I click a suggestion, I technically didn't "search" in the traditional sense, I navigated.
-        // But for consistency, let's just navigate.
-
-        if (item.media_type === 'movie') {
-            router.push(`/movie/${item.id}`);
-        } else if (item.media_type === 'tv') {
-            router.push(`/tv/${item.id}`);
-        } else if (item.media_type === 'person') {
-            router.push(`/search?q=${encodeURIComponent((item as Person).name)}`);
-        }
+    const handleSuggestionClick = async (item: Movie) => {
+        router.push(`/movie/${item.id}`);
         setShowSuggestions(false);
         setQuery('');
     };
 
-    const getIcon = (type: string) => {
-        switch (type) {
-            case 'movie': return <Film className="w-4 h-4" />;
-            case 'tv': return <Tv className="w-4 h-4" />;
-            case 'person': return <User className="w-4 h-4" />;
-            default: return <Search className="w-4 h-4" />;
-        }
-    };
+    const getIcon = () => <Film className="w-4 h-4" />;
 
-    const getImage = (item: MultiSearchResult) => {
-        if (item.media_type === 'person') {
-            return getProfileUrl((item as Person).profile_path);
-        }
-        return getPosterUrl((item as Movie | TVShow).poster_path);
-    };
+    const getImage = (item: Movie) => getPosterUrl(item.poster_path);
 
-    const getTitle = (item: MultiSearchResult) => {
-        if (item.media_type === 'movie') return (item as Movie).title;
-        if (item.media_type === 'tv') return (item as TVShow).name;
-        if (item.media_type === 'person') return (item as Person).name;
-        return '';
-    };
+    const getTitle = (item: Movie) => item.title;
 
-    const getYear = (item: MultiSearchResult) => {
-        if (item.media_type === 'movie') return (item as Movie).release_date?.split('-')[0];
-        if (item.media_type === 'tv') return (item as TVShow).first_air_date?.split('-')[0];
-        return '';
-    };
+    const getYear = (item: Movie) => item.release_date?.split('-')[0] ?? '';
 
     return (
         <div ref={wrapperRef} className={`relative group ${className}`}>
@@ -217,7 +179,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                 )}
                                 {suggestions.map((item) => (
                                     <button
-                                        key={`${item.media_type}-${item.id}`}
+                                        key={item.id}
                                         onClick={() => handleSuggestionClick(item)}
                                         className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                     >
@@ -232,7 +194,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-text-muted">
-                                                    {getIcon(item.media_type)}
+                                                    {getIcon()}
                                                 </div>
                                             )}
                                         </div>
@@ -242,8 +204,8 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                             </p>
                                             <div className="flex items-center gap-2 text-xs text-text-secondary">
                                                 <span className="capitalize flex items-center gap-1">
-                                                    {getIcon(item.media_type)}
-                                                    {item.media_type === 'movie' ? 'Película' : item.media_type === 'tv' ? 'Serie' : 'Persona'}
+                                                    {getIcon()}
+                                                    Película
                                                 </span>
                                                 {getYear(item) && (
                                                     <>

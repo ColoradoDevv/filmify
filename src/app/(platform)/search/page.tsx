@@ -1,6 +1,6 @@
-import { searchMulti } from '@/lib/tmdb/service';
+import { searchMovies } from '@/lib/tmdb/service';
 import MovieCard from '@/components/features/MovieCard';
-import { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
+import type { Movie } from '@/types/tmdb';
 import { Search, Frown, Sparkles } from 'lucide-react';
 import { getSearchCorrection } from '@/lib/ai';
 import Link from 'next/link';
@@ -16,24 +16,9 @@ export default async function SearchPage({
 }) {
     const { q, tv } = await searchParams;
     const query = q || '';
-    const { results } = await searchMulti(query);
+    const { results } = await searchMovies(query);
 
-    // Filter and map results
-    const filteredResults = results
-        .filter((item: MultiSearchResult) => item.media_type === 'movie' || item.media_type === 'tv')
-        .map((item: MultiSearchResult) => {
-            if (item.media_type === 'tv') {
-                const tv = item as TVShow;
-                return {
-                    ...tv,
-                    title: tv.name,
-                    original_title: tv.original_name,
-                    release_date: tv.first_air_date,
-                    media_type: 'tv',
-                } as unknown as Movie;
-            }
-            return item as Movie;
-        }) as any as MultiSearchResult[];
+    const filteredResults = results as Movie[];
 
     const isGlobalTV = await isTVDevice();
     const isManualTV = tv === 'true';
@@ -73,11 +58,11 @@ export default async function SearchPage({
 
             {filteredResults.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {filteredResults.map((movie: any) => (
+                    {filteredResults.map((movie: Movie) => (
                         <MovieCard
                             key={movie.id}
-                            movie={movie as any}
-                            mediaType={(movie as any).media_type === 'tv' ? 'tv' : 'movie'}
+                            movie={movie}
+                            mediaType="movie"
                         />
                     ))}
                 </div>

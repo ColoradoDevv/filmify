@@ -63,6 +63,14 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                                 Explorar ahora
                             </Link>
                             <Link
+                                href="/profile"
+                                className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold justify-center transition-all hover:bg-white/10"
+                                onClick={onClose}
+                            >
+                                <Users className="w-5 h-5" />
+                                Mi perfil
+                            </Link>
+                            <Link
                                 href="/search"
                                 className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold justify-center transition-all hover:bg-white/10"
                                 onClick={onClose}
