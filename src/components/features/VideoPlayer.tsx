@@ -188,6 +188,8 @@ export default function VideoPlayer({
 
     // Restore the user's preferred server on mount.
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
         try {
             const saved = localStorage.getItem(PREFERRED_SERVER_KEY);
             if (saved) {
@@ -373,6 +375,14 @@ export default function VideoPlayer({
     }, []);
 
     const handleSelectServer = useCallback((server: Server) => {
+        if (loadTimeoutRef.current) {
+            clearTimeout(loadTimeoutRef.current);
+            loadTimeoutRef.current = null;
+        }
+        if (fetchAbortRef.current) {
+            fetchAbortRef.current.abort();
+            fetchAbortRef.current = null;
+        }
         setActiveServer(server);
         setIsMenuOpen(false);
     }, []);

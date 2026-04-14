@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 
-export default async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -62,7 +62,13 @@ export default async function proxy(request: NextRequest) {
     );
 
     // IP Blocking Check
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    // Prefer the real client IP exposed by Vercel via request.ip.
+    // Only use forwarded headers as a fallback in non-production/local environments.
+    const ip =
+        request.ip ||
+        request.headers.get('x-real-ip') ||
+        request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        '127.0.0.1';
     try {
         const { data: bannedIp } = await supabase
             .from('ip_bans')

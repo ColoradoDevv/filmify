@@ -45,6 +45,18 @@ const IPTV_SOURCES = [
 /**
  * Parse M3U playlist content into LiveChannel array
  */
+function getRandomId(): string {
+    try {
+        const crypto = require('crypto');
+        if (typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+    } catch {
+        // Ignore and use fallback.
+    }
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export function parseM3U(content: string, sourceName: string): LiveChannel[] {
     const lines = content.split('\n');
     const channels: LiveChannel[] = [];
@@ -94,7 +106,7 @@ export function parseM3U(content: string, sourceName: string): LiveChannel[] {
             // Stream URL found
             if (currentChannel.name) {
                 currentChannel.streamUrl = line;
-                currentChannel.id = `${sourceName}-${crypto.randomUUID()}`;
+                currentChannel.id = `${sourceName}-${getRandomId()}`;
                 channels.push(currentChannel as LiveChannel);
             }
             currentChannel = {};

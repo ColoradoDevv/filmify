@@ -4,9 +4,14 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { getOptionalApiKeys } from '@/lib/env';
 
 export async function POST(request: Request) {
-    const { resendApiKey } = getOptionalApiKeys();
+    const { resendApiKey, contactEmail } = getOptionalApiKeys();
 
-    if (!resendApiKey) {
+    if (!resendApiKey || !contactEmail) {
+        return NextResponse.json(
+            { error: 'Servicio de email no configurado' },
+            { status: 503 }
+        );
+    }
         return NextResponse.json(
             { error: 'Servicio de email no configurado' },
             { status: 503 }
@@ -70,7 +75,7 @@ export async function POST(request: Request) {
         // Send email
         const data = await resend.emails.send({
             from: 'FilmiFy Contact <onboarding@resend.dev>', // Use verified domain or testing domain
-            to: 'juanmakate0517@gmail.com', // Verified testing email
+            to: contactEmail,
             subject: `Nuevo mensaje de contacto de ${name}`,
             replyTo: email,
             text: `Nombre: ${name}\nEmail: ${email}\n\nMensaje:\n${message}`,

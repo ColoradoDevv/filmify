@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X } from 'lucide-react';
-import { getBackdropUrl } from '@/lib/tmdb/service';
+import { getBackdropUrl } from '@/lib/tmdb/helpers';
 import type { MovieDetails, Video, Season } from '@/types/tmdb';
 import VideoPlayer from './VideoPlayer';
 
@@ -76,8 +76,8 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
     const voteAverage = movie.vote_average ? movie.vote_average.toFixed(1) : 'NR';
 
     return (
-        <div className="relative w-full group overflow-hidden">
-            <div className="relative min-h-[90vh] md:h-[80vh] w-full flex items-center">
+        <div className="relative w-full group overflow-visible">
+            <div className="relative min-h-[90vh] md:min-h-[80vh] w-full flex items-center">
                 {/* Background (Video or Image) */}
                 <div className="absolute inset-0 overflow-hidden">
                     {showVideo && trailer ? (

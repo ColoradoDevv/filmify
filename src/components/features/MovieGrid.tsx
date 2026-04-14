@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Sparkles, Loader2, Film, Tv } from 'lucide-react';
 import MovieCard from '@/components/features/MovieCard';
-import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
+import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/client';
 import type { Movie, TVShow } from '@/types/tmdb';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 

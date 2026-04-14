@@ -53,7 +53,6 @@ function validatePassword(password: string): string | null {
 
 async function isRegistrationAllowed(): Promise<boolean> {
     try {
-        const { getSettings } = await import('@/lib/admin-settings');
         const settings = await getSettings();
         return settings.allowRegistration !== false;
     } catch (err) {

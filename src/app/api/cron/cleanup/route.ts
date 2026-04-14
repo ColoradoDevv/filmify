@@ -6,8 +6,8 @@ export async function GET(request: Request) {
     // Check for authorization header to secure it with a secret
     const { cronSecret } = getOptionalApiKeys();
     const authHeader = request.headers.get('authorization');
-    
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+
+    if (!cronSecret || cronSecret.length <= 8 || authHeader !== `Bearer ${cronSecret}`) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

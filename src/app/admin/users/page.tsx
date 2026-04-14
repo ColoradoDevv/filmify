@@ -101,6 +101,15 @@ export default function UsersPage() {
         });
     };
 
+    const isSafeImpersonationUrl = (url: string) => {
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+        } catch {
+            return false;
+        }
+    };
+
     const handleImpersonate = (userId: string) => {
         setSecurityModal({
             isOpen: true,
@@ -110,11 +119,11 @@ export default function UsersPage() {
             onConfirm: async () => {
                 setSecurityModal(prev => ({ ...prev, loading: true }));
                 const result = await impersonateUser(userId);
-                if (result.success && result.url) {
+                if (result.success && result.url && isSafeImpersonationUrl(result.url)) {
                     window.open(result.url, '_blank');
                     setSecurityModal(prev => ({ ...prev, isOpen: false }));
                 } else {
-                    alert('Ghost Protocol Failed: ' + result.error);
+                    alert('Ghost Protocol Failed: ' + (result.error || 'Unsafe or invalid URL'));
                     setSecurityModal(prev => ({ ...prev, loading: false, isOpen: false }));
                 }
             }

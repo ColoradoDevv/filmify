@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search, Film, Tv, User, Loader2, Clock, X } from 'lucide-react';
-import { searchMulti, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { searchMulti } from '@/lib/tmdb/client';
+import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/helpers';
 import { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
 import { addToHistory, getHistory, clearHistory, SearchHistoryItem } from '@/lib/supabase/history';
 import Image from 'next/image';

@@ -46,10 +46,10 @@ export function getSupabaseConfig() {
  * Throws only when explicitly requested by calling code (so callers can catch).
  */
 export function getTmdbApiKey(): string {
-    const key = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    const key = process.env.TMDB_API_KEY;
     if (!key) {
-        logMissingEnv('NEXT_PUBLIC_TMDB_API_KEY');
-        throw new Error('NEXT_PUBLIC_TMDB_API_KEY is not configured');
+        logMissingEnv('TMDB_API_KEY');
+        throw new Error('TMDB_API_KEY is not configured');
     }
     return key;
 }
@@ -59,7 +59,7 @@ export function getTmdbApiKey(): string {
  * Use for code paths that must not crash the build.
  */
 export function getTmdbApiKeyOptional(): string {
-    return process.env.NEXT_PUBLIC_TMDB_API_KEY ?? '';
+    return process.env.TMDB_API_KEY ?? '';
 }
 
 /**
@@ -73,6 +73,7 @@ export function getOptionalApiKeys() {
         hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
         adsenseClientId: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID ?? '',
+        contactEmail: process.env.CONTACT_EMAIL ?? '',
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
     };
 }
@@ -82,7 +83,7 @@ export function getOptionalApiKeys() {
  * Useful to early-return in API routes / server components.
  */
 export function hasRequiredEnv(): boolean {
-    return Boolean(process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    return Boolean(process.env.TMDB_API_KEY);
 }
 
 // Back-compat helpers (discouraged — prefer the typed accessors above).

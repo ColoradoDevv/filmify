@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Heart, Play, Star, Info, Film } from 'lucide-react';
 import { useStore } from '@/lib/store/useStore';
-import { getPosterUrl } from '@/lib/tmdb/service';
+import { getPosterUrl } from '@/lib/tmdb/helpers';
 import type { Movie, TVShow } from '@/types/tmdb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

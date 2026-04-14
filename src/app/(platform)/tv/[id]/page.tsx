@@ -1,6 +1,7 @@
 import type { MovieDetails, TVDetails } from '@/types/tmdb';
 import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
+import { getOptionalApiKeys } from '@/lib/env';
 import MovieHero from '@/components/features/MovieHero';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
@@ -18,6 +19,55 @@ interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+function buildTvMetadata(tvShow: ReturnType<typeof getTVDetails>): Metadata {
+    const title = `Dónde ver ${tvShow.name} online | FilmiFy`;
+    const description = tvShow.overview
+        ? `${tvShow.overview} Descubre dónde ver ${tvShow.name} online, con proveedores de streaming, temporada y reparto.`
+        : `Encuentra dónde ver ${tvShow.name} online, con datos de streaming y capítulos disponibles en FilmiFy.`;
+    const keywordSet = new Set<string>([
+        tvShow.name,
+        `ver ${tvShow.name}`,
+        `dónde ver ${tvShow.name}`,
+        'serie online',
+        'ver serie',
+        'streaming',
+        'temporadas',
+        'dónde ver serie',
+    ]);
+
+    tvShow.genres?.forEach((genre) => {
+        if (genre.name) {
+            keywordSet.add(genre.name);
+            keywordSet.add(`series de ${genre.name}`);
+        }
+    });
+
+    const keywords = Array.from(keywordSet).slice(0, 24);
+
+    return {
+        title,
+        description,
+        keywords,
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            images: [
+                {
+                    url: getPosterUrl(tvShow.poster_path) || '/logo-icon.svg',
+                    alt: `${tvShow.name} poster`,
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [getPosterUrl(tvShow.poster_path) || '/logo-icon.svg'],
+        },
+    };
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const tvId = parseInt(id);
@@ -27,17 +77,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
         if (!tvShow) {
             return {
-                title: 'TV Show Not Found - FilmiFy',
+                title: 'Serie no encontrada - FilmiFy',
             };
         }
 
-        return {
-            title: `${tvShow.name} - FilmiFy`,
-            description: tvShow.overview,
-        };
+        return buildTvMetadata(tvShow);
     } catch (error) {
         return {
-            title: 'TV Show Not Found - FilmiFy',
+            title: 'Serie no encontrada - FilmiFy',
         };
     }
 }
@@ -107,39 +154,65 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
         tvShow['watch/providers']?.results?.US ||
         Object.values(tvShow['watch/providers']?.results || {})[0];
 
+    const appUrl = getOptionalApiKeys().appUrl;
+    const posterUrl = getPosterUrl(tvShow.poster_path);
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'TVSeries',
+        name: tvShow.name,
+        description: tvShow.overview,
+        image: posterUrl || `${appUrl}/logo-icon.svg`,
+        url: `${appUrl}/tv/${tvShow.id}`,
+        genre: tvShow.genres?.map((genre) => genre.name).filter(Boolean),
+        actor: cast.map((person) => person.name),
+        numberOfSeasons: tvShow.number_of_seasons,
+    };
+
     const isGlobalTV = await isTVDevice();
     const isManualTV = sp.tv === 'true';
 
     if (isGlobalTV) {
         return (
-            <TVDetailsPageTV
-                tvShow={tvShow}
-                trailer={trailer}
-                cast={cast}
-                creator={creator}
-            />
+            <>
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                />
+                <TVDetailsPageTV
+                    tvShow={tvShow}
+                    trailer={trailer}
+                    cast={cast}
+                    creator={creator}
+                />
+            </>
         );
     }
 
     if (isManualTV) {
         return (
-            <TVLayoutWrapper
-                forceTVMode={true}
-                tvLayout={
-                    <div className="flex min-h-screen bg-background text-white">
-                        <TVSidebar />
-                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
-                            <TVDetailsPageTV
-                                tvShow={tvShow}
-                                trailer={trailer}
-                                cast={cast}
-                                creator={creator}
-                            />
-                        </main>
-                    </div>
-                }>
-                <div />
+            <>
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                />
+                <TVLayoutWrapper
+                    forceTVMode={true}
+                    tvLayout={
+                        <div className="flex min-h-screen bg-background text-white">
+                            <TVSidebar />
+                            <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                                <TVDetailsPageTV
+                                    tvShow={tvShow}
+                                    trailer={trailer}
+                                    cast={cast}
+                                    creator={creator}
+                                />
+                            </main>
+                        </div>
+                    }>
+                    <div />
             </TVLayoutWrapper>
+            </>
         );
     }
 

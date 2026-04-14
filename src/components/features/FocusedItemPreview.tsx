@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Play, Info, Star, Calendar, Clock } from 'lucide-react';
-import { getPosterUrl, getBackdropUrl } from '@/lib/tmdb/service';
+import { getPosterUrl, getBackdropUrl } from '@/lib/tmdb/helpers';
 import type { Movie, TVShow } from '@/types/tmdb';
 import Link from 'next/link';
 

@@ -1559,6 +1559,8 @@ function PreferencesSection({ user }: { user: any }) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
         const savedSettings = localStorage.getItem('filmify_preferences');
         if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
@@ -1588,7 +1590,7 @@ function PreferencesSection({ user }: { user: any }) {
             setSettings(parsedSettings);
 
             // Apply reduced motion immediately
-            if (parsedSettings.reducedMotion) {
+            if (parsedSettings.reducedMotion && typeof document !== 'undefined') {
                 document.documentElement.style.scrollBehavior = 'auto';
             }
         }
@@ -1625,10 +1627,12 @@ function PreferencesSection({ user }: { user: any }) {
 
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
-        localStorage.setItem('filmify_preferences', JSON.stringify(newSettings));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('filmify_preferences', JSON.stringify(newSettings));
+        }
 
         // Apply immediate effects where possible
-        if (key === 'reducedMotion') {
+        if (key === 'reducedMotion' && typeof document !== 'undefined') {
             document.documentElement.style.scrollBehavior = value ? 'auto' : 'smooth';
         }
 

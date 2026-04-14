@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { getPopular, getTrending } from '@/server/services/tmdb';
+import { getPopular, getTrending, getBlacklist } from '@/server/services/tmdb';
 import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
 
 /**
@@ -74,6 +74,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     try {
+        const blacklist = await getBlacklist();
+
         // Fetch top popular movies (multiple pages for better coverage)
         const moviePages = await Promise.all([
             getPopular(1),
@@ -85,6 +87,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         const movieUrls: MetadataRoute.Sitemap = moviePages
             .flatMap(page => page.results)
+            .filter(movie => !blacklist.has(movie.id))
             .map(movie => ({
                 url: `${BASE_URL}/movie/${movie.id}`,
                 lastModified: currentDate,
@@ -103,6 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         const tvUrls: MetadataRoute.Sitemap = tvPages
             .flatMap(page => page.results)
+            .filter(show => !blacklist.has(show.id))
             .map(show => ({
                 url: `${BASE_URL}/tv/${show.id}`,
                 lastModified: currentDate,

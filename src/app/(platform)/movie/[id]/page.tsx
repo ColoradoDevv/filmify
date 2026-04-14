@@ -1,6 +1,7 @@
-import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getProviderLink } from '@/lib/referrals';
+import { getOptionalApiKeys } from '@/lib/env';
 import MovieHero from '@/components/features/MovieHero';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
@@ -20,6 +21,55 @@ interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+function buildMovieMetadata(movie: ReturnType<typeof getMovieDetails>): Metadata {
+    const title = `Dónde ver ${movie.title} online | FilmiFy`;
+    const description = movie.overview
+        ? `${movie.overview} Descubre dónde ver ${movie.title} online, con proveedores de streaming, alquiler y compra.`
+        : `Encuentra dónde ver ${movie.title} online, con elenco, tráiler y opciones de streaming en FilmiFy.`;
+    const keywordSet = new Set<string>([
+        movie.title,
+        `ver ${movie.title}`,
+        `dónde ver ${movie.title}`,
+        'película online',
+        'ver película',
+        'streaming',
+        'alquilar película',
+        'comprar película',
+    ]);
+
+    movie.genres?.forEach((genre) => {
+        if (genre.name) {
+            keywordSet.add(genre.name);
+            keywordSet.add(`películas de ${genre.name}`);
+        }
+    });
+
+    const keywords = Array.from(keywordSet).slice(0, 24);
+
+    return {
+        title,
+        description,
+        keywords,
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            images: [
+                {
+                    url: getPosterUrl(movie.poster_path) || '/logo-icon.svg',
+                    alt: `${movie.title} poster`,
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [getPosterUrl(movie.poster_path) || '/logo-icon.svg'],
+        },
+    };
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const movieId = parseInt(id);
@@ -29,17 +79,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
         if (!movie) {
             return {
-                title: 'Movie Not Found - FilmiFy',
+                title: 'Película no encontrada - FilmiFy',
+            };
+        }
+
+        return buildMovieMetadata(movie);
+    } catch (error) {
+        if (error instanceof TMDBError && error.status === 404) {
+            return {
+                title: 'Película no encontrada - FilmiFy',
             };
         }
 
         return {
-            title: `${movie.title} - FilmiFy`,
-            description: movie.overview,
-        };
-    } catch (error) {
-        return {
-            title: 'Movie Not Found - FilmiFy',
+            title: 'Detalles de Película - FilmiFy',
         };
     }
 }
@@ -55,9 +108,11 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
         movie = await getMovieDetails(movieId);
         if (!movie) notFound();
     } catch (error) {
-        // If TMDB API returns 404 or any error, show our custom 404 page
         console.error('Error fetching movie details:', error);
-        notFound();
+        if (error instanceof TMDBError && error.status === 404) {
+            notFound();
+        }
+        throw error;
     }
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
@@ -133,42 +188,59 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
 
     if (isGlobalTV) {
         return (
-            <MovieDetailsPageTV
-                movie={movie}
-                trailer={trailer}
-                cast={cast}
-                certification={certification}
-                director={director}
-            />
+            <>
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                />
+                <MovieDetailsPageTV
+                    movie={movie}
+                    trailer={trailer}
+                    cast={cast}
+                    certification={certification}
+                    director={director}
+                />
+            </>
         );
     }
 
     if (isManualTV) {
         return (
-            <TVLayoutWrapper
-                forceTVMode={true}
-                tvLayout={
-                    <div className="flex min-h-screen bg-background text-white">
-                        <TVSidebar />
-                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
-                            <MovieDetailsPageTV
-                                movie={movie}
-                                trailer={trailer}
-                                cast={cast}
-                                certification={certification}
-                                director={director}
-                            />
-                        </main>
-                    </div>
-                }>
-                <div />
-            </TVLayoutWrapper>
+            <>
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                />
+                <TVLayoutWrapper
+                    forceTVMode={true}
+                    tvLayout={
+                        <div className="flex min-h-screen bg-background text-white">
+                            <TVSidebar />
+                            <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                                <MovieDetailsPageTV
+                                    movie={movie}
+                                    trailer={trailer}
+                                    cast={cast}
+                                    certification={certification}
+                                    director={director}
+                                />
+                            </main>
+                        </div>
+                    }>
+                    <div />
+                </TVLayoutWrapper>
+            </>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            <MovieHero movie={movie} trailer={trailer} />
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <div className="min-h-screen bg-background pb-20">
+                <MovieHero movie={movie} trailer={trailer} />
 
             <div className="container mx-auto px-4 py-12 space-y-16">
 

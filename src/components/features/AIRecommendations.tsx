@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Sparkles, Send, Loader2, Film, AlertCircle } from 'lucide-react';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
 import { getMovieRecommendationsJSON, type MovieRecommendationPick } from '@/lib/ai';
-import { searchMovies } from '@/lib/tmdb/service';
+import { searchMovies } from '@/lib/tmdb/client';
 import MovieCard from '@/components/features/MovieCard';
 import type { Movie } from '@/types/tmdb';
 
