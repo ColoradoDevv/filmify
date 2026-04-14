@@ -97,6 +97,14 @@ export default function PlatformHeader() {
                                     <div className="absolute top-full right-0 mt-2 w-48 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-scale-in">
                                         <div className="p-2 space-y-1">
                                             <Link
+                                                href="/profile"
+                                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors tv-focusable focus:bg-surface-light/80 focus:outline-none"
+                                                onClick={() => setProfileMenuOpen(false)}
+                                            >
+                                                <User className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Ver perfil</span>
+                                            </Link>
+                                            <Link
                                                 href="/settings"
                                                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors tv-focusable focus:bg-surface-light/80 focus:outline-none"
                                                 onClick={() => setProfileMenuOpen(false)}
