@@ -356,78 +356,67 @@ export default function ProfilePage() {
 
     return (
         <div ref={containerRef} className="space-y-8 pb-24 pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-8 shadow-xl shadow-black/10">
-                <div className="grid gap-8 lg:grid-cols-[auto_1fr_auto] items-center">
-                    <div className="flex items-center justify-center w-32 h-32 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
-                        {profile?.avatar_url ? (
-                            <img
-                                src={profile.avatar_url}
-                                alt={displayName}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <span className="text-4xl font-bold text-white">{username[0]?.toUpperCase()}</span>
-                        )}
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-sm uppercase tracking-[0.25em] text-text-secondary">Perfil de usuario</p>
-                            <h1 className="text-4xl font-bold text-white">{displayName}</h1>
-                            <p className="text-text-secondary">@{username}</p>
-                            {bio ? (
-                                <p className="mt-3 text-text-secondary max-w-2xl">{bio}</p>
+            <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 shadow-xl shadow-black/10">
+                <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-6">
+                        <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20">
+                            {profile?.avatar_url ? (
+                                <img src={profile.avatar_url} alt={displayName} className="h-full w-full object-cover" />
                             ) : (
-                                <p className="mt-3 text-text-secondary max-w-2xl">Agrega una biografía en Configuración para que otros te conozcan mejor.</p>
+                                <span className="text-5xl font-bold text-white">{username[0]?.toUpperCase()}</span>
                             )}
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
-                            <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-2">
-                                <Heart className="w-4 h-4 text-accent" />
-                                {favorites.length} Favoritos
-                            </span>
-                            <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-2">
-                                <Eye className="w-4 h-4 text-white" />
-                                {watched.length} Vistos
-                            </span>
-                            <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-2">
-                                <MessageSquare className="w-4 h-4 text-primary" />
-                                {reviews.length} Reseñas
-                            </span>
-                            <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-2">
-                                <Users className="w-4 h-4 text-purple-400" />
-                                {privacyStatus ? 'Perfil público' : 'Perfil privado'}
-                            </span>
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.3em] text-text-secondary">Mi perfil</p>
+                            <h1 className="mt-2 text-4xl font-bold text-white">{displayName}</h1>
+                            <p className="text-text-secondary">@{username}</p>
+                            <p className="mt-4 max-w-2xl text-text-secondary">{bio || 'Agrega una biografía en Configuración para que otros te conozcan mejor.'}</p>
                         </div>
                     </div>
-
-                    <div className="grid gap-3">
+                    <div className="grid gap-3 md:justify-end">
                         <Link
                             href="/settings"
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
                         >
                             <Settings className="w-4 h-4" />
                             Ajustes de privacidad
                         </Link>
                         <Link
                             href="/lists"
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary text-black px-5 py-3 text-sm font-semibold transition hover:bg-primary-hover"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-black transition hover:bg-primary-hover"
                         >
                             <ListChecks className="w-4 h-4" />
                             Ver mis listas
                         </Link>
                     </div>
                 </div>
+                <div className="grid gap-3 border-t border-surface-light/30 p-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4 text-sm text-text-secondary">
+                        <p className="text-xs uppercase tracking-[0.24em] text-text-secondary/80">Favoritos</p>
+                        <p className="mt-3 text-xl font-semibold text-white">{favorites.length}</p>
+                    </div>
+                    <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4 text-sm text-text-secondary">
+                        <p className="text-xs uppercase tracking-[0.24em] text-text-secondary/80">Vistos</p>
+                        <p className="mt-3 text-xl font-semibold text-white">{watched.length}</p>
+                    </div>
+                    <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4 text-sm text-text-secondary">
+                        <p className="text-xs uppercase tracking-[0.24em] text-text-secondary/80">Reseñas</p>
+                        <p className="mt-3 text-xl font-semibold text-white">{reviews.length}</p>
+                    </div>
+                    <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4 text-sm text-text-secondary">
+                        <p className="text-xs uppercase tracking-[0.24em] text-text-secondary/80">Visibilidad</p>
+                        <p className="mt-3 text-xl font-semibold text-white">{privacyStatus ? 'Público' : 'Privado'}</p>
+                    </div>
+                </div>
             </section>
 
-            <div className="grid gap-8 xl:grid-cols-[1.4fr_0.9fr]">
+            <div className="grid gap-8 xl:grid-cols-[1.35fr_0.85fr]">
                 <main className="space-y-8">
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
+                        <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-2xl font-bold">Favoritos</h2>
-                                <p className="text-text-secondary">Tus películas guardadas en un solo lugar.</p>
+                                <p className="text-xs uppercase tracking-[0.3em] text-text-secondary">Favoritos</p>
+                                <h2 className="text-2xl font-semibold text-white">Colección de películas</h2>
                             </div>
                             <Link
                                 href="/favorites"
@@ -436,7 +425,6 @@ export default function ProfilePage() {
                                 Ver todos
                             </Link>
                         </div>
-
                         {favorites.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {favorites.slice(0, 8).map((movie) => (
@@ -458,11 +446,11 @@ export default function ProfilePage() {
                         )}
                     </section>
 
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
+                        <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-2xl font-bold">Vistos</h2>
-                                <p className="text-text-secondary">Películas que marcaste como vistas.</p>
+                                <p className="text-xs uppercase tracking-[0.3em] text-text-secondary">Vistos</p>
+                                <h2 className="text-2xl font-semibold text-white">Historial reciente</h2>
                             </div>
                             <Link
                                 href="/browse"
@@ -471,7 +459,6 @@ export default function ProfilePage() {
                                 Seguir explorando
                             </Link>
                         </div>
-
                         {watched.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {watched.slice(0, 8).map((movie) => (
@@ -493,15 +480,14 @@ export default function ProfilePage() {
                         )}
                     </section>
 
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
+                        <div className="mb-6 flex items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-2xl font-bold">Reseñas</h2>
-                                <p className="text-text-secondary">Tus comentarios más recientes.</p>
+                                <p className="text-xs uppercase tracking-[0.3em] text-text-secondary">Reseñas</p>
+                                <h2 className="text-2xl font-semibold text-white">Tus reseñas recientes</h2>
                             </div>
                             <span className="text-sm text-text-secondary">{reviews.length} reseñas</span>
                         </div>
-
                         {reviews.length > 0 ? (
                             <div className="space-y-4">
                                 {reviews.slice(0, 5).map((review) => {
@@ -563,43 +549,139 @@ export default function ProfilePage() {
                     </section>
                 </main>
 
-                <aside className="space-y-6">
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <Users className="w-6 h-6" />
-                            </div>
+                <aside className="space-y-8">
+                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
+                        <div className="mb-6 flex items-center justify-between gap-3 border-b border-surface-light/30 pb-4">
                             <div>
-                                <h2 className="text-xl font-semibold">Amigos</h2>
-                                <p className="text-text-secondary text-sm">Busca perfiles y conecta con otras cinéfilas.</p>
+                                <p className="text-xs uppercase tracking-[0.3em] text-text-secondary">Amigos</p>
+                                <h2 className="text-2xl font-semibold text-white">Panel de amigos</h2>
                             </div>
+                            <Users className="h-6 w-6 text-primary" />
                         </div>
 
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
-                            <input
-                                type="text"
-                                value={friendQuery}
-                                onChange={(e) => setFriendQuery(e.target.value)}
-                                placeholder="Buscar por nombre o usuario"
-                                className="w-full rounded-2xl border border-surface-light/30 bg-background/80 py-3 pl-12 pr-4 text-sm text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                            />
-                        </div>
-
-                        <div className="mt-4 space-y-3">
-                            {friendLoading ? (
-                                <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-center text-text-secondary">
-                                    Buscando perfiles...
+                        <div className="space-y-5">
+                            <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4">
+                                <p className="text-sm font-semibold text-white mb-3">Buscar perfiles</p>
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+                                    <input
+                                        type="text"
+                                        value={friendQuery}
+                                        onChange={(e) => setFriendQuery(e.target.value)}
+                                        placeholder="Buscar por nombre o usuario"
+                                        className="w-full rounded-2xl border border-surface-light/30 bg-background/90 py-3 pl-12 pr-4 text-sm text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                    />
                                 </div>
-                            ) : friendQuery.trim().length >= 2 ? (
-                                friendResults.length > 0 ? (
-                                    friendResults.map((friend) => (
-                                        <Link
-                                            key={friend.id}
-                                            href={`/profile/${encodeURIComponent(friend.username || friend.id)}`}
-                                            className="block rounded-2xl border border-surface-light/30 bg-background/80 p-4 transition hover:border-primary/50 hover:bg-surface-light/10"
-                                        >
-                                            <div className="flex items-center gap-3">
+                                <div className="mt-4 space-y-3">
+                                    {friendLoading ? (
+                                        <div className="rounded-2xl border border-surface-light/30 bg-surface-light/10 p-4 text-center text-text-secondary">
+                                            Buscando perfiles...
+                                        </div>
+                                    ) : friendQuery.trim().length >= 2 ? (
+                                        friendResults.length > 0 ? (
+                                            friendResults.map((friend) => (
+                                                <Link
+                                                    key={friend.id}
+                                                    href={`/profile/${encodeURIComponent(friend.username || friend.id)}`}
+                                                    className="block rounded-2xl border border-surface-light/30 bg-background/80 p-4 transition hover:border-primary/50 hover:bg-surface-light/10"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
+                                                            {friend.avatar_url ? (
+                                                                <img src={friend.avatar_url} alt={friend.full_name || friend.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
+                                                            ) : (
+                                                                <span className="text-sm font-semibold">{friend.username?.[0]?.toUpperCase() || 'A'}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-white truncate">{friend.full_name || friend.username}</p>
+                                                            <p className="text-xs text-text-secondary truncate">@{friend.username || 'perfil'}</p>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            ))
+                                        ) : (
+                                            <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
+                                                No se encontraron amigos con ese nombre.
+                                            </div>
+                                        )
+                                    ) : (
+                                        <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
+                                            Escribe al menos 2 caracteres para buscar amigos.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <h3 className="text-sm font-semibold text-white">Solicitudes entrantes</h3>
+                                    <span className="text-xs text-text-secondary">Revisa y responde</span>
+                                </div>
+                                {requestActionError && (
+                                    <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">
+                                        {requestActionError}
+                                    </div>
+                                )}
+                                {requestActionSuccess && (
+                                    <div className="mb-4 rounded-2xl border border-green-500/20 bg-green-500/5 p-4 text-sm text-emerald-300">
+                                        {requestActionSuccess}
+                                    </div>
+                                )}
+                                {incomingFriendRequests.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {incomingFriendRequests.map((request) => (
+                                            <div key={request.id} className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
+                                                        {request.avatar_url ? (
+                                                            <img src={request.avatar_url} alt={request.full_name || request.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
+                                                        ) : (
+                                                            <span className="text-sm font-semibold">{request.username?.[0]?.toUpperCase() || 'A'}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-white truncate">{request.full_name || request.username}</p>
+                                                        <p className="text-xs text-text-secondary truncate">@{request.username || 'perfil'}</p>
+                                                    </div>
+                                                    <div className="ml-auto flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            disabled={requestActionLoading === `accept-${request.id}-${user.id}`}
+                                                            onClick={() => handleFriendAction('accept', request.id, user.id)}
+                                                            className="inline-flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary-hover transition disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {requestActionLoading === `accept-${request.id}-${user.id}` ? '...' : 'Aceptar'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={requestActionLoading === `reject-${request.id}-${user.id}`}
+                                                            onClick={() => handleFriendAction('reject', request.id, user.id)}
+                                                            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {requestActionLoading === `reject-${request.id}-${user.id}` ? '...' : 'Rechazar'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
+                                        No tienes solicitudes pendientes.
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <h3 className="text-sm font-semibold text-white">Amigos</h3>
+                                    <span className="text-xs text-text-secondary">Conexiones activas</span>
+                                </div>
+                                {friendList.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {friendList.map((friend) => (
+                                            <div key={friend.id} className="flex items-center gap-3 rounded-3xl border border-surface-light/30 bg-surface-light/10 p-4">
                                                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
                                                     {friend.avatar_url ? (
                                                         <img src={friend.avatar_url} alt={friend.full_name || friend.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
@@ -611,182 +693,65 @@ export default function ProfilePage() {
                                                     <p className="text-sm font-semibold text-white truncate">{friend.full_name || friend.username}</p>
                                                     <p className="text-xs text-text-secondary truncate">@{friend.username || 'perfil'}</p>
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={requestActionLoading === `remove-${friend.id}-${user.id}`}
+                                                    onClick={() => handleFriendAction('remove', friend.id, user.id)}
+                                                    className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {requestActionLoading === `remove-${friend.id}-${user.id}` ? '...' : 'Eliminar'}
+                                                </button>
                                             </div>
-                                        </Link>
-                                    ))
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
-                                        No se encontraron amigos con ese nombre.
+                                        Aún no tienes amigos. Busca y envía solicitudes arriba.
                                     </div>
-                                )
-                            ) : (
-                                <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
-                                    Escribe al menos 2 caracteres para buscar amigos.
+                                )}
+                            </div>
+
+                            <div className="rounded-3xl border border-surface-light/30 bg-background/90 p-4">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <h3 className="text-sm font-semibold text-white">Solicitudes enviadas</h3>
+                                    <span className="text-xs text-text-secondary">Puedes cancelar aquí</span>
                                 </div>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-semibold">Tus amigos</h2>
-                                <p className="text-text-secondary text-sm">Lista de contactos aceptados y acceso rápido a sus perfiles.</p>
-                            </div>
-                        </div>
-
-                        {friendList.length > 0 ? (
-                            <div className="grid gap-3">
-                                {friendList.map((friend) => (
-                                    <div key={friend.id} className="rounded-3xl border border-surface-light/30 bg-background/80 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
-                                                {friend.avatar_url ? (
-                                                    <img src={friend.avatar_url} alt={friend.full_name || friend.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
-                                                ) : (
-                                                    <span className="text-sm font-semibold">{friend.username?.[0]?.toUpperCase() || 'A'}</span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-white truncate">{friend.full_name || friend.username}</p>
-                                                <p className="text-xs text-text-secondary truncate">@{friend.username || 'perfil'}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                disabled={requestActionLoading === `remove-${friend.id}-${user.id}`}
-                                                onClick={() => handleFriendAction('remove', friend.id, user.id)}
-                                                className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                {requestActionLoading === `remove-${friend.id}-${user.id}` ? '...' : 'Eliminar'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
-                                Aún no tienes amigos. Busca y envía solicitudes arriba.
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white">
-                                <MessageSquare className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-semibold">Solicitudes enviadas</h2>
-                                <p className="text-text-secondary text-sm">Cancela solicitudes si ya no quieres que sigan pendientes.</p>
-                            </div>
-                        </div>
-
-                        {outgoingFriendRequests.length > 0 ? (
-                            <div className="space-y-3">
-                                {outgoingFriendRequests.map((friend) => (
-                                    <div key={friend.id} className="rounded-3xl border border-surface-light/30 bg-background/80 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
-                                                {friend.avatar_url ? (
-                                                    <img src={friend.avatar_url} alt={friend.full_name || friend.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
-                                                ) : (
-                                                    <span className="text-sm font-semibold">{friend.username?.[0]?.toUpperCase() || 'A'}</span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-white truncate">{friend.full_name || friend.username}</p>
-                                                <p className="text-xs text-text-secondary truncate">@{friend.username || 'perfil'}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                disabled={requestActionLoading === `cancel-${user.id}-${friend.id}`}
-                                                onClick={() => handleFriendAction('cancel', user.id, friend.id)}
-                                                className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-yellow-400 hover:text-yellow-200 transition disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                {requestActionLoading === `cancel-${user.id}-${friend.id}` ? '...' : 'Cancelar'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
-                                No tienes solicitudes enviadas.
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-semibold">Solicitudes de amistad</h2>
-                                <p className="text-text-secondary text-sm">Revisa las solicitudes pendientes y acepta o rechaza.</p>
-                            </div>
-                        </div>
-
-                        {requestActionError && (
-                            <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">
-                                {requestActionError}
-                            </div>
-                        )}
-                        {requestActionSuccess && (
-                            <div className="mb-4 rounded-2xl border border-green-500/20 bg-green-500/5 p-4 text-sm text-emerald-300">
-                                {requestActionSuccess}
-                            </div>
-                        )}
-
-                        {incomingFriendRequests.length > 0 ? (
-                            <div className="space-y-4">
-                                {incomingFriendRequests.map((request) => (
-                                    <div key={request.id} className="rounded-3xl border border-surface-light/30 bg-background/80 p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
-                                                {request.avatar_url ? (
-                                                    <img src={request.avatar_url} alt={request.full_name || request.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
-                                                ) : (
-                                                    <span className="text-sm font-semibold">{request.username?.[0]?.toUpperCase() || 'A'}</span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-white truncate">{request.full_name || request.username}</p>
-                                                <p className="text-xs text-text-secondary truncate">@{request.username || 'perfil'}</p>
-                                            </div>
-                                            <div className="ml-auto flex items-center gap-2">
+                                {outgoingFriendRequests.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {outgoingFriendRequests.map((friend) => (
+                                            <div key={friend.id} className="flex items-center gap-3 rounded-3xl border border-surface-light/30 bg-surface-light/10 p-4">
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-white">
+                                                    {friend.avatar_url ? (
+                                                        <img src={friend.avatar_url} alt={friend.full_name || friend.username || 'Perfil'} className="h-full w-full rounded-2xl object-cover" />
+                                                    ) : (
+                                                        <span className="text-sm font-semibold">{friend.username?.[0]?.toUpperCase() || 'A'}</span>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-white truncate">{friend.full_name || friend.username}</p>
+                                                    <p className="text-xs text-text-secondary truncate">@{friend.username || 'perfil'}</p>
+                                                </div>
                                                 <button
                                                     type="button"
-                                                    disabled={requestActionLoading === `accept-${request.id}-${user.id}`}
-                                                    onClick={() => handleFriendAction('accept', request.id, user.id)}
-                                                    className="inline-flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary-hover transition disabled:cursor-not-allowed disabled:opacity-60"
+                                                    disabled={requestActionLoading === `cancel-${user.id}-${friend.id}`}
+                                                    onClick={() => handleFriendAction('cancel', user.id, friend.id)}
+                                                    className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-yellow-400 hover:text-yellow-200 transition disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
-                                                    {requestActionLoading === `accept-${request.id}-${user.id}` ? '...' : 'Aceptar'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={requestActionLoading === `reject-${request.id}-${user.id}`}
-                                                    onClick={() => handleFriendAction('reject', request.id, user.id)}
-                                                    className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    {requestActionLoading === `reject-${request.id}-${user.id}` ? '...' : 'Rechazar'}
+                                                    {requestActionLoading === `cancel-${user.id}-${friend.id}` ? '...' : 'Cancelar'}
                                                 </button>
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
-                                ))}
+                                ) : (
+                                    <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
+                                        No tienes solicitudes enviadas.
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            <div className="rounded-2xl border border-surface-light/30 bg-background/80 p-4 text-text-secondary">
-                                No tienes solicitudes pendientes.
-                            </div>
-                        )}
+                        </div>
                     </section>
 
-                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/10 p-6">
+                    <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white">
                                 <ListChecks className="w-6 h-6" />
