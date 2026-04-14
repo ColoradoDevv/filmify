@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
 import SearchInput from '@/components/features/SearchInput';
+import useFavoritesSync from '@/hooks/useFavoritesSync';
 import UserMenu from './navbar/UserMenu';
 import NotificationCenter from './navbar/NotificationCenter';
 import MobileMenu from './navbar/MobileMenu';
@@ -33,6 +34,7 @@ export default function Navbar() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isMobileView, setIsMobileView] = useState(false);
 
+    useFavoritesSync();
     const favorites = useFavorites();
     const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/register');
 

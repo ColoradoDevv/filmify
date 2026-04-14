@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Heart, Play, Star, Info, Film } from 'lucide-react';
 import { useStore } from '@/lib/store/useStore';
+import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 import type { Movie, TVShow } from '@/types/tmdb';
 import Link from 'next/link';
@@ -21,21 +22,28 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
     const cardRef = useRef<HTMLDivElement>(null);
 
     // Subscribe directly to the specific movie's favorite status to ensure reactivity
-    const isFavorite = useStore((state) => state.user.favorites.some((fav) => fav.id === movie.id));
+    const currentFavorites = useStore((state) => state.user.favorites);
+    const isFavorite = currentFavorites.some((fav) => fav.id === movie.id);
     const addFavorite = useStore((state) => state.addFavorite);
     const removeFavorite = useStore((state) => state.removeFavorite);
 
     const [isFocused, setIsFocused] = useState(false);
 
-    const handleToggleFavorite = (e: React.MouseEvent | React.KeyboardEvent) => {
+    const handleToggleFavorite = async (e: React.MouseEvent | React.KeyboardEvent) => {
         e.preventDefault();
         e.stopPropagation();
+
+        const nextFavorites = isFavorite
+            ? currentFavorites.filter((fav) => fav.id !== movie.id)
+            : [...currentFavorites, movie as Movie];
 
         if (isFavorite) {
             removeFavorite(movie.id);
         } else {
             addFavorite(movie as Movie);
         }
+
+        await saveFavoritesToSupabase(nextFavorites);
     };
 
     const [mounted, setMounted] = useState(false);

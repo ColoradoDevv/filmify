@@ -7,6 +7,7 @@ import { User, LogOut, Settings, Menu } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import SearchInput from '@/components/features/SearchInput';
+import useFavoritesSync from '@/hooks/useFavoritesSync';
 
 export default function PlatformHeader() {
     const router = useRouter();
@@ -14,6 +15,8 @@ export default function PlatformHeader() {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const supabase = createClient();
+
+    useFavoritesSync();
 
     useEffect(() => {
         const getUser = async () => {

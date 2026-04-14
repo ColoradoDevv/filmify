@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 import { Star, MessageSquare, User, Trash2, Loader2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,7 +30,8 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const supabase = createClient();
     const [user, setUser] = useState<any>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [reviewsLoading, setReviewsLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [rating, setRating] = useState(0);
     const [content, setContent] = useState('');
@@ -37,13 +39,36 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let active = true;
+
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
+            if (!active) return;
             setUser(user);
+            setAuthLoading(false);
         };
+
+        const authSubscription = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+            if (!active) return;
+            setUser(session?.user ?? null);
+            setAuthLoading(false);
+        });
+
+        const loadReviews = async () => {
+            setReviewsLoading(true);
+            await fetchReviews();
+            if (!active) return;
+            setReviewsLoading(false);
+        };
+
         getUser();
-        fetchReviews();
-    }, [mediaId, mediaType]);
+        loadReviews();
+
+        return () => {
+            active = false;
+            authSubscription.data.subscription.unsubscribe();
+        };
+    }, [mediaId, mediaType, supabase]);
 
     const fetchReviews = async () => {
         try {
@@ -66,7 +91,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
         } catch (err) {
             console.error('Error fetching reviews:', err);
         } finally {
-            setLoading(false);
+            setReviewsLoading(false);
         }
     };
 
@@ -143,7 +168,12 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                 {/* Review Form */}
                 <div className="lg:col-span-1">
                     <div className="bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-2xl p-6 sticky top-24">
-                        {user ? (
+                        {authLoading ? (
+                            <div className="py-8 text-center">
+                                <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+                                <p className="text-text-secondary">Verificando sesión...</p>
+                            </div>
+                        ) : user ? (
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <h3 className="text-lg font-semibold text-white mb-4">Escribe tu reseña</h3>
 
@@ -232,7 +262,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
 
                 {/* Reviews List */}
                 <div className="lg:col-span-2 space-y-4">
-                    {loading ? (
+                    {reviewsLoading ? (
                         <div className="flex justify-center py-12">
                             <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         </div>

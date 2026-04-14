@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X } from 'lucide-react';
+import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X, ArrowLeft } from 'lucide-react';
 import { getBackdropUrl } from '@/lib/tmdb/helpers';
-import type { MovieDetails, Video, Season } from '@/types/tmdb';
+import { useStore } from '@/lib/store/useStore';
+import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
+import type { MovieDetails, Video, Season, Movie } from '@/types/tmdb';
 import VideoPlayer from './VideoPlayer';
 
 interface MovieHeroProps {
@@ -74,6 +76,24 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
 
     const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
     const voteAverage = movie.vote_average ? movie.vote_average.toFixed(1) : 'NR';
+    const currentFavorites = useStore((state) => state.user.favorites);
+    const isFavorite = currentFavorites.some((fav) => fav.id === movie.id);
+    const addFavorite = useStore((state) => state.addFavorite);
+    const removeFavorite = useStore((state) => state.removeFavorite);
+
+    const toggleFavorite = async () => {
+        const nextFavorites = isFavorite
+            ? currentFavorites.filter((fav) => fav.id !== movie.id)
+            : [...currentFavorites, movie as Movie];
+
+        if (isFavorite) {
+            removeFavorite(movie.id);
+        } else {
+            addFavorite(movie);
+        }
+
+        await saveFavoritesToSupabase(nextFavorites);
+    };
 
     return (
         <div className="relative w-full group overflow-visible">
@@ -227,12 +247,15 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                 </button>
                             )}
 
-                            <div className="flex items-center gap-2">
-                                <button className="p-4 rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 backdrop-blur-md group">
-                                    <Heart className="w-5 h-5 group-hover:scale-110 group-hover:fill-accent group-hover:text-accent transition-all" />
-                                </button>
-                                <button className="p-4 rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300 backdrop-blur-md group">
-                                    <Share2 className="w-5 h-5 group-hover:scale-110 transition-all" />
+                            <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={toggleFavorite}
+                                    className={`px-4 py-3 rounded-full border transition-all duration-300 backdrop-blur-md flex items-center gap-2 ${isFavorite ? 'bg-red-500/15 border-red-500/40 text-red-200 hover:bg-red-500/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
+                                    aria-pressed={isFavorite}
+                                >
+                                    <Heart className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                                    {isFavorite ? 'En Favoritos' : 'Añadir a Favoritos'}
                                 </button>
                             </div>
                         </div>
@@ -240,7 +263,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                 </div>
 
                 {/* Bottom Controls Bar */}
-                <div className="absolute bottom-8 right-8 z-20 flex items-center gap-4 animate-fade-in">
+                <div className="absolute bottom-8 right-8 z-20 flex flex-wrap items-center gap-3 animate-fade-in">
                     {showVideo && (
                         <button
                             onClick={() => setIsMuted(!isMuted)}
@@ -251,9 +274,10 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                     )}
                     <Link
                         href="/browse"
-                        className="p-3 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20 transition-all duration-300 shadow-2xl group"
+                        className="inline-flex items-center gap-2 px-4 py-3 rounded-full bg-black/70 text-white hover:bg-white/10 border border-white/10 transition-all duration-300 shadow-2xl"
                     >
-                        <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                        <ArrowLeft className="w-4 h-4" />
+                        Volver a Browse
                     </Link>
                 </div>
             </div>

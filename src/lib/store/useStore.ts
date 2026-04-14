@@ -34,6 +34,7 @@ interface StoreState {
     addFavorite: (movie: Movie) => void;
     removeFavorite: (movieId: number) => void;
     isFavorite: (movieId: number) => boolean;
+    setFavorites: (favorites: Movie[]) => void;
 
     addWatched: (movie: Movie) => void;
     removeWatched: (movieId: number) => void;
@@ -104,6 +105,15 @@ export const useStore = create<StoreState>()(
 
             isFavorite: (movieId: number) => {
                 return get().user.favorites.some((movie) => movie.id === movieId);
+            },
+
+            setFavorites: (favorites: Movie[]) => {
+                set((state) => ({
+                    user: {
+                        ...state.user,
+                        favorites,
+                    },
+                }));
             },
 
             // Watched actions

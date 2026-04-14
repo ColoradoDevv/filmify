@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import {
     User,
     Settings as SettingsIcon,
@@ -10,6 +11,7 @@ import {
     Bell,
     Eye,
     EyeOff,
+    ArrowLeft,
     CheckCircle,
     AlertCircle,
     AlertTriangle,
@@ -92,6 +94,15 @@ export default function SettingsPage() {
                         Configuración
                     </h1>
                     <p className="text-text-secondary text-base">Personaliza tu experiencia en FilmiFy</p>
+                    <div className="mt-4">
+                        <Link
+                            href="/browse"
+                            className="inline-flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-black font-semibold hover:bg-primary-hover transition-colors"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Volver a Browse
+                        </Link>
+                    </div>
                 </div>
             </div>
 

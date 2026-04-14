@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { Search, Heart, LogOut } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -15,6 +16,11 @@ interface MobileMenuProps {
 }
 
 export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: MobileMenuProps) {
+    const placeholderName = useMemo(() => {
+        const fallbackNames = ['Internauta', 'Explorador', 'Cinéfilo', 'Aventurero', 'Navegante', 'Usuario'];
+        return fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
+    }, []);
+
     if (!isOpen) return null;
 
     return (
