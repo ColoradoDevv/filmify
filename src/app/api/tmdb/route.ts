@@ -3,6 +3,8 @@ import type { SearchFilters } from '@/types/tmdb';
 import {
     discoverMovies,
     discoverTV,
+    getMovieDetails,
+    getTVDetails,
     getTrending,
     searchMovies,
     searchMulti,
@@ -62,6 +64,17 @@ export async function GET(request: Request) {
                     return NextResponse.json(await discoverTV(filters));
                 }
                 return NextResponse.json(await discoverMovies(filters));
+            }
+            case 'details': {
+                const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv';
+                const id = Number(url.searchParams.get('id') ?? '0');
+                if (!id) {
+                    return new NextResponse('Missing id parameter', { status: 400 });
+                }
+                if (mediaType === 'tv') {
+                    return NextResponse.json(await getTVDetails(id));
+                }
+                return NextResponse.json(await getMovieDetails(id));
             }
             default:
                 return new NextResponse('Unsupported action', { status: 400 });

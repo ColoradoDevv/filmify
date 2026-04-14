@@ -69,3 +69,10 @@ export const discoverTV = (filters: SearchFilters = {}) =>
         year: filters.year,
         sort_by: filters.sortBy,
     });
+
+export const getMediaDetails = (mediaType: 'movie' | 'tv', id: number) =>
+    clientFetch<any>({
+        action: 'details',
+        mediaType,
+        id,
+    });

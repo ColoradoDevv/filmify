@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, AlertCircle, Globe, Settings, ChevronDown, Check, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/lib/store/useStore';
+import type { Movie, TVShow } from '@/types/tmdb';
 
 interface VideoPlayerProps {
     mediaId: number;
@@ -170,6 +172,9 @@ export default function VideoPlayer({
     title,
 }: VideoPlayerProps) {
     const [isLoading, setIsLoading] = useState(true);
+    const [hasSavedWatched, setHasSavedWatched] = useState(false);
+    const isWatched = useStore((state) => state.isWatched(mediaId));
+    const addWatched = useStore((state) => state.addWatched);
     const [error, setError] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [activeServer, setActiveServer] = useState<Server>(SERVERS[0]);
@@ -373,6 +378,53 @@ export default function VideoPlayer({
             loadTimeoutRef.current = null;
         }
     }, []);
+
+    useEffect(() => {
+        if (!playableUrl || isLoading || error || isWatched || hasSavedWatched) {
+            return;
+        }
+
+        const watchTimer = window.setTimeout(() => {
+            const watchedItem = mediaType === 'movie'
+                ? ({
+                    id: mediaId,
+                    title,
+                    poster_path: null,
+                    backdrop_path: null,
+                    vote_average: 0,
+                    vote_count: 0,
+                    release_date: '',
+                    overview: '',
+                    genre_ids: [],
+                    adult: false,
+                    original_language: 'es',
+                    original_title: title,
+                    popularity: 0,
+                    video: false,
+                } as Movie)
+                : ({
+                    id: mediaId,
+                    name: title,
+                    original_name: title,
+                    poster_path: null,
+                    backdrop_path: null,
+                    vote_average: 0,
+                    vote_count: 0,
+                    first_air_date: '',
+                    overview: '',
+                    genre_ids: [],
+                    adult: false,
+                    original_language: 'es',
+                    popularity: 0,
+                    origin_country: [],
+                } as TVShow);
+
+            addWatched(watchedItem);
+            setHasSavedWatched(true);
+        }, 5000);
+
+        return () => window.clearTimeout(watchTimer);
+    }, [playableUrl, isLoading, error, isWatched, hasSavedWatched, mediaId, mediaType, title, addWatched]);
 
     const handleSelectServer = useCallback((server: Server) => {
         if (loadTimeoutRef.current) {

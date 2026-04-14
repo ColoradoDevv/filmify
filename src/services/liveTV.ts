@@ -46,14 +46,14 @@ const IPTV_SOURCES = [
  * Parse M3U playlist content into LiveChannel array
  */
 function getRandomId(): string {
-    try {
-        const crypto = require('crypto');
-        if (typeof crypto.randomUUID === 'function') {
-            return crypto.randomUUID();
-        }
-    } catch {
-        // Ignore and use fallback.
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
     }
+
+    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).crypto !== 'undefined' && typeof (globalThis as any).crypto.randomUUID === 'function') {
+        return (globalThis as any).crypto.randomUUID();
+    }
+
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 

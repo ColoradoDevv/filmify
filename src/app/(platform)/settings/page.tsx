@@ -173,11 +173,19 @@ function PrivacySection({ user }: { user: any }) {
         setMessage(null);
 
         try {
-            const { error } = await supabase.auth.updateUser({
-                data: { privacy: newPrivacy }
-            });
+            const [{ error: authError }, { data: currentProfileData, error: profileFetchError }] = await Promise.all([
+                supabase.auth.updateUser({ data: { privacy: newPrivacy } }),
+                supabase.from('profiles').select('preferences').eq('id', user.id).single(),
+            ]);
 
-            if (error) throw error;
+            if (authError) throw authError;
+            if (profileFetchError) throw profileFetchError;
+
+            const existingPreferences = currentProfileData?.preferences ?? {};
+            const mergedPreferences = { ...existingPreferences, privacy: newPrivacy };
+
+            const { error: profileUpdateError } = await supabase.from('profiles').update({ preferences: mergedPreferences }).eq('id', user.id);
+            if (profileUpdateError) throw profileUpdateError;
         } catch (error: any) {
             setMessage({ type: 'error', text: 'Error al guardar: ' + error.message });
             setPrivacy(privacy);

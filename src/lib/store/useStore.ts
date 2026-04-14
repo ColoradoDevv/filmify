@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Movie } from '@/types/tmdb';
+import type { Movie, TVShow } from '@/types/tmdb';
+
+export type WatchedItem = Movie | TVShow;
 
 /**
  * User state interface
  */
 interface UserState {
     favorites: Movie[];
-    watched: Movie[];
+    watched: WatchedItem[];
 }
 
 /**
@@ -36,7 +38,7 @@ interface StoreState {
     isFavorite: (movieId: number) => boolean;
     setFavorites: (favorites: Movie[]) => void;
 
-    addWatched: (movie: Movie) => void;
+    addWatched: (movie: WatchedItem) => void;
     removeWatched: (movieId: number) => void;
     isWatched: (movieId: number) => boolean;
 
@@ -117,7 +119,7 @@ export const useStore = create<StoreState>()(
             },
 
             // Watched actions
-            addWatched: (movie: Movie) => {
+            addWatched: (movie: WatchedItem) => {
                 set((state) => {
                     // Check if already in watched
                     const exists = state.user.watched.some((w) => w.id === movie.id);
