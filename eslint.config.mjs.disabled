@@ -1,6 +1,5 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals.js";
-import nextTs from "eslint-config-next/typescript.js";
+import { defineConfig } from "eslint/config";
+import nextPlugin from "@next/eslint-plugin-next";
 
 /**
  * ESLint configuration for FilmiFy.
@@ -18,32 +17,30 @@ import nextTs from "eslint-config-next/typescript.js";
  *   - `react/no-unescaped-entities` and `ban-ts-comment` are downgraded: they
  *     are stylistic, not correctness issues.
  */
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-      "@typescript-eslint/no-empty-object-type": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/ban-ts-comment": "warn",
-      "react-hooks/set-state-in-effect": "warn",
-      "react/no-unescaped-entities": "warn",
-      "@next/next/no-img-element": "warn",
-    },
+export default defineConfig({
+  extends: ["plugin:@next/next/recommended", "plugin:@typescript-eslint/recommended"],
+  plugins: {
+    "@next": nextPlugin,
   },
-  globalIgnores([
+  ignorePatterns: [
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
     "scripts/**",
     "supabase/**",
-  ]),
-]);
-
-export default eslintConfig;
+  ],
+  rules: {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+    ],
+    "@typescript-eslint/no-empty-object-type": "warn",
+    "@typescript-eslint/no-require-imports": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "react-hooks/set-state-in-effect": "warn",
+    "react/no-unescaped-entities": "warn",
+    "@next/next/no-img-element": "warn",
+  },
+});
