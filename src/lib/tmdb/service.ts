@@ -29,7 +29,7 @@ export class TMDBError extends Error {
 
 const BASE_URL = 'https://api.themoviedb.org/3';
 
-export const getBlacklist = unstable_cache(async (): Promise<Set<number>> => {
+export const getBlacklist = unstable_cache(async (): Promise<number[]> => {
     try {
         const { url: supabaseUrl, anonKey: supabaseKey } = getSupabaseConfig();
 
@@ -41,16 +41,16 @@ export const getBlacklist = unstable_cache(async (): Promise<Set<number>> => {
             next: { revalidate: 60 },
         });
 
-        if (!response.ok) return new Set();
+        if (!response.ok) return [];
 
         const data = await response.json();
         interface BlacklistItem {
             tmdb_id: number;
         }
-        return new Set(data.map((item: BlacklistItem) => item.tmdb_id));
+        return data.map((item: BlacklistItem) => item.tmdb_id);
     } catch (e) {
         console.error('Error fetching blacklist:', e);
-        return new Set();
+        return [];
     }
 }, [], {
     revalidate: 60,
@@ -94,7 +94,8 @@ const fetchFromTMDB = async <T>(endpoint: string, params: Record<string, string 
     const data = await response.json();
 
     // Apply blacklist filtering
-    const blacklist = await getBlacklist();
+    const blacklistIds = await getBlacklist();
+    const blacklist = new Set(blacklistIds);
 
     // If it's a paginated response or list
     if (data.results && Array.isArray(data.results)) {

@@ -74,7 +74,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     try {
-        const blacklist = await getBlacklist();
+        const blacklistIds = await getBlacklist();
+        const blacklist = new Set(blacklistIds);
 
         // Fetch top popular movies (multiple pages for better coverage)
         const moviePages = await Promise.all([
