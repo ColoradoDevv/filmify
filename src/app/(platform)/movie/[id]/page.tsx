@@ -5,7 +5,7 @@ import { getOptionalApiKeys } from '@/lib/env';
 import MovieHero from '@/components/features/MovieHero';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
-import { Play, Star, Clock, Calendar, Globe, Heart, Share2, ChevronLeft, Facebook, Instagram, Twitter, Tag, Users, Film, Clapperboard } from 'lucide-react';
+import { Globe, Facebook, Instagram, Twitter, Tag, Film } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -21,7 +21,7 @@ interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-function buildMovieMetadata(movie: ReturnType<typeof getMovieDetails>): Metadata {
+function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>): Metadata {
     const title = `Dónde ver ${movie.title} online | FilmiFy`;
     const description = movie.overview
         ? `${movie.overview} Descubre dónde ver ${movie.title} online, con proveedores de streaming, alquiler y compra.`
@@ -164,15 +164,44 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
     // Get writers
     const writers = movie.credits?.crew.filter((person) => ['Screenplay', 'Writer', 'Story'].includes(person.job)) || [];
     // Deduplicate writers
-    const uniqueWriters = Array.from(new Set(writers.map(a => a.id)))
-        .map(id => {
-            return writers.find(a => a.id === id);
-        });
+    const uniqueWriters = Array.from(new Set(writers.map((a) => a.id)))
+        .map((id) => writers.find((a) => a.id === id))
+        .filter(Boolean);
 
     // Get certification (MX or US)
-    const releaseDates = movie.release_dates?.results.find(r => r.iso_3166_1 === 'MX') ||
-        movie.release_dates?.results.find(r => r.iso_3166_1 === 'US');
-    const certification = releaseDates?.release_dates.find(r => r.certification)?.certification || 'NR';
+    const releaseDates = movie.release_dates?.results.find((r) => r.iso_3166_1 === 'MX') ||
+        movie.release_dates?.results.find((r) => r.iso_3166_1 === 'US');
+    const certification = releaseDates?.release_dates.find((r) => r.certification)?.certification || 'NR';
+
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'Movie',
+        name: movie.title,
+        description: movie.overview || undefined,
+        image: posterUrl || getBackdropUrl(movie.backdrop_path) || undefined,
+        datePublished: movie.release_date || undefined,
+        director: director ? { '@type': 'Person', name: director.name } : undefined,
+        actor: cast.map((person) => ({ '@type': 'Person', name: person.name })),
+        author: uniqueWriters.map((writer) => ({ '@type': 'Person', name: writer?.name })),
+        creator: uniqueWriters.map((writer) => ({ '@type': 'Person', name: writer?.name })),
+        genre: movie.genres?.map((genre) => genre.name).filter(Boolean),
+        duration: movie.runtime ? `PT${movie.runtime}M` : undefined,
+        productionCompany: movie.production_companies?.map((company) => ({ '@type': 'Organization', name: company.name })),
+        sameAs: movie.homepage ? [movie.homepage] : undefined,
+        aggregateRating: movie.vote_average ? {
+            '@type': 'AggregateRating',
+            ratingValue: movie.vote_average.toFixed(1),
+            ratingCount: movie.vote_count,
+        } : undefined,
+        trailer: trailer ? {
+            '@type': 'VideoObject',
+            name: trailer.name,
+            description: trailer.name,
+            embedUrl: `https://www.youtube.com/embed/${trailer.key}`,
+            thumbnailUrl: `https://img.youtube.com/vi/${trailer.key}/hqdefault.jpg`,
+            uploadDate: trailer.published_at,
+        } : undefined,
+    };
 
     // Format currency
     const formatCurrency = (value: number) => {
@@ -248,7 +277,7 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                     {movie.tagline && (
                         <div className="text-center max-w-4xl mx-auto">
                             <h2 className="text-2xl md:text-3xl font-light italic text-gray-300">
-                                "{movie.tagline}"
+                                &ldquo;{movie.tagline}&rdquo;
                             </h2>
                         </div>
                     )}
@@ -305,6 +334,11 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                             <div>
                                 <span className="block text-gray-400 text-sm mb-1">Estado</span>
                                 <span className="text-white font-medium">{movie.status}</span>
+                            </div>
+
+                            <div>
+                                <span className="block text-gray-400 text-sm mb-1">Duración</span>
+                                <span className="text-white font-medium">{runtime}</span>
                             </div>
 
                             <div>

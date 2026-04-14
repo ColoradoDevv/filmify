@@ -62,10 +62,8 @@ export default async function middleware(request: NextRequest) {
     );
 
     // IP Blocking Check
-    // Prefer the real client IP exposed by Vercel via request.ip.
-    // Only use forwarded headers as a fallback in non-production/local environments.
+    // Use forwarded headers to determine the client IP in edge middleware.
     const ip =
-        request.ip ||
         request.headers.get('x-real-ip') ||
         request.headers.get('x-forwarded-for')?.split(',')[0] ||
         '127.0.0.1';

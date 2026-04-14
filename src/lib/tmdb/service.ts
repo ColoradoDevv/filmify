@@ -10,6 +10,7 @@ import type {
 } from '@/types/tmdb';
 import { unstable_cache } from 'next/cache';
 import { getSupabaseConfig, getTmdbApiKey } from '@/lib/env';
+import { getImageUrl, getPosterUrl, getBackdropUrl, getProfileUrl } from './helpers';
 
 /**
  * TMDB API Service
@@ -51,7 +52,7 @@ export const getBlacklist = unstable_cache(async (): Promise<Set<number>> => {
         console.error('Error fetching blacklist:', e);
         return new Set();
     }
-}, {
+}, [], {
     revalidate: 60,
 });
 
@@ -321,7 +322,7 @@ export const getExternalIds = async (
 /**
  * Image URL helpers
  */
-export { getImageUrl, getPosterUrl, getBackdropUrl, getProfileUrl } from './helpers';
+export { getImageUrl, getPosterUrl, getBackdropUrl, getProfileUrl };
 
 /**
  * Export all functions as a service object (alternative usage pattern)

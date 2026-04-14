@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Contenido no permitido' }, { status: 415 });
         }
 
-        const html = await response.text();
+        let html = await response.text();
         const origin = parsedUrl.origin;
 
         // Script de neutralización para inyectar al inicio

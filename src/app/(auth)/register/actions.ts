@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
 
 export type RegisterState = {

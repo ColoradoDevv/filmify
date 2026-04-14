@@ -19,7 +19,7 @@ interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-function buildTvMetadata(tvShow: ReturnType<typeof getTVDetails>): Metadata {
+function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Metadata {
     const title = `Dónde ver ${tvShow.name} online | FilmiFy`;
     const description = tvShow.overview
         ? `${tvShow.overview} Descubre dónde ver ${tvShow.name} online, con proveedores de streaming, temporada y reparto.`

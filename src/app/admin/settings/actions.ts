@@ -6,7 +6,7 @@ import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
 
 export const fetchSettings = unstable_cache(async () => {
     return await getSettings();
-}, {
+}, [], {
     revalidate: 60,
 });
 

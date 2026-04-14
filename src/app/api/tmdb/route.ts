@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { SearchFilters } from '@/types/tmdb';
 import {
     discoverMovies,
     discoverTV,
@@ -31,14 +32,24 @@ export async function GET(request: Request) {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv' | 'all';
                 const timeWindow = (url.searchParams.get('timeWindow') ?? 'week') as 'day' | 'week';
                 const page = Number(url.searchParams.get('page') ?? '1');
-                return NextResponse.json(await getTrending(mediaType, timeWindow, page));
+
+                if (mediaType === 'movie') {
+                    return NextResponse.json(await getTrending('movie', timeWindow, page));
+                }
+                if (mediaType === 'tv') {
+                    return NextResponse.json(await getTrending('tv', timeWindow, page));
+                }
+                return NextResponse.json(await getTrending('all', timeWindow, page));
             }
             case 'discover': {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv';
                 const page = Number(url.searchParams.get('page') ?? '1');
                 const genre = url.searchParams.get('genre');
                 const year = url.searchParams.get('year');
-                const sortBy = url.searchParams.get('sort_by') ?? undefined;
+                const sortByParam = url.searchParams.get('sort_by');
+                const sortBy = ['popularity.desc', 'vote_average.desc', 'release_date.desc', 'primary_release_date.desc'].includes(sortByParam ?? '')
+                    ? sortByParam as SearchFilters['sortBy']
+                    : undefined;
 
                 const filters = {
                     page,
