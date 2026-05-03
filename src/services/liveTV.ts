@@ -193,7 +193,6 @@ export async function fetchAllChannels(): Promise<LiveChannel[]> {
  * Download and merge channels from all IPTV sources.
  */
 async function fetchFromIPTVSources(): Promise<LiveChannel[]> {
-async function fetchFromIPTVSources(): Promise<LiveChannel[]> {
     const channelArrays = await Promise.all(
         IPTV_SOURCES.map(source => fetchFromSource(source))
     );
