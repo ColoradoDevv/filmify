@@ -18,13 +18,16 @@ interface VideoPlayerProps {
 const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const LOAD_TIMEOUT_MS = 15_000;
 
+// Vimeus player customization params
+const VIMEUS_STYLE = 'title=Filmify&theme=blue&font=v3&overlay=v5&epanel=v3&splash=v3';
+
 function buildVimeusUrl(mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
     const base = 'https://vimeus.com/e';
     const vk = `view_key=${VIMEUS_VIEW_KEY}`;
     if (mediaType === 'movie') {
-        return `${base}/movie?tmdb=${mediaId}&${vk}`;
+        return `${base}/movie?tmdb=${mediaId}&${vk}&${VIMEUS_STYLE}`;
     }
-    return `${base}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}`;
+    return `${base}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}&${VIMEUS_STYLE}`;
 }
 
 export default function VideoPlayer({
