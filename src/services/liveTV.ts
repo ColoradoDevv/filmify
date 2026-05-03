@@ -126,7 +126,9 @@ export function parseM3U(content: string, sourceName: string): LiveChannel[] {
 async function fetchFromSource(source: typeof IPTV_SOURCES[0]): Promise<LiveChannel[]> {
     try {
         const response = await fetch(source.url, {
-            next: { revalidate: 86400 } // Cache for 24 hours
+            // No Next.js fetch cache — M3U files can be >2MB which exceeds the
+            // 2MB limit. The Supabase cached_channels table handles caching instead.
+            cache: 'no-store',
         });
 
         if (!response.ok) {

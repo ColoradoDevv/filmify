@@ -88,9 +88,8 @@ export default function LiveTVClient({ initialChannels: propChannels, categories
     return (
         <div className="min-h-screen bg-background">
             {/* Hero Header with Gradient */}
-            <div className="relative bg-gradient-to-br from-primary/20 via-background to-background border-b border-surface-light">
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-                <div className="container mx-auto px-4 py-12 relative">
+            <div className="relative bg-gradient-to-br from-primary/20 via-background to-background border-b border-outline-variant">
+                <div className="container mx-auto px-4 py-8 relative">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
                             <Radio className="w-8 h-8 text-primary" />
