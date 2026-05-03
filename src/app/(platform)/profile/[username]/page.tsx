@@ -128,7 +128,7 @@ export default function FriendProfilePage() {
             const response = await fetch('/api/friends', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ requesterId: currentUserId, targetId: targetProfile.id }),
+                body: JSON.stringify({ targetId: targetProfile.id }),
             });
 
             const result = await response.json();

@@ -230,12 +230,11 @@ export default function ProfilePage() {
 
     const handleFriendAction = async (
         action: 'accept' | 'reject' | 'cancel' | 'remove',
-        requesterId: string,
-        targetId: string
+        otherUserId: string,
     ) => {
         if (!user) return;
 
-        const loadingKey = `${action}-${requesterId}-${targetId}`;
+        const loadingKey = `${action}-${otherUserId}`;
         setRequestActionLoading(loadingKey);
         setRequestActionError(null);
         setRequestActionSuccess(null);
@@ -244,7 +243,8 @@ export default function ProfilePage() {
             const response = await fetch('/api/friends', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, requesterId, targetId }),
+                // requesterId is derived server-side from the session cookie.
+                body: JSON.stringify({ action, targetId: otherUserId }),
             });
 
             const result = await response.json();
@@ -657,19 +657,19 @@ export default function ProfilePage() {
                                                 <div className="ml-auto flex items-center gap-2">
                                                     <button
                                                         type="button"
-                                                        disabled={requestActionLoading === `accept-${request.id}-${user.id}`}
-                                                        onClick={() => handleFriendAction('accept', request.id, user.id)}
+                                                        disabled={requestActionLoading === `accept-${request.id}`}
+                                                        onClick={() => handleFriendAction('accept', request.id)}
                                                         className="inline-flex items-center justify-center rounded-2xl bg-primary px-4 py-2 text-xs font-semibold text-black hover:bg-primary-hover transition disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {requestActionLoading === `accept-${request.id}-${user.id}` ? '...' : 'Aceptar'}
+                                                        {requestActionLoading === `accept-${request.id}` ? '...' : 'Aceptar'}
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        disabled={requestActionLoading === `reject-${request.id}-${user.id}`}
-                                                        onClick={() => handleFriendAction('reject', request.id, user.id)}
+                                                        disabled={requestActionLoading === `reject-${request.id}`}
+                                                        onClick={() => handleFriendAction('reject', request.id)}
                                                         className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {requestActionLoading === `reject-${request.id}-${user.id}` ? '...' : 'Rechazar'}
+                                                        {requestActionLoading === `reject-${request.id}` ? '...' : 'Rechazar'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -708,11 +708,11 @@ export default function ProfilePage() {
                                             </div>
                                             <button
                                                 type="button"
-                                                disabled={requestActionLoading === `remove-${friend.id}-${user.id}`}
-                                                onClick={() => handleFriendAction('remove', friend.id, user.id)}
+                                                disabled={requestActionLoading === `remove-${friend.id}`}
+                                                onClick={() => handleFriendAction('remove', friend.id)}
                                                 className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-red-400 hover:text-red-200 transition disabled:cursor-not-allowed disabled:opacity-60"
                                             >
-                                                {requestActionLoading === `remove-${friend.id}-${user.id}` ? '...' : 'Eliminar'}
+                                                {requestActionLoading === `remove-${friend.id}` ? '...' : 'Eliminar'}
                                             </button>
                                         </div>
                                     ))}
@@ -749,11 +749,11 @@ export default function ProfilePage() {
                                             </div>
                                             <button
                                                 type="button"
-                                                disabled={requestActionLoading === `cancel-${user.id}-${friend.id}`}
-                                                onClick={() => handleFriendAction('cancel', user.id, friend.id)}
+                                                disabled={requestActionLoading === `cancel-${friend.id}`}
+                                                onClick={() => handleFriendAction('cancel', friend.id)}
                                                 className="ml-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-background/90 px-4 py-2 text-xs font-semibold text-white hover:border-yellow-400 hover:text-yellow-200 transition disabled:cursor-not-allowed disabled:opacity-60"
                                             >
-                                                {requestActionLoading === `cancel-${user.id}-${friend.id}` ? '...' : 'Cancelar'}
+                                                {requestActionLoading === `cancel-${friend.id}` ? '...' : 'Cancelar'}
                                             </button>
                                         </div>
                                     ))}

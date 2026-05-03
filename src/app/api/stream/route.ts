@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { validateOutboundUrl } from '@/lib/ssrf-guard';
+
+// ── Auth helper ───────────────────────────────────────────────────────────────
+
+async function requireAuth(): Promise<boolean> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user !== null;
+}
+
+// ── GET /api/stream?url=<encoded> — HLS proxy ─────────────────────────────────
 
 export async function GET(request: NextRequest) {
+    // 1. Authentication — unauthenticated callers cannot use the proxy.
+    if (!(await requireAuth())) {
+        return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const streamUrl = searchParams.get('url');
 
@@ -8,11 +25,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Stream URL is required' }, { status: 400 });
     }
 
-    try {
-        // Decode the URL properly
-        const decodedUrl = decodeURIComponent(streamUrl);
+    // 2. SSRF guard — reject private IPs, non-HTTP(S) schemes, internal hosts.
+    const decodedUrl = decodeURIComponent(streamUrl);
+    const guard = validateOutboundUrl(decodedUrl);
+    if (!guard.ok) {
+        return NextResponse.json({ error: guard.reason }, { status: 400 });
+    }
 
-        // Fetch the stream with proper headers
+    try {
         const response = await fetch(decodedUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -21,7 +41,6 @@ export async function GET(request: NextRequest) {
                 'Accept-Encoding': 'identity',
                 'Connection': 'keep-alive',
             },
-            // Don't cache live streams
             cache: 'no-store',
         });
 
@@ -33,29 +52,26 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get the content type
         const contentType = response.headers.get('content-type') || 'application/vnd.apple.mpegurl';
 
-        // For m3u8 files, we need to rewrite URLs to go through our proxy
+        // For m3u8 manifests, rewrite segment URLs to go through our proxy.
         if (contentType.includes('mpegurl') || decodedUrl.endsWith('.m3u8')) {
             const text = await response.text();
             const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf('/') + 1);
 
-            // Rewrite relative URLs in the manifest to use our proxy
             const rewrittenManifest = text.split('\n').map(line => {
-                // Skip comments and empty lines
-                if (line.startsWith('#') || line.trim() === '') {
-                    return line;
-                }
+                if (line.startsWith('#') || line.trim() === '') return line;
 
-                // If it's a relative URL, make it absolute and proxy it
-                if (!line.startsWith('http')) {
-                    const absoluteUrl = new URL(line.trim(), baseUrl).href;
-                    return `/api/stream?url=${encodeURIComponent(absoluteUrl)}`;
-                }
+                // Resolve relative URLs against the manifest base.
+                const absoluteUrl = line.startsWith('http')
+                    ? line.trim()
+                    : new URL(line.trim(), baseUrl).href;
 
-                // If it's already absolute, proxy it
-                return `/api/stream?url=${encodeURIComponent(line.trim())}`;
+                // Only proxy URLs that pass the SSRF guard — drop unsafe lines.
+                const segGuard = validateOutboundUrl(absoluteUrl);
+                if (!segGuard.ok) return `# [blocked: ${segGuard.reason}]`;
+
+                return `/api/stream?url=${encodeURIComponent(absoluteUrl)}`;
             }).join('\n');
 
             return new NextResponse(rewrittenManifest, {
@@ -69,7 +85,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // For video segments (.ts files), just stream them
+        // For video segments (.ts files), stream the body directly.
         return new NextResponse(response.body, {
             headers: {
                 'Content-Type': contentType,
