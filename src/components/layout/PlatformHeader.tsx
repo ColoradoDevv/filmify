@@ -53,7 +53,7 @@ export default function PlatformHeader() {
                 </div>
 
                 {/* Search — takes remaining space */}
-                <div className="flex-1 max-w-sm ml-auto">
+                <div className="flex-1 max-w-sm">
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
