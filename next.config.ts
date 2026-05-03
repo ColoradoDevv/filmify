@@ -53,9 +53,14 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
+            // SEC-013: 'unsafe-inline' in script-src completely neutralises XSS
+            // protection. Removed it. Inline scripts that are genuinely needed
+            // should use a nonce (see middleware.ts) or be moved to external files.
+            // 'unsafe-inline' is kept only for style-src because CSS-in-JS
+            // libraries require it and CSS injection is lower-risk than JS.
             value: `
               default-src 'self';
-              script-src 'self' https: 'unsafe-inline';
+              script-src 'self' https:;
               style-src 'self' 'unsafe-inline' https:;
               img-src 'self' data: blob https:;
               media-src 'self' blob https:;
