@@ -1,250 +1,226 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Clapperboard, Star, Newspaper, Gift } from 'lucide-react';
+import { Bell, Clapperboard, Newspaper, Settings, CheckCheck, Loader2 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { Notification } from '@/lib/ai';
-import { getGeminiRecommendations, getNewReleasesNotifications, getMovieNewsNotifications, getSpecialOffersNotifications } from '@/lib/ai';
+import { createClient } from '@/lib/supabase/client';
+import {
+    type AppNotification,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    subscribeToNotifications,
+} from '@/lib/notifications';
 
 interface NotificationCenterProps {
     user: SupabaseUser | null;
-    favorites: any[];
+    /** kept for API compatibility with Navbar — no longer used */
+    favorites?: any[];
 }
 
-export default function NotificationCenter({ user, favorites }: NotificationCenterProps) {
+export default function NotificationCenter({ user }: NotificationCenterProps) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [loading, setLoading] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    // Close on click outside
+    // ── Load notifications on mount / user change ──────────────────────────
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-                buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        if (!user) {
+            setNotifications([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const load = async () => {
+            setLoading(true);
+            const data = await fetchNotifications();
+            if (!cancelled) setNotifications(data);
+            setLoading(false);
+        };
+
+        load();
+
+        // ── Supabase Realtime: push new notifications instantly ────────────
+        const channel = subscribeToNotifications(user.id, (newNotif) => {
+            setNotifications((prev) => [newNotif, ...prev]);
+        });
+
+        return () => {
+            cancelled = true;
+            createClient().removeChannel(channel);
+        };
+    }, [user?.id]);
+
+    // ── Close on click outside ─────────────────────────────────────────────
+    useEffect(() => {
+        const onMouseDown = (e: MouseEvent) => {
+            if (
+                menuRef.current && !menuRef.current.contains(e.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(e.target as Node)
+            ) {
                 setIsOpen(false);
             }
         };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', onMouseDown);
+        return () => document.removeEventListener('mousedown', onMouseDown);
     }, []);
 
-    // Close on Escape key
+    // ── Close on Escape ────────────────────────────────────────────────────
     useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && isOpen) {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isOpen) {
                 setIsOpen(false);
                 buttonRef.current?.focus();
             }
         };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
     }, [isOpen]);
 
-    // Cache helpers
-    const ONE_HOUR = 60 * 60 * 1000;
+    const unreadCount = notifications.filter((n) => !n.read).length;
 
-    const getCachedNotifications = (key: string) => {
-        try {
-            const cached = localStorage.getItem(key);
-            if (!cached) return null;
+    const handleOpen = () => setIsOpen((o) => !o);
 
-            const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < ONE_HOUR) return data;
-
-            localStorage.removeItem(key);
-            return null;
-        } catch {
-            return null;
-        }
-    };
-
-    const setCachedNotifications = (key: string, data: any[]) => {
-        try {
-            localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
-        } catch (e) {
-            console.warn('Failed to cache notifications:', e);
-        }
-    };
-
-    // Fetch Notifications
-    useEffect(() => {
-        const fetchAllNotifications = async () => {
-            if (!user) return;
-
-            let allNotifs: Notification[] = [];
-
-            // 1. Recommendations
-            if (favorites.length > 0) {
-                const cachedRecs = getCachedNotifications('filmify-ai-recommendations');
-                if (cachedRecs) {
-                    allNotifs = [...allNotifs, ...cachedRecs];
-                } else {
-                    const recs = await getGeminiRecommendations(favorites.map(f => f.title));
-                    if (recs.length > 0) {
-                        const formattedRecs = recs.map((rec, i) => ({
-                            id: `rec-${i}`,
-                            type: 'recommendations' as const, // Fix type assertion
-                            title: rec.title,
-                            message: rec.reason,
-                            time: 'Basado en tus favoritos',
-                            read: false
-                        }));
-                        allNotifs = [...allNotifs, ...formattedRecs];
-                        setCachedNotifications('filmify-ai-recommendations', formattedRecs);
-                    }
-                }
-            }
-
-            // 2. New Releases
-            const cachedReleases = getCachedNotifications('filmify-notifs-releases');
-            if (cachedReleases) {
-                allNotifs = [...allNotifs, ...cachedReleases];
-            } else {
-                const releases = await getNewReleasesNotifications();
-                if (releases.length > 0) {
-                    allNotifs = [...allNotifs, ...releases];
-                    setCachedNotifications('filmify-notifs-releases', releases);
-                }
-            }
-
-            // 3. News
-            const cachedNews = getCachedNotifications('filmify-notifs-news');
-            if (cachedNews) {
-                allNotifs = [...allNotifs, ...cachedNews];
-            } else {
-                const news = await getMovieNewsNotifications();
-                if (news.length > 0) {
-                    allNotifs = [...allNotifs, ...news];
-                    setCachedNotifications('filmify-notifs-news', news);
-                }
-            }
-
-            // 4. Offers
-            if (favorites.length > 0) {
-                const cachedOffers = getCachedNotifications('filmify-notifs-offers');
-                if (cachedOffers) {
-                    allNotifs = [...allNotifs, ...cachedOffers];
-                } else {
-                    const offers = await getSpecialOffersNotifications(favorites.map(f => f.title));
-                    if (offers.length > 0) {
-                        allNotifs = [...allNotifs, ...offers];
-                        setCachedNotifications('filmify-notifs-offers', offers);
-                    }
-                }
-            }
-
-            setNotifications(allNotifs);
-        };
-
-        fetchAllNotifications();
-    }, [user, favorites]);
-
-    const handleNotificationClick = (title: string) => {
+    const handleNotificationClick = useCallback(async (notif: AppNotification) => {
         setIsOpen(false);
-        const searchTitle = title.replace('Recomendación: ', '');
-        router.push(`/browse?search=${encodeURIComponent(searchTitle)}`);
-    };
 
-    const getNotificationIcon = (type: string) => {
+        // Mark as read optimistically
+        if (!notif.read) {
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
+            );
+            await markAsRead(notif.id);
+        }
+
+        // Navigate to the linked content if available
+        const url = notif.metadata?.url;
+        if (url) router.push(url);
+    }, [router]);
+
+    const handleMarkAllRead = useCallback(async () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        await markAllAsRead();
+    }, []);
+
+    const getIcon = (type: AppNotification['type']) => {
         switch (type) {
-            case 'newReleases':
+            case 'newRelease':
                 return <Clapperboard className="w-4 h-4 text-blue-400" />;
-            case 'recommendations':
-                return <Star className="w-4 h-4 text-yellow-400" />;
-            case 'friendActivity':
+            case 'recommendation':
+                return <Bell className="w-4 h-4 text-yellow-400" />;
+            case 'news':
                 return <Newspaper className="w-4 h-4 text-green-400" />;
-            case 'offers':
-                return <Gift className="w-4 h-4 text-purple-400" />;
+            case 'system':
             default:
-                return <Bell className="w-4 h-4 text-gray-400" />;
+                return <Settings className="w-4 h-4 text-slate-400" />;
         }
     };
 
-    // Filter based on preferences (mocked for now as in original)
-    const preferences = user?.user_metadata?.notifications || {
-        newReleases: true,
-        recommendations: true,
-        friendActivity: true,
-        offers: false
+    const formatTime = (iso: string) => {
+        const diff = Date.now() - new Date(iso).getTime();
+        const mins = Math.floor(diff / 60_000);
+        if (mins < 1) return 'Ahora mismo';
+        if (mins < 60) return `Hace ${mins} min`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `Hace ${hrs}h`;
+        const days = Math.floor(hrs / 24);
+        return `Hace ${days}d`;
     };
 
-    // Note: The original code had a type mismatch with 'recommendations' not being in the Notification type definition in ai.ts fully matching the usage here.
-    // In ai.ts Notification type is: type: 'newReleases' | 'friendActivity' | 'offers';
-    // But here we use 'recommendations' too. I should update ai.ts or cast it.
-    // For now I will cast or assume it works as I am refactoring.
-    // Actually, I should probably update the Notification type in ai.ts to include 'recommendations' if I can, but I am in execution mode for Navbar.
-    // I will cast it in the fetch logic above.
-
-    const filteredNotifications = notifications.filter(n => {
-        // @ts-ignore - dynamic key access
-        return preferences[n.type] !== false;
-    });
+    if (!user) return null;
 
     return (
         <div className="relative">
             <button
                 ref={buttonRef}
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleOpen}
                 className="relative p-2 text-text-secondary hover:text-text-primary hover:bg-surface-light/50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary/50"
-                aria-label={`Notificaciones ${filteredNotifications.length > 0 ? `(${filteredNotifications.length} nuevas)` : ''}`}
+                aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
                 aria-haspopup="true"
                 aria-expanded={isOpen}
             >
                 <Bell className="w-5 h-5" />
-                {filteredNotifications.length > 0 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background"></span>
+                {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background" />
                 )}
             </button>
 
             {isOpen && (
                 <div
                     ref={menuRef}
-                    className="absolute top-full right-0 mt-2 w-80 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-scale-in"
+                    className="absolute top-full right-0 mt-2 w-80 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
                     role="menu"
                     aria-orientation="vertical"
                 >
+                    {/* Header */}
                     <div className="p-3 border-b border-surface-light flex items-center justify-between">
-                        <h3 className="font-semibold text-sm">Notificaciones</h3>
-                        <Link
-                            href="/settings"
-                            className="text-xs text-primary hover:underline focus:outline-none focus:ring-1 focus:ring-primary"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            Configurar
-                        </Link>
+                        <h3 className="font-semibold text-sm text-white">Notificaciones</h3>
+                        {unreadCount > 0 && (
+                            <button
+                                onClick={handleMarkAllRead}
+                                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors focus:outline-none"
+                                title="Marcar todas como leídas"
+                            >
+                                <CheckCheck className="w-3.5 h-3.5" />
+                                Marcar leídas
+                            </button>
+                        )}
                     </div>
 
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        {filteredNotifications.length === 0 ? (
+                    {/* List */}
+                    <div className="max-h-[360px] overflow-y-auto">
+                        {loading ? (
+                            <div className="flex items-center justify-center py-10">
+                                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                            </div>
+                        ) : notifications.length === 0 ? (
                             <div className="p-8 text-center text-text-secondary">
                                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                <p className="text-xs">No tienes notificaciones nuevas</p>
+                                <p className="text-xs">No tienes notificaciones</p>
                             </div>
                         ) : (
-                            filteredNotifications.map((notification, index) => (
+                            notifications.map((notif) => (
                                 <button
-                                    key={notification.id || index}
-                                    onClick={() => handleNotificationClick(notification.title)}
-                                    className="w-full text-left p-3 hover:bg-surface-light/50 transition-colors border-b border-surface-light/50 last:border-0 cursor-pointer group focus:outline-none focus:bg-surface-light/50"
+                                    key={notif.id}
+                                    onClick={() => handleNotificationClick(notif)}
+                                    className={`w-full text-left p-3 hover:bg-surface-light/50 transition-colors border-b border-surface-light/30 last:border-0 group focus:outline-none focus:bg-surface-light/50 ${!notif.read ? 'bg-primary/5' : ''}`}
                                     role="menuitem"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 p-1.5 bg-surface-light/50 rounded-lg">
-                                            {getNotificationIcon(notification.type)}
+                                        {/* Thumbnail or icon */}
+                                        <div className="mt-0.5 flex-shrink-0">
+                                            {notif.metadata?.imageUrl ? (
+                                                <img
+                                                    src={notif.metadata.imageUrl}
+                                                    alt=""
+                                                    className="w-8 h-12 rounded object-cover"
+                                                />
+                                            ) : (
+                                                <div className="p-1.5 bg-surface-light/50 rounded-lg">
+                                                    {getIcon(notif.type)}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-white leading-none mb-1 group-hover:text-primary transition-colors">{notification.title}</p>
-                                            <p className="text-xs text-text-secondary mb-1.5">{notification.message}</p>
-                                            <p className="text-[10px] text-text-muted">{notification.time}</p>
+
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-white leading-snug mb-0.5 group-hover:text-primary transition-colors truncate">
+                                                {notif.title}
+                                            </p>
+                                            <p className="text-xs text-text-secondary line-clamp-2 mb-1">
+                                                {notif.message}
+                                            </p>
+                                            <p className="text-[10px] text-text-muted">
+                                                {formatTime(notif.created_at)}
+                                            </p>
                                         </div>
-                                        {!notification.read && (
-                                            <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-primary flex-shrink-0" />
+
+                                        {!notif.read && (
+                                            <div className="w-1.5 h-1.5 mt-2 rounded-full bg-primary flex-shrink-0" />
                                         )}
                                     </div>
                                 </button>
