@@ -42,32 +42,6 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [hoverRating, setHoverRating] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let active = true;
-
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!active) return;
-            setUser(user);
-            setAuthLoading(false);
-        };
-
-        const { data: authSubscription } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
-            if (!active) return;
-            setUser(session?.user ?? null);
-            setAuthLoading(false);
-        });
-
-        getUser();
-        fetchReviews(0, true);
-
-        return () => {
-            active = false;
-            authSubscription.subscription.unsubscribe();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mediaId, mediaType]);
-
     const fetchReviews = useCallback(async (pageIndex: number, replace: boolean) => {
         replace ? setLoading(true) : setLoadingMore(true);
         try {
@@ -96,6 +70,32 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
             replace ? setLoading(false) : setLoadingMore(false);
         }
     }, [supabase, mediaId, mediaType]);
+
+    useEffect(() => {
+        let active = true;
+
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!active) return;
+            setUser(user);
+            setAuthLoading(false);
+        };
+
+        const { data: authSubscription } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+            if (!active) return;
+            setUser(session?.user ?? null);
+            setAuthLoading(false);
+        });
+
+        getUser();
+        fetchReviews(0, true);
+
+        return () => {
+            active = false;
+            authSubscription.subscription.unsubscribe();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mediaId, mediaType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
