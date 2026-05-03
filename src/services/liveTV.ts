@@ -1,4 +1,8 @@
 // Live TV Service - Fetches and parses M3U playlists from multiple IPTV sources
+// Channels are cached in Supabase (cached_channels table) for 24 hours to avoid
+// re-downloading ~29 MB of M3U data on every request.
+
+import { createServiceRoleClient } from '@/lib/supabase/server';
 
 export interface LiveChannel {
     id: string;
@@ -129,10 +133,55 @@ async function fetchFromSource(source: typeof IPTV_SOURCES[0]): Promise<LiveChan
     }
 }
 
+const CACHE_TTL_MS = 86_400_000; // 24 hours
+
 /**
- * Fetch all channels from all sources
+ * Fetch all channels — Supabase cache first, IPTV sources as fallback.
+ * Saves ~29 MB of M3U downloads on every request after the first daily fetch.
  */
 export async function fetchAllChannels(): Promise<LiveChannel[]> {
+    // ── 1. Try Supabase cache ────────────────────────────────────────────────
+    try {
+        const supabase = createServiceRoleClient();
+        const { data: cached } = await supabase
+            .from('cached_channels')
+            .select('channels, updated_at')
+            .eq('id', 1)
+            .single();
+
+        const isStale =
+            !cached ||
+            Date.now() - new Date(cached.updated_at).getTime() > CACHE_TTL_MS;
+
+        if (!isStale && Array.isArray(cached.channels) && cached.channels.length > 0) {
+            return cached.channels as LiveChannel[];
+        }
+    } catch (err) {
+        // Cache miss or table doesn't exist yet — fall through to live fetch
+        console.warn('[liveTV] cache read failed, fetching live:', err);
+    }
+
+    // ── 2. Fetch from IPTV sources ───────────────────────────────────────────
+    const channels = await fetchFromIPTVSources();
+
+    // ── 3. Persist to cache (fire-and-forget, don't block the response) ──────
+    if (channels.length > 0) {
+        createServiceRoleClient()
+            .from('cached_channels')
+            .upsert({ id: 1, channels, updated_at: new Date().toISOString() })
+            .then(({ error }) => {
+                if (error) console.error('[liveTV] cache write failed:', error);
+            });
+    }
+
+    return channels;
+}
+
+/**
+ * Download and merge channels from all IPTV sources.
+ */
+async function fetchFromIPTVSources(): Promise<LiveChannel[]> {
+async function fetchFromIPTVSources(): Promise<LiveChannel[]> {
     const channelArrays = await Promise.all(
         IPTV_SOURCES.map(source => fetchFromSource(source))
     );

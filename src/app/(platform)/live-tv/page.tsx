@@ -5,12 +5,12 @@ export const metadata = {
     description: 'Mira canales de TV en vivo gratis de todo el mundo'
 };
 
-// Force dynamic rendering to avoid oversized ISR fallback
-// The channel data is too large (29.95 MB) for static generation
-export const dynamic = 'force-dynamic';
+// ISR: rebuild at most once per day. The channel list is cached in Supabase
+// so the actual M3U download only happens on the first request after the cache
+// expires — subsequent requests within the window are instant.
+export const revalidate = 86400;
 
 export default async function LiveTVPage() {
-    // Data fetching moved to client component to avoid oversized ISR fallback
     return (
         <div className="min-h-screen bg-background">
             <LiveTVClient />
