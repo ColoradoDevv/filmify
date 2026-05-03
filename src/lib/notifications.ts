@@ -18,12 +18,13 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 export type NotificationType = 'newRelease' | 'recommendation' | 'news' | 'system';
 
 export interface AppNotification {
-    id: string;
+    id: string | number;
     user_id: string;
     type: NotificationType;
     title: string;
     message: string;
     read: boolean;
+    is_read?: boolean;
     metadata?: {
         tmdbId?: number;
         mediaType?: 'movie' | 'tv';

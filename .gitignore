@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Kiro MCP config — contains API tokens, never commit
+.kiro/settings/mcp.json
+
 # vercel
 .vercel
 

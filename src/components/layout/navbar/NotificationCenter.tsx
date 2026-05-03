@@ -94,7 +94,7 @@ export default function NotificationCenter({ user }: NotificationCenterProps) {
             setNotifications((prev) =>
                 prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
             );
-            await markAsRead(notif.id);
+            await markAsRead(String(notif.id));
         }
 
         // Navigate to the linked content if available
