@@ -75,6 +75,15 @@ export default function UserMenu({ onLogoutClick, avatarUrl }: UserMenuProps) {
                 >
                     <div className="p-2 space-y-1">
                         <Link
+                            href="/profile"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors focus:outline-none focus:bg-surface-light/50"
+                            onClick={() => setIsOpen(false)}
+                            role="menuitem"
+                        >
+                            <User className="w-4 h-4" />
+                            <span className="text-sm font-medium">Ver perfil</span>
+                        </Link>
+                        <Link
                             href="/settings"
                             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-light/50 text-text-secondary hover:text-text-primary transition-colors focus:outline-none focus:bg-surface-light/50"
                             onClick={() => setIsOpen(false)}

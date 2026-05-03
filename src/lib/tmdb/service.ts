@@ -8,54 +8,53 @@ import type {
     MultiSearchResult,
     SearchFilters,
 } from '@/types/tmdb';
+import { unstable_cache } from 'next/cache';
 import { getSupabaseConfig, getTmdbApiKey } from '@/lib/env';
+import { getImageUrl, getPosterUrl, getBackdropUrl, getProfileUrl } from './helpers';
 
 /**
  * TMDB API Service
  * Handles all communication with The Movie Database API
  */
 
-const BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
+export class TMDBError extends Error {
+    public status: number;
 
-// Simple in-memory cache for blacklist
-let blacklistCache: Set<number> | null = null;
-let lastBlacklistFetch = 0;
-const CACHE_TTL = 60 * 1000; // 1 minute
-
-const getBlacklist = async (): Promise<Set<number>> => {
-    const now = Date.now();
-    if (blacklistCache && (now - lastBlacklistFetch < CACHE_TTL)) {
-        return blacklistCache;
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = 'TMDBError';
+        this.status = status;
     }
+}
 
+const BASE_URL = 'https://api.themoviedb.org/3';
+
+export const getBlacklist = unstable_cache(async (): Promise<number[]> => {
     try {
-        // We use a direct fetch to Supabase REST API to avoid importing the client and causing circular deps or bundle issues
-        // assuming RLS allows public read (which we set)
         const { url: supabaseUrl, anonKey: supabaseKey } = getSupabaseConfig();
 
         const response = await fetch(`${supabaseUrl}/rest/v1/content_blacklist?select=tmdb_id`, {
             headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
             },
-            next: { revalidate: 60 } // Next.js cache
+            next: { revalidate: 60 },
         });
 
-        if (!response.ok) return new Set();
+        if (!response.ok) return [];
 
         const data = await response.json();
         interface BlacklistItem {
             tmdb_id: number;
         }
-        blacklistCache = new Set(data.map((item: BlacklistItem) => item.tmdb_id));
-        lastBlacklistFetch = now;
-        return blacklistCache;
+        return data.map((item: BlacklistItem) => item.tmdb_id);
     } catch (e) {
         console.error('Error fetching blacklist:', e);
-        return new Set();
+        return [];
     }
-};
+}, [], {
+    revalidate: 60,
+});
 
 /**
  * Get API key from environment variables
@@ -89,13 +88,14 @@ const fetchFromTMDB = async <T>(endpoint: string, params: Record<string, string 
     const response = await fetch(url);
 
     if (!response.ok) {
-        throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
+        throw new TMDBError(`TMDB API Error: ${response.status} ${response.statusText}`, response.status);
     }
 
     const data = await response.json();
 
     // Apply blacklist filtering
-    const blacklist = await getBlacklist();
+    const blacklistIds = await getBlacklist();
+    const blacklist = new Set(blacklistIds);
 
     // If it's a paginated response or list
     if (data.results && Array.isArray(data.results)) {
@@ -323,28 +323,7 @@ export const getExternalIds = async (
 /**
  * Image URL helpers
  */
-export const getImageUrl = (
-    path: string | null,
-    size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'original'
-): string => {
-    if (!path) return '/no-image.svg';
-    return `${IMAGE_BASE_URL}/${size}${path}`;
-};
-
-export const getPosterUrl = (path: string | null): string => {
-    return getImageUrl(path, 'original');
-};
-
-export const getBackdropUrl = (path: string | null): string => {
-    // For backdrops, we might want a wider placeholder or just null if we want to hide the container
-    // But user asked for a default photo for everything.
-    // Let's use the same one for now, CSS usually handles the aspect ratio (object-cover)
-    return getImageUrl(path, 'original');
-};
-
-export const getProfileUrl = (path: string | null): string => {
-    return getImageUrl(path, 'original');
-};
+export { getImageUrl, getPosterUrl, getBackdropUrl, getProfileUrl };
 
 /**
  * Export all functions as a service object (alternative usage pattern)

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { getTrending, getBackdropUrl } from '@/lib/tmdb/service';
+import { getTrending } from '@/lib/tmdb/client';
+import { getBackdropUrl } from '@/lib/tmdb/helpers';
 import type { Movie } from '@/types/tmdb';
 import { Loader2 } from 'lucide-react';
 
@@ -28,7 +29,7 @@ export default function AuthBackground() {
             try {
                 const data = await getTrending('movie', 'week');
                 // Get 2 random movies for the split background
-                const shuffled = data.results.sort(() => 0.5 - Math.random());
+                const shuffled = [...(data.results as Movie[])].sort(() => 0.5 - Math.random());
                 setMovies(shuffled.slice(0, 2));
                 setLoading(false);
             } catch (error) {

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Film, Heart, Search, Sparkles, Zap, Star, Clapperboard } from 'lucide-react';
@@ -6,6 +7,39 @@ import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import { getTrending, getBackdropUrl } from '@/server/services/tmdb';
 import type { Movie } from '@/types/tmdb';
+
+export const metadata: Metadata = {
+  title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
+  description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+  keywords: [
+    'FilmiFy',
+    'filmify',
+    'dónde ver películas',
+    'ver películas online',
+    'dónde ver series',
+    'streaming películas',
+    'series online',
+    'cine online',
+    'alquilar películas',
+    'comprar películas'
+  ],
+  openGraph: {
+    title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
+    description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+    type: 'website',
+    images: [
+      {
+        url: '/logo-icon.svg',
+        alt: 'FilmiFy: dónde ver películas y series online',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
+    description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+  },
+};
 
 export default async function LandingPage() {
   // Fetch trending movies for the day (gracefully degrade if TMDB unavailable).

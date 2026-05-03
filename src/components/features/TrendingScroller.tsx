@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Movie } from '@/types/tmdb';
-import { getPosterUrl } from '@/lib/tmdb/service';
+import { getPosterUrl } from '@/lib/tmdb/helpers';
 import { Star, TrendingUp } from 'lucide-react';
 
 interface TrendingScrollerProps {

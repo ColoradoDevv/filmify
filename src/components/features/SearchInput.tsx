@@ -95,10 +95,8 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
             const trimmedQuery = query.trim();
             if (trimmedQuery) {
                 await addToHistory(trimmedQuery);
-                // Refresh history
                 const newHistory = await getHistory();
                 setHistory(newHistory);
-
                 router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
                 setShowSuggestions(false);
             }
@@ -118,13 +116,6 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
     };
 
     const handleSuggestionClick = async (item: MultiSearchResult) => {
-        // Add to history even if clicking a suggestion? Maybe not the query, but the title?
-        // Usually history tracks what you typed. But if you click a result, maybe that's enough.
-        // Let's stick to tracking typed queries for now, or maybe track the title if we want "Recently Viewed".
-        // The request was "historial de busqueda" (search history).
-        // If I click a suggestion, I technically didn't "search" in the traditional sense, I navigated.
-        // But for consistency, let's just navigate.
-
         if (item.media_type === 'movie') {
             router.push(`/movie/${item.id}`);
         } else if (item.media_type === 'tv') {
@@ -179,9 +170,7 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleSearch}
-                onFocus={() => {
-                    setShowSuggestions(true);
-                }}
+                onFocus={() => setShowSuggestions(true)}
                 placeholder={placeholder}
                 className="w-full bg-surface-light/30 border border-surface-light/50 text-text-primary text-sm rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary block pl-10 p-2.5 transition-all placeholder:text-text-muted hover:bg-surface-light/50 focus:bg-surface-light/50 outline-none tv-focusable"
             />

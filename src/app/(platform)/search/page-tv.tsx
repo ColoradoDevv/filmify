@@ -1,21 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Delete, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, ArrowLeft } from 'lucide-react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import MovieCard from '@/components/features/MovieCard';
-import { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
+import type { Movie } from '@/types/tmdb';
 
 interface SearchPageTVProps {
     initialQuery: string;
-    initialResults: MultiSearchResult[];
+    initialResults: Movie[];
 }
 
 export default function SearchPageTV({ initialQuery, initialResults }: SearchPageTVProps) {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
-    const [results, setResults] = useState<MultiSearchResult[]>(initialResults);
+    const [results, setResults] = useState<Movie[]>(initialResults);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -39,22 +39,7 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
         }
     };
 
-    // Filter and map results for display
-    const filteredResults = results
-        .filter((item: MultiSearchResult) => item.media_type === 'movie' || item.media_type === 'tv')
-        .map((item: MultiSearchResult) => {
-            if (item.media_type === 'tv') {
-                const tv = item as TVShow;
-                return {
-                    ...tv,
-                    title: tv.name,
-                    original_title: tv.original_name,
-                    release_date: tv.first_air_date,
-                    media_type: 'tv',
-                } as unknown as Movie;
-            }
-            return item as Movie;
-        });
+    const filteredResults = results;
 
     return (
         <div
@@ -110,7 +95,7 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                             <div key={movie.id} className="transform transition-transform duration-300 hover:scale-105">
                                 <MovieCard
                                     movie={movie}
-                                    mediaType={(movie as any).media_type === 'tv' ? 'tv' : 'movie'}
+                                    mediaType="movie"
                                 />
                             </div>
                         ))}

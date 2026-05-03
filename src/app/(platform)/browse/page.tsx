@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
 import FilterBar from '@/components/features/FilterBar';
 import AIRecommendations from '@/components/features/AIRecommendations';
@@ -8,12 +9,39 @@ import { TrendingUp, Tv } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
+import { isTVDevice } from '@/lib/device-detection';
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-import { isTVDevice } from '@/lib/device-detection';
+export const metadata: Metadata = {
+    title: 'FilmiFy - Explora dónde ver películas y series online',
+    description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
+    keywords: [
+        'FilmiFy',
+        'filmify',
+        'dónde ver películas',
+        'ver películas online',
+        'dónde ver series',
+        'streaming películas',
+        'alquilar películas',
+        'comprar películas',
+        'películas online',
+        'series online',
+        'cine online'
+    ],
+    openGraph: {
+        title: 'FilmiFy - Explora dónde ver películas y series online',
+        description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
+        type: 'website'
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'FilmiFy - Explora dónde ver películas y series online',
+        description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
+    }
+};
 
 // ...
 

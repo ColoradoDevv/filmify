@@ -20,6 +20,8 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
     const [showControls, setShowControls] = useState(true);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const hlsRef = useRef<any>(null);
+    const retryCountRef = useRef(0);
+    const isMountedRef = useRef(false);
 
     const [retryCount, setRetryCount] = useState(0);
     const MAX_RETRIES = 3;
@@ -66,13 +68,18 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
     }, [isPlaying]);
 
     useEffect(() => {
+        isMountedRef.current = true;
+
         const video = videoRef.current;
         if (!video) return;
 
         const loadStream = async () => {
-            setIsLoading(true);
-            setError(null);
-            setRetryCount(0);
+            if (isMountedRef.current) {
+                setIsLoading(true);
+                setError(null);
+                setRetryCount(0);
+            }
+            retryCountRef.current = 0;
 
             try {
                 // Dynamically import hls.js
@@ -108,11 +115,15 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
                     hls.attachMedia(video);
 
                     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        retryCountRef.current = 0;
+                        if (!isMountedRef.current) return;
                         setIsLoading(false);
                         setRetryCount(0); // Reset retries on successful load
                         video.play().catch(e => {
                             console.error('Autoplay failed:', e);
-                            setIsPlaying(false);
+                            if (isMountedRef.current) {
+                                setIsPlaying(false);
+                            }
                         });
                         setIsPlaying(true);
                         resetControlsTimeout();
@@ -127,38 +138,45 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
                                     if (data.details === 'manifestLoadError') {
                                         // Check for 404/403 which means stream is dead/forbidden
                                         const responseCode = data.response?.code;
-                                        if (responseCode && responseCode >= 400) {
+                                                                if (responseCode && responseCode >= 400) {
                                             console.error('Stream not found or forbidden:', responseCode);
                                             hls.destroy();
-                                            setError(`Este canal no está disponible (Error ${responseCode}). Muchos canales gratuitos cambian frecuentemente. Intenta con otro canal.`);
-                                            setIsLoading(false);
+                                            if (isMountedRef.current) {
+                                                setError(`Este canal no está disponible (Error ${responseCode}). Muchos canales gratuitos cambian frecuentemente. Intenta con otro canal.`);
+                                                setIsLoading(false);
+                                            }
                                             return;
                                         }
                                         // Manifest load error without response code (likely CORS or network issue)
                                         console.error('Manifest load error:', data);
                                         hls.destroy();
-                                        setError('No se pudo cargar el stream. El canal puede estar offline o bloqueado por restricciones geográficas.');
-                                        setIsLoading(false);
+                                        if (isMountedRef.current) {
+                                            setError('No se pudo cargar el stream. El canal puede estar offline o bloqueado por restricciones geográficas.');
+                                            setIsLoading(false);
+                                        }
                                         return;
                                     }
 
                                     if (data.details === 'levelLoadError') {
                                         // Level/segment loading error - retry with limit
                                         console.error('Level load error:', data);
-                                        setRetryCount(prev => {
-                                            const newCount = prev + 1;
-                                            if (newCount <= MAX_RETRIES) {
-                                                console.log(`Level load error, retrying (${newCount}/${MAX_RETRIES})...`);
-                                                hls.startLoad();
-                                                return newCount;
-                                            } else {
-                                                console.error('Max retries reached for level loading.');
-                                                hls.destroy();
+                                        const newCount = retryCountRef.current + 1;
+                                        retryCountRef.current = newCount;
+                                        if (newCount <= MAX_RETRIES) {
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
+                                            }
+                                            console.log(`Level load error, retrying (${newCount}/${MAX_RETRIES})...`);
+                                            hls.startLoad();
+                                        } else {
+                                            console.error('Max retries reached for level loading.');
+                                            hls.destroy();
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
                                                 setError('No se pudieron cargar los segmentos de video. El stream puede estar corrupto o bloqueado.');
                                                 setIsLoading(false);
-                                                return prev;
                                             }
-                                        });
+                                        }
                                         return;
                                     }
 
@@ -166,39 +184,50 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
                                         // Fragment loading error - this is common with IPTV streams
                                         console.warn('Fragment load error, attempting recovery...', data);
                                         // Don't destroy immediately, let HLS.js try to recover
-                                        setRetryCount(prev => {
-                                            const newCount = prev + 1;
-                                            if (newCount <= MAX_RETRIES) {
-                                                console.log(`Fragment error, retrying (${newCount}/${MAX_RETRIES})...`);
-                                                // Try to recover by reloading
-                                                setTimeout(() => hls.startLoad(), 1000);
-                                                return newCount;
-                                            } else {
-                                                console.error('Too many fragment errors, giving up.');
-                                                hls.destroy();
+                                        const newCount = retryCountRef.current + 1;
+                                        retryCountRef.current = newCount;
+                                        if (newCount <= MAX_RETRIES) {
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
+                                            }
+                                            console.log(`Fragment error, retrying (${newCount}/${MAX_RETRIES})...`);
+                                            setTimeout(() => {
+                                                if (isMountedRef.current) {
+                                                    hls.startLoad();
+                                                }
+                                            }, 1000);
+                                        } else {
+                                            console.error('Too many fragment errors, giving up.');
+                                            hls.destroy();
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
                                                 setError('El stream es demasiado inestable. Intenta con otro canal o verifica tu conexión a internet.');
                                                 setIsLoading(false);
-                                                return prev;
                                             }
-                                        });
+                                        }
                                         return;
                                     }
 
                                     // Handle generic network errors with retry limit
-                                    setRetryCount(prev => {
-                                        const newCount = prev + 1;
+                                    {
+                                        const newCount = retryCountRef.current + 1;
+                                        retryCountRef.current = newCount;
                                         if (newCount <= MAX_RETRIES) {
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
+                                            }
                                             console.log(`Network error, retrying (${newCount}/${MAX_RETRIES})...`);
                                             hls.startLoad();
-                                            return newCount;
                                         } else {
                                             console.error('Max retries reached, giving up.');
                                             hls.destroy();
-                                            setError('Problemas de conexión persistentes. El canal puede estar temporalmente fuera de servicio.');
-                                            setIsLoading(false);
-                                            return prev;
+                                            if (isMountedRef.current) {
+                                                setRetryCount(newCount);
+                                                setError('Problemas de conexión persistentes. El canal puede estar temporalmente fuera de servicio.');
+                                                setIsLoading(false);
+                                            }
                                         }
-                                    });
+                                    }
                                     break;
                                 case Hls.ErrorTypes.MEDIA_ERROR:
                                     console.log('Fatal media error encountered, trying to recover...');
@@ -207,8 +236,10 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
                                 default:
                                     console.error('Fatal error, cannot recover');
                                     hls.destroy();
-                                    setError('Stream no disponible. Intenta con otro canal.');
-                                    setIsLoading(false);
+                                    if (isMountedRef.current) {
+                                        setError('Stream no disponible. Intenta con otro canal.');
+                                        setIsLoading(false);
+                                    }
                                     break;
                             }
                         }
@@ -217,25 +248,31 @@ export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
                     // Native HLS support (Safari)
                     video.src = channel.streamUrl;
                     video.addEventListener('loadedmetadata', () => {
+                        if (!isMountedRef.current) return;
                         setIsLoading(false);
                         video.play();
                         setIsPlaying(true);
                         resetControlsTimeout();
                     });
                 } else {
-                    setError('Tu navegador no soporta streaming HLS');
-                    setIsLoading(false);
+                    if (isMountedRef.current) {
+                        setError('Tu navegador no soporta streaming HLS');
+                        setIsLoading(false);
+                    }
                 }
             } catch (err) {
                 console.error('Error loading stream:', err);
-                setError('Error al cargar el stream');
-                setIsLoading(false);
+                if (isMountedRef.current) {
+                    setError('Error al cargar el stream');
+                    setIsLoading(false);
+                }
             }
         };
 
         loadStream();
 
         return () => {
+            isMountedRef.current = false;
             if (hlsRef.current) {
                 hlsRef.current.destroy();
             }

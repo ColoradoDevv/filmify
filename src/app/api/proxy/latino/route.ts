@@ -14,23 +14,33 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'URL inválida' }, { status: 400 });
     }
 
-    // Dominios permitidos (agrega más si necesitas)
-    const allowedDomains = [
-        // Solo permitir dominios seguros/legales si es necesario para alguna funcionalidad futura
-        // Por ahora, dejar vacío o solo dominios de confianza
+    const allowedHosts = new Set([
         'filmify.me',
-        'localhost'
-    ];
-    if (!allowedDomains.some(d => targetUrl.includes(d))) {
+        'localhost',
+        '127.0.0.1',
+    ]);
+
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(targetUrl);
+    } catch {
+        return NextResponse.json({ error: 'URL inválida' }, { status: 400 });
+    }
+
+    if (!allowedHosts.has(parsedUrl.hostname.toLowerCase())) {
         return NextResponse.json({ error: 'Dominio no permitido' }, { status: 403 });
     }
 
+    if (parsedUrl.protocol !== 'https:' && parsedUrl.hostname !== 'localhost') {
+        return NextResponse.json({ error: 'Solo se permiten URLs HTTPS' }, { status: 403 });
+    }
+
     try {
-        const response = await fetch(targetUrl, {
+        const response = await fetch(parsedUrl.toString(), {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-                'Referer': new URL(targetUrl).origin,
-                'Origin': new URL(targetUrl).origin,
+                'Referer': parsedUrl.origin,
+                'Origin': parsedUrl.origin,
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -48,8 +58,13 @@ export async function GET(request: NextRequest) {
             throw new Error(`HTTP ${response.status}`);
         }
 
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!contentType.includes('text/html')) {
+            return NextResponse.json({ error: 'Contenido no permitido' }, { status: 415 });
+        }
+
         let html = await response.text();
-        const origin = new URL(targetUrl).origin;
+        const origin = parsedUrl.origin;
 
         // Script de neutralización para inyectar al inicio
         const neutralizationScript = `
@@ -110,12 +125,9 @@ export async function GET(request: NextRequest) {
             status: 200,
             headers: {
                 'Content-Type': 'text/html; charset=utf-8',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers': '*',
                 'Cache-Control': 'no-store, no-cache',
-                'X-Frame-Options': 'ALLOWALL',
-                'Content-Security-Policy': "frame-ancestors *; default-src 'unsafe-inline' 'unsafe-eval'",
+                'X-Frame-Options': 'SAMEORIGIN',
+                'Content-Security-Policy': "frame-ancestors 'self'",
             },
         });
     } catch (error) {

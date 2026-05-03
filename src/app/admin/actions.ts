@@ -1,7 +1,20 @@
 'use server';
 
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { getSupabaseConfig } from '@/lib/env';
 import { revalidatePath } from 'next/cache';
+
+export type AdminAction =
+    | 'BAN_USER'
+    | 'UNBAN_USER'
+    | 'UPDATE_SETTINGS'
+    | 'CLOSE_PARTY'
+    | 'DELETE_CONTENT'
+    | 'BLACKLIST_CONTENT'
+    | 'UNBLACKLIST_CONTENT'
+    | 'BROADCAST_MESSAGE'
+    | 'BAN_IP'
+    | 'IMPERSONATE_USER';
 
 /**
  * Helper to ensure the current user is an admin.
@@ -26,6 +39,26 @@ async function requireAdmin() {
     }
 
     return user;
+}
+
+export async function logAdminAction(
+    action: AdminAction,
+    targetId?: string,
+    details?: any
+) {
+    const user = await requireAdmin();
+    const supabase = createServiceRoleClient();
+
+    const { error } = await supabase.from('admin_logs').insert({
+        admin_id: user.id,
+        action,
+        target_id: targetId,
+        details,
+    });
+
+    if (error) {
+        console.error('Failed to log admin action:', error);
+    }
 }
 
 export async function getDashboardStats() {
@@ -125,7 +158,27 @@ export async function impersonateUser(userId: string) {
 
         if (error) return { success: false, error: error.message };
 
-        return { success: true, url: data.properties?.action_link };
+        const actionLink = data.properties?.action_link;
+        if (!actionLink) {
+            return { success: false, error: 'No magic link generated' };
+        }
+
+        try {
+            const linkUrl = new URL(actionLink);
+            const supabaseHost = new URL(getSupabaseConfig().url).hostname;
+            const isAllowedHost = linkUrl.protocol === 'https:' &&
+                (linkUrl.hostname === supabaseHost || linkUrl.hostname.endsWith('.supabase.co'));
+
+            if (!isAllowedHost) {
+                console.error('[impersonateUser] Unsafe magic link host:', linkUrl.hostname);
+                return { success: false, error: 'Generated link is not from a trusted Supabase domain' };
+            }
+        } catch (err) {
+            console.error('[impersonateUser] Invalid magic link URL:', err);
+            return { success: false, error: 'Invalid magic link URL' };
+        }
+
+        return { success: true, url: actionLink };
     } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
@@ -286,39 +339,18 @@ export async function getRecentAuditLogs() {
 export async function deleteUser(userId: string) {
     try {
         await requireAdmin();
-        const supabase = await createAdminClient();
+        const adminSupabase = await createAdminClient();
 
-        // Manually delete related records to avoid foreign key constraints
-        // 1. Delete reviews
-        await supabase.from('reviews').delete().eq('user_id', userId);
+        const { error: deleteError } = await adminSupabase.rpc('delete_user_and_related', {
+            user_id: userId,
+        });
 
-        // 2. Delete party memberships
-        await supabase.from('party_members').delete().eq('user_id', userId);
+        if (deleteError) {
+            console.error('Error deleting related user data:', deleteError);
+            return { success: false, error: deleteError.message };
+        }
 
-        // 3. Delete party messages
-        await supabase.from('party_messages').delete().eq('user_id', userId);
-
-        // 4. Delete parties hosted by user
-        await supabase.from('parties').delete().eq('host_id', userId);
-
-        // 5. Delete search history
-        await supabase.from('search_history').delete().eq('user_id', userId);
-
-        // 6. Delete announcements created by user
-        await supabase.from('announcements').delete().eq('created_by', userId);
-
-        // 7. Delete admin logs (if user was admin)
-        await supabase.from('admin_logs').delete().eq('admin_id', userId);
-
-        // 8. Delete ip bans created by user (if user was admin)
-        await supabase.from('ip_bans').delete().eq('banned_by', userId);
-
-        // 9. Delete profile
-        await supabase.from('profiles').delete().eq('id', userId);
-
-        // 6. Delete from Auth
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
+        const { error: authError } = await adminSupabase.auth.admin.deleteUser(userId);
         if (authError) {
             console.error('Error deleting user from auth:', authError);
             return { success: false, error: authError.message };

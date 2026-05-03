@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Users, Activity, DollarSign, TrendingUp, Cpu, Server, Database, Globe, Loader2 } from "lucide-react";
 import { getRecentAuditLogs } from '@/app/admin/actions';
@@ -15,7 +15,8 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
     const [stats, setStats] = useState(initialStats);
     const [logs, setLogs] = useState<any[]>([]);
     const [serverLoad, setServerLoad] = useState({ cpu: 12, memory: 34, storage: 67 });
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
+    const channelsRef = useRef<any[]>([]);
 
     useEffect(() => {
         // Fetch initial logs
@@ -35,7 +36,7 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
                 }
             )
             .subscribe();
-
+        channelsRef.current.push(profilesChannel);
 
         // Channel for Reviews (Conversion)
         const reviewsChannel = supabase
@@ -51,6 +52,7 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
                 }
             )
             .subscribe();
+        channelsRef.current.push(reviewsChannel);
 
         // Simulate Server Load Fluctuations
         const interval = setInterval(() => {
@@ -62,11 +64,22 @@ export default function AdminDashboardClient({ initialStats }: { initialStats: D
         }, 3000);
 
         return () => {
-            supabase.removeChannel(profilesChannel);
-            supabase.removeChannel(reviewsChannel);
+            channelsRef.current.forEach((channel) => {
+                try {
+                    channel.unsubscribe?.();
+                } catch (err) {
+                    console.warn('[AdminDashboardClient] channel unsubscribe failed:', err);
+                }
+                try {
+                    supabase.removeChannel(channel);
+                } catch (err) {
+                    console.warn('[AdminDashboardClient] removeChannel failed:', err);
+                }
+            });
+            channelsRef.current = [];
             clearInterval(interval);
         };
-    }, [supabase]);
+    }, []);
 
     return (
         <div className="space-y-8">

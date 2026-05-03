@@ -1,12 +1,14 @@
 'use server';
 
+import { unstable_cache, revalidatePath } from 'next/cache';
 import { getSettings, saveSettings, AdminSettings } from '@/lib/admin-settings';
 import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
 
-export async function fetchSettings() {
+export const fetchSettings = unstable_cache(async () => {
     return await getSettings();
-}
+}, [], {
+    revalidate: 60,
+});
 
 export async function updateSettings(newSettings: AdminSettings) {
     const supabaseAuth = await createClient();

@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, AlertCircle, Globe, Settings, ChevronDown, Check, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { useStore } from '@/lib/store/useStore';
+import type { Movie, TVShow } from '@/types/tmdb';
 
 interface VideoPlayerProps {
     mediaId: number;
@@ -29,65 +31,15 @@ type Server = {
     type: 'latino' | 'castellano' | 'multi';
 };
 
-// Module-level constants — no point recomputing on every render.
-// Ordered with Latino-defaulting providers first.
 const SERVERS: Server[] = [
-    {
-        id: 'cuevana-dynamic',
-        name: 'Auto (Mejor Latino)',
-        baseUrl: '/api/scrape',
-        lang: 'es',
-        type: 'multi',
-    },
-    {
-        id: 'unlimplay',
-        name: 'UnLimPlay (Latino)',
-        baseUrl: 'https://unlimplay.com/play/embed',
-        lang: 'es',
-        type: 'latino',
-    },
-    {
-        id: 'superembed',
-        name: 'SuperEmbed Latino',
-        baseUrl: 'https://multiembed.mov',
-        lang: 'es',
-        type: 'latino',
-    },
-    {
-        id: 'vidsrc-xyz',
-        name: 'VidSrc XYZ',
-        baseUrl: 'https://vidsrc.xyz/embed',
-        lang: 'es',
-        type: 'multi',
-    },
-    {
-        id: 'vidsrc-to',
-        name: 'VidSrc.to (Subs ES)',
-        baseUrl: 'https://vidsrc.to/embed',
-        lang: 'es',
-        type: 'multi',
-    },
-    {
-        id: 'vidlink',
-        name: 'VidLink Pro',
-        baseUrl: 'https://vidlink.pro',
-        lang: 'es',
-        type: 'multi',
-    },
-    {
-        id: 'embed-su',
-        name: 'Embed.su',
-        baseUrl: 'https://embed.su/embed',
-        lang: 'es',
-        type: 'multi',
-    },
-    {
-        id: 'rivestream',
-        name: 'Rivestream',
-        baseUrl: 'https://watch.rivestream.app/embed',
-        lang: 'es',
-        type: 'multi',
-    },
+    { id: 'cuevana-dynamic', name: 'Auto (Mejor Latino)', baseUrl: '/api/scrape', lang: 'es', type: 'multi' },
+    { id: 'unlimplay', name: 'UnLimPlay (Latino)', baseUrl: 'https://unlimplay.com/play/embed', lang: 'es', type: 'latino' },
+    { id: 'superembed', name: 'SuperEmbed Latino', baseUrl: 'https://multiembed.mov', lang: 'es', type: 'latino' },
+    { id: 'vidsrc-xyz', name: 'VidSrc XYZ', baseUrl: 'https://vidsrc.xyz/embed', lang: 'es', type: 'multi' },
+    { id: 'vidsrc-to', name: 'VidSrc.to (Subs ES)', baseUrl: 'https://vidsrc.to/embed', lang: 'es', type: 'multi' },
+    { id: 'vidlink', name: 'VidLink Pro', baseUrl: 'https://vidlink.pro', lang: 'es', type: 'multi' },
+    { id: 'embed-su', name: 'Embed.su', baseUrl: 'https://embed.su/embed', lang: 'es', type: 'multi' },
+    { id: 'rivestream', name: 'Rivestream', baseUrl: 'https://watch.rivestream.app/embed', lang: 'es', type: 'multi' },
 ];
 
 const PREFERRED_SERVER_KEY = 'filmify:preferred-server';
@@ -106,48 +58,22 @@ const SCRAPING_STEPS = [
 
 function buildEmbedUrl(server: Server, mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
     const isMovie = mediaType === 'movie';
-
     switch (server.id) {
         case 'unlimplay':
-            // unlimplay.com defaults to Latino, falls back to Español, then English subs.
-            return isMovie
-                ? `${server.baseUrl}/movie/${mediaId}`
-                : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
-
+            return isMovie ? `${server.baseUrl}/movie/${mediaId}` : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
         case 'vidsrc-xyz':
-            return isMovie
-                ? `${server.baseUrl}/movie/${mediaId}`
-                : `${server.baseUrl}/tv/${mediaId}/${season}-${episode}`;
-
+            return isMovie ? `${server.baseUrl}/movie/${mediaId}` : `${server.baseUrl}/tv/${mediaId}/${season}-${episode}`;
         case 'vidsrc-to':
-            // ds_lang=es makes Spanish the preferred subtitle/audio in the player.
-            return isMovie
-                ? `${server.baseUrl}/movie/${mediaId}?ds_lang=es`
-                : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}?ds_lang=es`;
-
+            return isMovie ? `${server.baseUrl}/movie/${mediaId}?ds_lang=es` : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}?ds_lang=es`;
         case 'superembed':
-            // multiembed.mov supports &lang=es to bias toward Spanish/Latino.
-            return isMovie
-                ? `${server.baseUrl}/?video_id=${mediaId}&tmdb=1&lang=es`
-                : `${server.baseUrl}/?video_id=${mediaId}&tmdb=1&s=${season}&e=${episode}&lang=es`;
-
+            return isMovie ? `${server.baseUrl}/?video_id=${mediaId}&tmdb=1&lang=es` : `${server.baseUrl}/?video_id=${mediaId}&tmdb=1&s=${season}&e=${episode}&lang=es`;
         case 'vidlink':
-            return isMovie
-                ? `${server.baseUrl}/movie/${mediaId}`
-                : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
-
+            return isMovie ? `${server.baseUrl}/movie/${mediaId}` : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
         case 'embed-su':
-            return isMovie
-                ? `${server.baseUrl}/movie/${mediaId}`
-                : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
-
+            return isMovie ? `${server.baseUrl}/movie/${mediaId}` : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
         case 'rivestream':
-            return isMovie
-                ? `${server.baseUrl}?type=movie&id=${mediaId}`
-                : `${server.baseUrl}?type=tv&id=${mediaId}&season=${season}&episode=${episode}`;
-
+            return isMovie ? `${server.baseUrl}?type=movie&id=${mediaId}` : `${server.baseUrl}?type=tv&id=${mediaId}&season=${season}&episode=${episode}`;
         case 'cuevana-dynamic': {
-            // Internal scraper endpoint — probes all providers and picks the best.
             const params = new URLSearchParams({
                 tmdbId: mediaId.toString(),
                 mediaType,
@@ -156,30 +82,21 @@ function buildEmbedUrl(server: Server, mediaId: number, mediaType: 'movie' | 'tv
             });
             return `${server.baseUrl}?${params.toString()}`;
         }
-
         default:
             return `${server.baseUrl}/${isMovie ? 'movie' : 'tv'}/${mediaId}`;
     }
 }
 
-export default function VideoPlayer({
-    mediaId,
-    mediaType,
-    season = 1,
-    episode = 1,
-    onClose,
-    title,
-}: VideoPlayerProps) {
+export default function VideoPlayer({ mediaId, mediaType, season = 1, episode = 1, onClose, title }: VideoPlayerProps) {
     const [isLoading, setIsLoading] = useState(true);
+    const [hasSavedWatched, setHasSavedWatched] = useState(false);
+    const isWatched = useStore((state) => state.isWatched(mediaId));
+    const addWatched = useStore((state) => state.addWatched);
     const [error, setError] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [activeServer, setActiveServer] = useState<Server>(SERVERS[0]);
     const [dynamicUrl, setDynamicUrl] = useState<string | null>(null);
     const [scrapingStep, setScrapingStep] = useState(0);
-
-    // Auto-fallback chain: when the dynamic scraper returns N alive providers,
-    // we walk through them on iframe-load failure instead of giving up after
-    // the first one. The user can also manually skip to the next.
     const [availableResults, setAvailableResults] = useState<DynamicResult[]>([]);
     const [currentResultIdx, setCurrentResultIdx] = useState(0);
 
@@ -188,7 +105,7 @@ export default function VideoPlayer({
     const fetchAbortRef = useRef<AbortController | null>(null);
     const supabase = createClient();
 
-    // Restore the user's preferred server on mount — Supabase first, localStorage fallback.
+    // Restore preferred server — Supabase user_metadata first, localStorage fallback
     useEffect(() => {
         (async () => {
             try {
@@ -202,7 +119,6 @@ export default function VideoPlayer({
                     if (found) setActiveServer(found);
                 }
             } catch {
-                // Private mode or no session — fall back silently
                 try {
                     const saved = localStorage.getItem(PREFERRED_SERVER_KEY);
                     if (saved) {
@@ -215,27 +131,24 @@ export default function VideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Persist server preference whenever it changes — Supabase + localStorage fallback.
+    // Persist server preference — Supabase + localStorage
     const handleSelectServer = useCallback(async (server: Server) => {
+        if (loadTimeoutRef.current) { clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
+        if (fetchAbortRef.current) { fetchAbortRef.current.abort(); fetchAbortRef.current = null; }
         setActiveServer(server);
         setIsMenuOpen(false);
 
-        // Always write to localStorage as an instant, offline-capable fallback
         try { localStorage.setItem(PREFERRED_SERVER_KEY, server.id); } catch { /* ignore */ }
 
-        // Persist to user_metadata so the preference follows the user across devices
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 await supabase.auth.updateUser({
-                    data: {
-                        ...user.user_metadata,
-                        preferredVideoServer: server.id,
-                    },
+                    data: { ...user.user_metadata, preferredVideoServer: server.id },
                 });
             }
         } catch (err) {
-            console.warn('[VideoPlayer] could not persist server preference to Supabase:', err);
+            console.warn('[VideoPlayer] could not persist server preference:', err);
         }
     }, [supabase]);
 
@@ -244,8 +157,7 @@ export default function VideoPlayer({
         [activeServer, mediaId, mediaType, season, episode]
     );
 
-    // Fetch dynamic URL if server is a scraper. Cancellable so rapid server
-    // switching doesn't write stale results into state.
+    // Fetch dynamic URL for the scraper server
     useEffect(() => {
         if (activeServer.id !== 'cuevana-dynamic') {
             setDynamicUrl(null);
@@ -266,8 +178,6 @@ export default function VideoPlayer({
         setCurrentResultIdx(0);
         setScrapingStep(0);
 
-        // Pure visual: advance steps every ~600ms while we wait for the probe
-        // results. Real progress comes from the server response, not this.
         const stepInterval = setInterval(() => {
             setScrapingStep((prev) => (prev < SCRAPING_STEPS.length - 1 ? prev + 1 : prev));
         }, 600);
@@ -277,15 +187,9 @@ export default function VideoPlayer({
                 const res = await fetch(embedUrl, { signal: ctrl.signal });
                 const data = await res.json();
                 if (ctrl.signal.aborted) return;
-
                 clearInterval(stepInterval);
                 setScrapingStep(SCRAPING_STEPS.length - 1);
-
-                if (!data.success || !Array.isArray(data.results) || data.results.length === 0) {
-                    throw new Error('No streams found');
-                }
-
-                // Store the full chain so we can auto-advance on iframe failure.
+                if (!data.success || !Array.isArray(data.results) || data.results.length === 0) throw new Error('No streams found');
                 setAvailableResults(data.results as DynamicResult[]);
                 setCurrentResultIdx(0);
                 setDynamicUrl(data.results[0].url);
@@ -298,98 +202,78 @@ export default function VideoPlayer({
             }
         })();
 
-        return () => {
-            ctrl.abort();
-            clearInterval(stepInterval);
-        };
+        return () => { ctrl.abort(); clearInterval(stepInterval); };
     }, [activeServer.id, embedUrl]);
 
-    // Compute the URL the iframe will actually load. For the dynamic server,
-    // this is null until the scraper resolves — and we MUST NOT render the
-    // iframe with the /api/scrape URL as src (it would try to render JSON).
     const isDynamicServer = activeServer.id === 'cuevana-dynamic';
     const playableUrl: string | null = isDynamicServer ? dynamicUrl : embedUrl;
     const hasMoreInChain = isDynamicServer && currentResultIdx < availableResults.length - 1;
     const currentDynamicResult = isDynamicServer ? availableResults[currentResultIdx] : null;
 
-    // Try the next provider in the chain. Used both by the auto-advance
-    // timeout and the manual "siguiente" button.
     const tryNextServer = useCallback(() => {
         setCurrentResultIdx((idx) => {
             const next = idx + 1;
-            if (next >= availableResults.length) return idx; // out of options
-            const nextResult = availableResults[next];
-            setDynamicUrl(nextResult.url);
+            if (next >= availableResults.length) return idx;
+            setDynamicUrl(availableResults[next].url);
             setIsLoading(true);
             setError(false);
             return next;
         });
     }, [availableResults]);
 
-    // Reset loading + arm the load-failure timeout whenever the iframe URL
-    // changes. We arm a timeout because cross-origin iframes do NOT fire
-    // onError reliably (X-Frame-Options denials, DNS failures, ad-blockers
-    // all silently fail).
-    //
-    // For the dynamic server, on timeout we automatically advance to the next
-    // candidate in the chain instead of giving up.
+    // Arm load-failure timeout on URL change
     useEffect(() => {
         if (!playableUrl) return;
-
         setIsLoading(true);
         setError(false);
         if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
         loadTimeoutRef.current = setTimeout(() => {
             setIsLoading((stillLoading) => {
                 if (!stillLoading) return stillLoading;
-                if (hasMoreInChain) {
-                    // Don't show error — silently move on to the next provider.
-                    tryNextServer();
-                    return true;
-                }
+                if (hasMoreInChain) { tryNextServer(); return true; }
                 setError(true);
                 return false;
             });
         }, LOAD_TIMEOUT_MS);
-
-        return () => {
-            if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-        };
+        return () => { if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current); };
     }, [playableUrl, hasMoreInChain, tryNextServer]);
 
-    // Lock body scroll while the player is open. Save & restore the original
-    // overflow value instead of setting it to 'unset' so we don't clobber
-    // whatever ancestor was managing it.
+    // Mark as watched after 5 seconds of playback
+    useEffect(() => {
+        if (!playableUrl || isLoading || error || isWatched || hasSavedWatched) return;
+
+        const watchTimer = window.setTimeout(() => {
+            const watchedItem = mediaType === 'movie'
+                ? ({ id: mediaId, title, poster_path: null, backdrop_path: null, vote_average: 0, vote_count: 0, release_date: '', overview: '', genre_ids: [], adult: false, original_language: 'es', original_title: title, popularity: 0, video: false } as Movie)
+                : ({ id: mediaId, name: title, original_name: title, poster_path: null, backdrop_path: null, vote_average: 0, vote_count: 0, first_air_date: '', overview: '', genre_ids: [], adult: false, original_language: 'es', popularity: 0, origin_country: [] } as TVShow);
+            addWatched(watchedItem);
+            setHasSavedWatched(true);
+        }, 5000);
+
+        return () => window.clearTimeout(watchTimer);
+    }, [playableUrl, isLoading, error, isWatched, hasSavedWatched, mediaId, mediaType, title, addWatched]);
+
+    // Lock body scroll
     useEffect(() => {
         const previous = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = previous;
-        };
+        return () => { document.body.style.overflow = previous; };
     }, []);
 
-    // Escape key closes the player.
+    // Escape key
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                if (isMenuOpen) {
-                    setIsMenuOpen(false);
-                } else {
-                    onClose();
-                }
-            }
+            if (e.key === 'Escape') { if (isMenuOpen) setIsMenuOpen(false); else onClose(); }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose, isMenuOpen]);
 
-    // Click-outside closes the server dropdown.
+    // Click-outside closes server dropdown
     useEffect(() => {
         if (!isMenuOpen) return;
         const onClick = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setIsMenuOpen(false);
-            }
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsMenuOpen(false);
         };
         document.addEventListener('mousedown', onClick);
         return () => document.removeEventListener('mousedown', onClick);
@@ -397,10 +281,7 @@ export default function VideoPlayer({
 
     const handleIframeLoad = useCallback(() => {
         setIsLoading(false);
-        if (loadTimeoutRef.current) {
-            clearTimeout(loadTimeoutRef.current);
-            loadTimeoutRef.current = null;
-        }
+        if (loadTimeoutRef.current) { clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
     }, []);
 
     return (
@@ -408,27 +289,17 @@ export default function VideoPlayer({
             {/* Top Bar */}
             <div className="absolute top-0 left-0 right-0 z-30 p-4 md:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between pointer-events-none">
                 <div className="flex items-center gap-4 pointer-events-auto">
-                    <button
-                        onClick={onClose}
-                        aria-label="Cerrar reproductor"
-                        className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-all group"
-                    >
+                    <button onClick={onClose} aria-label="Cerrar reproductor" className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-all group">
                         <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                     <div className="hidden md:block">
                         <h2 className="text-lg font-black text-white tracking-tight">{title}</h2>
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                                {activeServer.type === 'latino'
-                                    ? 'Audio: Latino'
-                                    : activeServer.type === 'multi'
-                                        ? 'Audio: Multi/Esp'
-                                        : 'Audio: Castellano'}
+                                {activeServer.type === 'latino' ? 'Audio: Latino' : activeServer.type === 'multi' ? 'Audio: Multi/Esp' : 'Audio: Castellano'}
                             </span>
                             {mediaType === 'tv' && (
-                                <p className="text-[10px] text-text-secondary font-bold uppercase tracking-widest">
-                                    T{season} • E{episode}
-                                </p>
+                                <p className="text-[10px] text-text-secondary font-bold uppercase tracking-widest">T{season} • E{episode}</p>
                             )}
                         </div>
                     </div>
@@ -448,10 +319,7 @@ export default function VideoPlayer({
                     </button>
 
                     {isMenuOpen && (
-                        <div
-                            role="menu"
-                            className="absolute top-full right-0 mt-2 w-64 rounded-2xl bg-surface/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-200"
-                        >
+                        <div role="menu" className="absolute top-full right-0 mt-2 w-64 rounded-2xl bg-surface/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-200">
                             <div className="px-3 py-2 text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                                 Seleccionar Servidor / Idioma
                             </div>
@@ -473,11 +341,7 @@ export default function VideoPlayer({
                                         <div className="flex flex-col text-left">
                                             <span className="font-bold">{server.name}</span>
                                             <span className="text-[8px] uppercase tracking-tighter opacity-50">
-                                                {server.type === 'latino'
-                                                    ? 'Español Latino'
-                                                    : server.type === 'multi'
-                                                        ? 'Múltiples Audios'
-                                                        : 'Castellano'}
+                                                {server.type === 'latino' ? 'Español Latino' : server.type === 'multi' ? 'Múltiples Audios' : 'Castellano'}
                                             </span>
                                         </div>
                                     </div>
@@ -499,7 +363,6 @@ export default function VideoPlayer({
                                 <Globe className="w-6 h-6 text-primary/40" />
                             </div>
                         </div>
-                        
                         <div className="space-y-4 text-center max-w-md px-6">
                             <div className="space-y-1">
                                 <p className="text-text-secondary text-xs font-black uppercase tracking-[0.3em] animate-pulse">
@@ -509,21 +372,15 @@ export default function VideoPlayer({
                                     Audio en Español (cambiable dentro del reproductor)
                                 </p>
                             </div>
-
                             {isDynamicServer && (
                                 <div className="space-y-3 pt-4 border-t border-white/5">
                                     {SCRAPING_STEPS.map((step, idx) => (
-                                        <div 
-                                            key={idx}
-                                            className={cn(
-                                                "flex items-center gap-3 text-[10px] transition-all duration-500",
-                                                idx === scrapingStep ? "text-primary font-bold opacity-100 translate-x-1" : 
-                                                idx < scrapingStep ? "text-green-500/60 opacity-60" : "text-white/10 opacity-20"
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "w-1 h-1 rounded-full",
-                                                idx === scrapingStep ? "bg-primary animate-ping" : 
+                                        <div key={idx} className={cn("flex items-center gap-3 text-[10px] transition-all duration-500",
+                                            idx === scrapingStep ? "text-primary font-bold opacity-100 translate-x-1" :
+                                            idx < scrapingStep ? "text-green-500/60 opacity-60" : "text-white/10 opacity-20"
+                                        )}>
+                                            <div className={cn("w-1 h-1 rounded-full",
+                                                idx === scrapingStep ? "bg-primary animate-ping" :
                                                 idx < scrapingStep ? "bg-green-500" : "bg-white/10"
                                             )} />
                                             <span className="uppercase tracking-wider">{step}</span>
@@ -532,7 +389,6 @@ export default function VideoPlayer({
                                     ))}
                                 </div>
                             )}
-
                             <p className="text-text-muted text-[8px] uppercase tracking-widest pt-4">
                                 Si tarda demasiado, prueba con otro servidor en el menú superior
                             </p>
@@ -546,28 +402,20 @@ export default function VideoPlayer({
                         <div className="space-y-2">
                             <h3 className="text-xl font-bold text-white">No se pudo cargar el servidor</h3>
                             <p className="text-text-secondary text-sm max-w-md">
-                                {activeServer.name} no respondió a tiempo. Puede estar caído, o tu bloqueador de
-                                anuncios está bloqueando el dominio. Prueba con otro servidor.
+                                {activeServer.name} no respondió a tiempo. Puede estar caído, o tu bloqueador de anuncios está bloqueando el dominio.
                             </p>
                         </div>
                         <div className="flex gap-4">
-                            <button
-                                onClick={() => setIsMenuOpen(true)}
-                                className="px-8 py-3 bg-primary text-black font-black rounded-full text-xs hover:bg-primary-hover transition-all"
-                            >
+                            <button onClick={() => setIsMenuOpen(true)} className="px-8 py-3 bg-primary text-black font-black rounded-full text-xs hover:bg-primary-hover transition-all">
                                 CAMBIAR SERVIDOR
                             </button>
-                            <button
-                                onClick={onClose}
-                                className="px-8 py-3 bg-white/10 text-white font-black rounded-full text-xs hover:bg-white/20 transition-all border border-white/10"
-                            >
+                            <button onClick={onClose} className="px-8 py-3 bg-white/10 text-white font-black rounded-full text-xs hover:bg-white/20 transition-all border border-white/10">
                                 VOLVER
                             </button>
                         </div>
                     </div>
                 ) : playableUrl ? (
                     <iframe
-                        // Re-mount on URL change so onLoad fires and the timeout resets cleanly.
                         key={playableUrl}
                         src={playableUrl}
                         title={`Reproductor: ${title}`}
@@ -579,14 +427,11 @@ export default function VideoPlayer({
                 ) : null}
             </div>
 
-            {/* Bottom Controls Hint */}
+            {/* Bottom hint */}
             <div className="absolute bottom-6 left-6 z-30 pointer-events-none hidden md:block">
-                <div className="flex flex-col gap-1 opacity-40">
-                    <p className="text-[8px] text-white font-black uppercase tracking-[0.2em]">
-                        TIP: Pulsa <kbd>Esc</kbd> para cerrar. Si el audio está en inglés, busca la opción de
-                        idioma dentro del reproductor del servidor.
-                    </p>
-                </div>
+                <p className="text-[8px] text-white font-black uppercase tracking-[0.2em] opacity-40">
+                    TIP: Pulsa <kbd>Esc</kbd> para cerrar. Si el audio está en inglés, busca la opción de idioma dentro del reproductor.
+                </p>
             </div>
         </div>
     );

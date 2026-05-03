@@ -2,7 +2,7 @@
 
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { logAdminAction } from '@/lib/admin-logger';
+import { logAdminAction } from '@/app/admin/actions';
 
 export async function addToBlacklist(tmdbId: number, mediaType: 'movie' | 'tv', reason: string) {
     const supabase = await createAdminClient();

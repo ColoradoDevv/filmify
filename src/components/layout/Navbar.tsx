@@ -3,14 +3,25 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Clapperboard, Heart, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
+import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
 import SearchInput from '@/components/features/SearchInput';
+import useFavoritesSync from '@/hooks/useFavoritesSync';
 import UserMenu from './navbar/UserMenu';
 import NotificationCenter from './navbar/NotificationCenter';
 import MobileMenu from './navbar/MobileMenu';
+
+let supabase: SupabaseClient | undefined;
+try {
+    supabase = createClient();
+} catch (error) {
+    console.error('Failed to create Supabase client:', error);
+    if (process.env.NODE_ENV === 'development') {
+        console.warn('Continuing without Supabase. Please configure your .env.local file.');
+    }
+}
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -21,20 +32,10 @@ export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isMobileView, setIsMobileView] = useState(false);
 
+    useFavoritesSync();
     const favorites = useFavorites();
-    let supabase: SupabaseClient | undefined;
-
-    try {
-        supabase = createClient();
-    } catch (error) {
-        console.error('Failed to create Supabase client:', error);
-        // En desarrollo, continuar sin Supabase
-        if (process.env.NODE_ENV === 'development') {
-            console.warn('Continuing without Supabase. Please configure your .env.local file.');
-        }
-    }
-
     const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/register');
 
     useEffect(() => {
@@ -102,7 +103,7 @@ export default function Navbar() {
         });
 
         return () => subscription.unsubscribe();
-    }, [supabase]);
+    }, []);
 
     // Handle scroll effect
     useEffect(() => {
@@ -111,6 +112,17 @@ export default function Navbar() {
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Detect mobile view for logo navigation behavior
+    useEffect(() => {
+        const updateView = () => {
+            setIsMobileView(window.innerWidth < 768);
+        };
+
+        updateView();
+        window.addEventListener('resize', updateView);
+        return () => window.removeEventListener('resize', updateView);
     }, []);
 
     const handleLogoutClick = () => {
@@ -138,9 +150,9 @@ export default function Navbar() {
                     <div className="flex items-center justify-between h-20">
                         {/* Logo */}
                         <Link
-                            href="/"
+                            href={user && isMobileView ? '/browse' : '/'}
                             className="flex items-center gap-2 group relative z-50"
-                            aria-label="Ir al inicio"
+                            aria-label={user && isMobileView ? 'Ir a exploración' : 'Ir al inicio'}
                             onClick={() => setMobileMenuOpen(false)}
                         >
                             <img
@@ -254,6 +266,52 @@ export default function Navbar() {
                     onLogoutClick={handleLogoutClick}
                 />
             </nav>
+
+            {/* Mobile Bottom Navigation for logged-in users */}
+            {user && !isAuthPage && (
+                <div className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-background/90 border-t border-white/10 backdrop-blur-xl shadow-2xl">
+                    <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
+                        <button
+                            type="button"
+                            onClick={() => router.push('/browse')}
+                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/browse') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                            aria-label="Ir a Explorar"
+                        >
+                            <Clapperboard className="w-5 h-5" />
+                            <span className="text-[10px] font-semibold">Explorar</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push('/live-tv')}
+                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                            aria-label="Ir a TV en Vivo"
+                        >
+                            <Tv className="w-5 h-5" />
+                            <span className="text-[10px] font-semibold">TV</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push('/favorites')}
+                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname === '/favorites' ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                            aria-label="Ir a Favoritos"
+                        >
+                            <Heart className="w-5 h-5" />
+                            <span className="text-[10px] font-semibold">Favoritos</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push('/search')}
+                            className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                            aria-label="Buscar"
+                        >
+                            <Search className="w-5 h-5" />
+                            <span className="text-[10px] font-semibold">Buscar</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {user && !isAuthPage && <div className="h-20 md:hidden" />}
 
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (

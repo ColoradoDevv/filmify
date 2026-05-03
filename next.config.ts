@@ -47,14 +47,14 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-eval' 'unsafe-inline' https: http:;
+              script-src 'self' https: 'unsafe-inline';
               style-src 'self' 'unsafe-inline' https:;
-              img-src * data: blob: 'unsafe-inline';
-              media-src * blob:;
-              connect-src *;
+              img-src 'self' data: blob https:;
+              media-src 'self' blob https:;
+              connect-src 'self' https: wss:;
               font-src 'self' data: https:;
-              frame-src *;
-              frame-ancestors *;
+              frame-src https:;
+              frame-ancestors 'self';
               object-src 'none';
               base-uri 'self';
               form-action 'self';

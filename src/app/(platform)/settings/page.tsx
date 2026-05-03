@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import {
     User,
     Settings as SettingsIcon,
@@ -10,6 +11,7 @@ import {
     Bell,
     Eye,
     EyeOff,
+    ArrowLeft,
     CheckCircle,
     AlertCircle,
     AlertTriangle,
@@ -92,6 +94,15 @@ export default function SettingsPage() {
                         Configuración
                     </h1>
                     <p className="text-text-secondary text-base">Personaliza tu experiencia en FilmiFy</p>
+                    <div className="mt-4">
+                        <Link
+                            href="/browse"
+                            className="inline-flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-black font-semibold hover:bg-primary-hover transition-colors"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Volver a Browse
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -162,11 +173,19 @@ function PrivacySection({ user }: { user: any }) {
         setMessage(null);
 
         try {
-            const { error } = await supabase.auth.updateUser({
-                data: { privacy: newPrivacy }
-            });
+            const [{ error: authError }, { data: currentProfileData, error: profileFetchError }] = await Promise.all([
+                supabase.auth.updateUser({ data: { privacy: newPrivacy } }),
+                supabase.from('profiles').select('preferences').eq('id', user.id).single(),
+            ]);
 
-            if (error) throw error;
+            if (authError) throw authError;
+            if (profileFetchError) throw profileFetchError;
+
+            const existingPreferences = currentProfileData?.preferences ?? {};
+            const mergedPreferences = { ...existingPreferences, privacy: newPrivacy };
+
+            const { error: profileUpdateError } = await supabase.from('profiles').update({ preferences: mergedPreferences }).eq('id', user.id);
+            if (profileUpdateError) throw profileUpdateError;
         } catch (error: any) {
             setMessage({ type: 'error', text: 'Error al guardar: ' + error.message });
             setPrivacy(privacy);
@@ -1559,6 +1578,8 @@ function PreferencesSection({ user }: { user: any }) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
         const savedSettings = localStorage.getItem('filmify_preferences');
         if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
@@ -1588,7 +1609,7 @@ function PreferencesSection({ user }: { user: any }) {
             setSettings(parsedSettings);
 
             // Apply reduced motion immediately
-            if (parsedSettings.reducedMotion) {
+            if (parsedSettings.reducedMotion && typeof document !== 'undefined') {
                 document.documentElement.style.scrollBehavior = 'auto';
             }
         }
@@ -1625,10 +1646,12 @@ function PreferencesSection({ user }: { user: any }) {
 
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
-        localStorage.setItem('filmify_preferences', JSON.stringify(newSettings));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('filmify_preferences', JSON.stringify(newSettings));
+        }
 
         // Apply immediate effects where possible
-        if (key === 'reducedMotion') {
+        if (key === 'reducedMotion' && typeof document !== 'undefined') {
             document.documentElement.style.scrollBehavior = value ? 'auto' : 'smooth';
         }
 

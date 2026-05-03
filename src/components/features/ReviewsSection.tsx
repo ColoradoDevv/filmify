@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 import { Star, MessageSquare, User, Trash2, Loader2, Send, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -32,6 +33,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [reviews, setReviews] = useState<Review[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(0);
+    const [authLoading, setAuthLoading] = useState(true);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -41,8 +43,28 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+        let active = true;
+
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!active) return;
+            setUser(user);
+            setAuthLoading(false);
+        };
+
+        const { data: authSubscription } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+            if (!active) return;
+            setUser(session?.user ?? null);
+            setAuthLoading(false);
+        });
+
+        getUser();
         fetchReviews(0, true);
+
+        return () => {
+            active = false;
+            authSubscription.subscription.unsubscribe();
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mediaId, mediaType]);
 
@@ -151,7 +173,12 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                 {/* Review Form */}
                 <div className="lg:col-span-1">
                     <div className="bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-2xl p-6 sticky top-24">
-                        {user ? (
+                        {authLoading ? (
+                            <div className="py-8 text-center">
+                                <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+                                <p className="text-text-secondary text-sm">Verificando sesión...</p>
+                            </div>
+                        ) : user ? (
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <h3 className="text-lg font-semibold text-white mb-4">Escribe tu reseña</h3>
 

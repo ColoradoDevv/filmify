@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import {
     LayoutDashboard,
     Users,
@@ -9,15 +10,42 @@ import {
     FileText,
     Terminal
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 
 // Force dynamic rendering for all admin routes since they use cookies for auth
 export const dynamic = 'force-dynamic';
 
-export default function AdminLayout({
+async function verifyAdminAccess() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return false;
+    }
+
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (error || !profile) {
+        return false;
+    }
+
+    return profile.role === 'admin' || profile.role === 'super_admin';
+}
+
+export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const isAdmin = await verifyAdminAccess();
+    if (!isAdmin) {
+        redirect('/');
+    }
+
     return (
         <div className="flex min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-emerald-500/30">
             {/* Sidebar */}

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Megaphone, Send, Loader2, History, Radio } from 'lucide-react';
 import { toast } from 'sonner';
-import { logAdminAction } from '@/lib/admin-logger';
+import { logAdminAction } from '@/app/admin/actions';
 import { updateAnnouncement } from '../settings/actions';
 import { getBroadcastHistory } from './actions';
 
