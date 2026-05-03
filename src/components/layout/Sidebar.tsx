@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Heart, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Heart, Settings, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
 import { useRef } from 'react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 const navigation = [
-    { name: 'Inicio',     href: '/browse',    icon: Home },
-    { name: 'Favoritos',  href: '/favorites', icon: Heart },
-    { name: 'Ajustes',    href: '/settings',  icon: Settings },
+    { name: 'Inicio',       href: '/browse',       icon: Home },
+    { name: 'Watch Party',  href: '/watch-party',  icon: Users },
+    { name: 'Favoritos',    href: '/favorites',    icon: Heart },
+    { name: 'Ajustes',      href: '/settings',     icon: Settings },
 ];
 
 export default function Sidebar() {

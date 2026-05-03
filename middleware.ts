@@ -32,6 +32,7 @@ const PROTECTED_PREFIXES = [
     '/search',
     '/settings',
     '/profile',
+    '/watch-party',
 ];
 
 /** Admin routes — require admin/super_admin role */
