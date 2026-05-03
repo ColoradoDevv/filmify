@@ -1,6 +1,15 @@
 import { NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
+    // SEC-021: require authentication — unauthenticated users must not be able
+    // to use this proxy to access embed URLs without an account.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const imdbFull = searchParams.get('imdb_id'); // ej: tt0137523
     const server = searchParams.get('server') || '1';
