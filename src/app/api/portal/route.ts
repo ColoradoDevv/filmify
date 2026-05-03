@@ -136,9 +136,24 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || '';
     const action = searchParams.get('action') || '';
-    const mac = searchParams.get('mac') || request.headers.get('x-user-mac') || '';
 
-    console.log(`STB Request: type=${type}, action=${action}, mac=${mac}`);
+    // Different Stalker client apps send the MAC in different ways.
+    // Check all known locations in order of preference.
+    const mac = (
+        searchParams.get('mac') ||                          // query param (most common)
+        request.headers.get('x-user-mac') ||               // custom header
+        request.headers.get('mac') ||                      // some clients use plain "mac"
+        request.headers.get('x-mac-address') ||            // alternative header name
+        request.cookies.get('mac')?.value ||               // cookie fallback
+        ''
+    ).trim();
+
+    // Log the full request for debugging — helps identify what the client sends.
+    console.log(`STB Request: type=${type}, action=${action}, mac=${mac || '(none)'}`);
+    if (!mac) {
+        console.log('STB headers:', Object.fromEntries(request.headers.entries()));
+        console.log('STB cookies:', request.cookies.toString());
+    }
 
     if (!mac) {
         return NextResponse.json({ error: 'MAC address required' }, { status: 400 });
