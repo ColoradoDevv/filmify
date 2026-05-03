@@ -16,7 +16,7 @@ import VideoPlayer from '@/components/features/VideoPlayer';
 
 interface Props { code: string; }
 
-// ── Emoji picker (no external lib — curated set) ──────────────────────────────
+// ── Emoji picker ──────────────────────────────────────────────────────────────
 const EMOJI_GROUPS = [
     { label: 'Reacciones', emojis: ['😂','😭','😍','🔥','👏','💀','😮','🤣','❤️','😎','🥹','😤','🤯','😱','🥲','😅','🤩','😏','🙄','😒'] },
     { label: 'Cine',       emojis: ['🎬','🍿','🎥','📽️','🎞️','🎭','🌟','⭐','💫','🏆','👑','🎉','🎊','🎶','🎵','🎸','🎤','🎧','📺','🖥️'] },
@@ -24,22 +24,46 @@ const EMOJI_GROUPS = [
     { label: 'Objetos',    emojis: ['💬','💭','❓','❗','✅','❌','⚡','💥','✨','🌈','🎯','🚀','💡','🔑','🎁','🍕','🍔','🍦','☕','🧃'] },
 ];
 
-function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onClose: () => void }) {
+function EmojiPicker({
+    anchorRef,
+    onSelect,
+    onClose,
+}: {
+    anchorRef: React.RefObject<HTMLButtonElement | null>;
+    onSelect: (e: string) => void;
+    onClose: () => void;
+}) {
     const [tab, setTab] = useState(0);
-    const ref = useRef<HTMLDivElement>(null);
+    const pickerRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ bottom: 0, left: 0 });
 
+    // Calculate position relative to viewport on mount
+    useEffect(() => {
+        if (!anchorRef.current) return;
+        const rect = anchorRef.current.getBoundingClientRect();
+        setPos({
+            bottom: window.innerHeight - rect.top + 8,
+            left:   Math.max(8, rect.left - 8),
+        });
+    }, [anchorRef]);
+
+    // Close on outside click
     useEffect(() => {
         const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+            if (
+                pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
+                anchorRef.current && !anchorRef.current.contains(e.target as Node)
+            ) onClose();
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [onClose]);
+    }, [onClose, anchorRef]);
 
     return (
         <div
-            ref={ref}
-            className="absolute bottom-full right-0 mb-2 w-72 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant shadow-[var(--shadow-4)] z-50 overflow-hidden"
+            ref={pickerRef}
+            style={{ position: 'fixed', bottom: pos.bottom, left: pos.left, zIndex: 9999 }}
+            className="w-72 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant shadow-[var(--shadow-5)] overflow-hidden"
         >
             {/* Tabs */}
             <div className="flex border-b border-outline-variant overflow-x-auto scrollbar-hide">
@@ -54,7 +78,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onC
                 ))}
             </div>
             {/* Grid */}
-            <div className="grid grid-cols-8 gap-0.5 p-2 max-h-40 overflow-y-auto scrollbar-hide">
+            <div className="grid grid-cols-8 gap-0.5 p-2 max-h-44 overflow-y-auto scrollbar-hide">
                 {EMOJI_GROUPS[tab].emojis.map(e => (
                     <button
                         key={e}
@@ -188,8 +212,9 @@ export default function WatchPartyRoom({ code }: Props) {
     const [replyTo,    setReplyTo]    = useState<ChatMessage | null>(null);
     const [showEmoji,  setShowEmoji]  = useState(false);
 
-    const chatRef  = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const chatRef    = useRef<HTMLDivElement>(null);
+    const inputRef   = useRef<HTMLInputElement>(null);
+    const emojiRef   = useRef<HTMLButtonElement>(null);
 
     // ── Load ──────────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -458,6 +483,7 @@ export default function WatchPartyRoom({ code }: Props) {
                         {/* Emoji button */}
                         <div className="relative">
                             <button
+                                ref={emojiRef}
                                 onClick={() => setShowEmoji(v => !v)}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEmoji ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:bg-on-surface/8'}`}
                                 aria-label="Emojis"
@@ -465,7 +491,11 @@ export default function WatchPartyRoom({ code }: Props) {
                                 <Smile className="w-4 h-4" />
                             </button>
                             {showEmoji && (
-                                <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmoji(false)} />
+                                <EmojiPicker
+                                    anchorRef={emojiRef}
+                                    onSelect={insertEmoji}
+                                    onClose={() => setShowEmoji(false)}
+                                />
                             )}
                         </div>
 
