@@ -94,30 +94,49 @@ export async function getAIRecommendations(prompt: string): Promise<MovieRecomme
 
         let text = '';
 
-        // Try JSON mode first, fall back to plain text
+        // Helper: sleep ms
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        // Retry with exponential backoff for rate limits (429)
+        const callGroq = async (useJsonMode: boolean): Promise<string> => {
+            const MAX_ATTEMPTS = 3;
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                try {
+                    const res = await groq!.chat.completions.create({
+                        model: 'llama-3.3-70b-versatile',
+                        temperature: 0.4,
+                        max_tokens: 1000,
+                        ...(useJsonMode ? { response_format: { type: 'json_object' as const } } : {}),
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user',   content: `Petición: ${prompt.trim()}` },
+                        ],
+                    });
+                    return res.choices[0]?.message?.content ?? '';
+                } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    const isRateLimit = msg.includes('429') || msg.includes('rate_limit') || msg.includes('rate limit');
+                    if (isRateLimit && attempt < MAX_ATTEMPTS) {
+                        // Exponential backoff: 2s, 4s
+                        await sleep(2000 * attempt);
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            throw new Error('Max retry attempts reached');
+        };
+
+        // Try JSON mode first, fall back to plain text if unsupported
         try {
-            const res = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                temperature: 0.4,
-                max_tokens: 1000,
-                response_format: { type: 'json_object' },
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user',   content: `Petición: ${prompt.trim()}` },
-                ],
-            });
-            text = res.choices[0]?.message?.content ?? '';
-        } catch {
-            const res = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                temperature: 0.4,
-                max_tokens: 1000,
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user',   content: `Petición: ${prompt.trim()}` },
-                ],
-            });
-            text = res.choices[0]?.message?.content ?? '';
+            text = await callGroq(true);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            // Only fall back to plain text if it's not a rate limit error
+            if (msg.includes('429') || msg.includes('rate_limit') || msg.includes('rate limit')) {
+                throw err; // Let the outer catch handle it with the right message
+            }
+            text = await callGroq(false);
         }
 
         const rows = extractJsonArray(text);

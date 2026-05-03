@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Send, Loader2, Film, AlertCircle, RefreshCw } from 'lucide-react';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
 import { getAIRecommendations, type MovieRecommendationPick } from '@/app/actions/ai';
@@ -42,10 +42,18 @@ const SUGGESTIONS = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function AIRecommendations() {
-    const [prompt,  setPrompt]  = useState('');
-    const [movies,  setMovies]  = useState<Movie[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error,   setError]   = useState('');
+    const [prompt,   setPrompt]   = useState('');
+    const [movies,   setMovies]   = useState<Movie[]>([]);
+    const [loading,  setLoading]  = useState(false);
+    const [error,    setError]    = useState('');
+    const [cooldown, setCooldown] = useState(0); // seconds remaining
+
+    // Countdown timer for rate-limit cooldown
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [cooldown]);
 
     const ask = async (text: string) => {
         const trimmed = text.trim();
@@ -68,6 +76,10 @@ export default function AIRecommendations() {
 
             if (!result.ok) {
                 setError(result.error);
+                // If rate limited, start a 15s cooldown
+                if (result.error.includes('solicitudes') || result.error.includes('rate')) {
+                    setCooldown(15);
+                }
                 return;
             }
 
@@ -135,13 +147,15 @@ export default function AIRecommendations() {
                     />
                     <button
                         type="submit"
-                        disabled={loading || !prompt.trim()}
+                        disabled={loading || !prompt.trim() || cooldown > 0}
                         aria-label="Buscar recomendaciones"
                         className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[var(--shadow-1)] transition-shadow shrink-0"
                     >
                         {loading
                             ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Send className="w-4 h-4" />
+                            : cooldown > 0
+                                ? <span className="text-[11px] font-bold tabular-nums">{cooldown}s</span>
+                                : <Send className="w-4 h-4" />
                         }
                     </button>
                 </form>
