@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { verifyRoomPassword } from '@/lib/watch-party-crypto';
 
 // ── POST /api/watch-party/[code] — join a party ───────────────────────────────
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -11,30 +12,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const body = await req.json().catch(() => ({}));
     const { password } = body;
 
-    // Find party
+    // Fetch party — explicitly exclude the password hash from the select so it
+    // never travels further than this function.
     const { data: party, error: partyErr } = await supabase
         .from('parties')
-        .select('*')
+        .select('id, room_code, title, poster_path, media_type, season, episode, name, status, host_id, is_private, password, created_at')
         .eq('room_code', code.toUpperCase())
         .single();
 
     if (partyErr || !party) return NextResponse.json({ error: 'Sala no encontrada' }, { status: 404 });
     if (party.status === 'finished') return NextResponse.json({ error: 'Esta sala ya terminó' }, { status: 410 });
 
-    // Password check for private rooms
-    if (party.is_private && party.password && party.password !== password) {
-        return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 403 });
+    // Password check for private rooms — compare against stored hash.
+    if (party.is_private && party.password) {
+        if (!password) {
+            return NextResponse.json({ error: 'Esta sala requiere contraseña' }, { status: 403 });
+        }
+        const valid = await verifyRoomPassword(password, party.password);
+        if (!valid) {
+            return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 403 });
+        }
     }
 
     // Upsert member (idempotent)
     const { error: joinErr } = await supabase
         .from('party_members')
-        .upsert({ party_id: party.id, user_id: user.id, is_ready: false, online_at: new Date().toISOString() },
-                 { onConflict: 'party_id,user_id' });
+        .upsert(
+            { party_id: party.id, user_id: user.id, is_ready: false, online_at: new Date().toISOString() },
+            { onConflict: 'party_id,user_id' }
+        );
 
     if (joinErr) return NextResponse.json({ error: joinErr.message }, { status: 500 });
 
-    return NextResponse.json({ party });
+    // Strip the password hash before returning the party object.
+    const { password: _omit, ...safeParty } = party;
+    return NextResponse.json({ party: safeParty });
 }
 
 // ── DELETE /api/watch-party/[code] — leave a party ───────────────────────────

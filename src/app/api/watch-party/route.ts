@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { hashRoomPassword } from '@/lib/watch-party-crypto';
 
 // ── POST /api/watch-party — create a party ────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Hash the room password before storing — never persist plaintext.
+    const passwordHash = (is_private && password)
+        ? await hashRoomPassword(password)
+        : null;
+
     // Generate unique 6-char room code
     const room_code = Math.random().toString(36).slice(2, 8).toUpperCase();
 
@@ -22,16 +28,16 @@ export async function POST(req: NextRequest) {
         .insert({
             tmdb_id,
             title,
-            poster_path: poster_path ?? null,
+            poster_path:   poster_path ?? null,
             media_type,
-            season:     season ?? null,
-            episode:    episode ?? null,
-            host_id:    user.id,
-            name:       name || 'Sala de Cine',
-            is_private: is_private ?? false,
-            password:   is_private && password ? password : null,
+            season:        season ?? null,
+            episode:       episode ?? null,
+            host_id:       user.id,
+            name:          name || 'Sala de Cine',
+            is_private:    is_private ?? false,
+            password:      passwordHash,
             room_code,
-            status:     'waiting',
+            status:        'waiting',
         })
         .select()
         .single();
@@ -45,7 +51,9 @@ export async function POST(req: NextRequest) {
         is_ready: false,
     });
 
-    return NextResponse.json({ party });
+    // Never return the password hash to the client.
+    const { password: _omit, ...safeParty } = party;
+    return NextResponse.json({ party: safeParty });
 }
 
 // ── GET /api/watch-party — list public parties ────────────────────────────────
@@ -56,7 +64,7 @@ export async function GET() {
 
     const { data, error } = await supabase
         .from('parties')
-        .select('*, party_members(count)')
+        .select('id, room_code, title, poster_path, media_type, season, episode, name, status, host_id, created_at, party_members(count)')
         .eq('is_private', false)
         .neq('status', 'finished')
         .order('created_at', { ascending: false })

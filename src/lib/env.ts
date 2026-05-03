@@ -86,6 +86,18 @@ export function hasRequiredEnv(): boolean {
     return Boolean(process.env.TMDB_API_KEY);
 }
 
+/**
+ * Secret used to derive STB device passwords via HMAC.
+ * Must be set in production — falls back to a build-time warning if absent.
+ */
+export function getPortalDeviceSecret(): string {
+    const secret = process.env.PORTAL_DEVICE_SECRET;
+    if (!secret) {
+        logMissingEnv('PORTAL_DEVICE_SECRET');
+    }
+    return secret ?? '';
+}
+
 // Back-compat helpers (discouraged — prefer the typed accessors above).
 export function getRequiredEnv(key: string): string {
     const value = process.env[key];

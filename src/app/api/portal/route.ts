@@ -12,8 +12,36 @@ import {
     getExternalIds
 } from '@/lib/tmdb/service';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createHmac } from 'crypto';
 
-import { getOptionalApiKeys } from '@/lib/env';
+import { getOptionalApiKeys, getPortalDeviceSecret } from '@/lib/env';
+
+/**
+ * Minimal Stalker bootstrap HTML.
+ * STBEmu / MAG devices load /portal.php with no params first.
+ * This page reads the device MAC via the STB JS API and immediately
+ * redirects to the handshake endpoint with the MAC as a query param.
+ */
+const STALKER_BOOTSTRAP_HTML = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>FilmiFy Portal</title></head>
+<body>
+<script>
+(function() {
+  var mac = '';
+  try { mac = window.stb ? window.stb.GetDeviceInfo().mac : ''; } catch(e) {}
+  if (!mac) { try { mac = window.stbApi ? window.stbApi.getDeviceInfo().mac : ''; } catch(e) {} }
+  if (!mac) { try { mac = window.gSTB ? window.gSTB.GetDeviceInfo().mac : ''; } catch(e) {} }
+  if (mac) {
+    document.cookie = 'mac=' + mac + '; path=/';
+    window.location.href = '/portal.php?type=stb&action=handshake&mac=' + encodeURIComponent(mac);
+  } else {
+    document.body.innerHTML = '<p>No se pudo detectar la MAC del dispositivo. Configura la MAC manualmente en la app.</p>';
+  }
+})();
+</script>
+</body>
+</html>`;
 
 // Configuration
 const PORTAL_NAME = 'FilmiFy TV';
@@ -65,6 +93,8 @@ const DEVICE_REGISTRATION_DAILY_LIMIT = 500;
 /**
  * Authenticate or register STB device via Supabase.
  * - Validates MAC format before touching the DB
+ * - Derives a server-side password via HMAC(secret, mac) so that knowing
+ *   the MAC address alone is not sufficient to authenticate
  * - Checks a daily registration cap to prevent user-creation floods
  * - Reuses existing accounts on re-handshake (no duplicate creates)
  */
@@ -73,9 +103,20 @@ async function authenticateDevice(mac: string) {
         throw new Error('Invalid MAC address format');
     }
 
+    const deviceSecret = getPortalDeviceSecret();
+    if (!deviceSecret) {
+        throw new Error('STB portal is not configured (missing PORTAL_DEVICE_SECRET)');
+    }
+
     const supabase = createServiceRoleClient();
     const email = `${mac.replace(/[:-]/g, '').toLowerCase()}@stb.filmify.com`;
-    const password = mac;
+
+    // Derive a server-side password: HMAC-SHA256(secret, mac).
+    // The MAC address is public — using it directly as a password (SEC-006)
+    // allowed anyone who knew a device's MAC to impersonate it.
+    const password = createHmac('sha256', deviceSecret)
+        .update(mac.toLowerCase())
+        .digest('hex');
 
     // 1. Try to sign in — fast path for returning devices
     const { data: signInData } = await supabase.auth.signInWithPassword({ email, password });
@@ -122,9 +163,53 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || '';
     const action = searchParams.get('action') || '';
-    const mac = searchParams.get('mac') || request.headers.get('x-user-mac') || '';
 
-    console.log(`STB Request: type=${type}, action=${action}, mac=${mac}`);
+    // Different Stalker client apps send the MAC in different ways.
+    // Check all known locations in order of preference.
+    const mac = (
+        searchParams.get('mac') ||                          // query param (most common)
+        request.headers.get('x-user-mac') ||               // custom header
+        request.headers.get('mac') ||                      // some clients use plain "mac"
+        request.headers.get('x-mac-address') ||            // alternative header name
+        request.cookies.get('mac')?.value ||               // cookie — STBEmu sends MAC here
+        ''
+    ).trim();
+
+    // Log every request for debugging.
+    console.log(`STB Request: type=${type}, action=${action}, mac=${mac || '(none)'}`);
+    if (!mac) {
+        console.log('STB headers:', Object.fromEntries(request.headers.entries()));
+        console.log('STB cookies:', request.cookies.toString());
+    }
+
+    // ── Initial portal load (no type/action/mac) ──────────────────────────────
+    // STBEmu and MAG devices first load /portal.php with no parameters.
+    // The real Stalker middleware responds with an HTML bootstrap page that
+    // sets a cookie and loads the portal JS. We serve a minimal redirect page
+    // that sets the mac cookie from the User-Agent (MAG devices embed the MAC
+    // in the UA string) and then reloads so the JS can start the handshake.
+    if (!type && !action && !mac) {
+        // Try to extract MAC from User-Agent (MAG devices: "MAG200 stbapp ... mac=XX:XX:XX:XX:XX:XX")
+        const ua = request.headers.get('user-agent') || '';
+        const uaMac = ua.match(/([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}/)?.[0] || '';
+
+        if (uaMac) {
+            // Redirect back with mac as query param so the handshake can proceed.
+            const url = new URL(request.url);
+            url.searchParams.set('type', 'stb');
+            url.searchParams.set('action', 'handshake');
+            url.searchParams.set('mac', uaMac);
+            const response = NextResponse.redirect(url);
+            response.cookies.set('mac', uaMac, { path: '/', sameSite: 'lax' });
+            return response;
+        }
+
+        // No MAC anywhere — return the Stalker bootstrap HTML.
+        // The client JS will read its own MAC and send it on the next request.
+        return new NextResponse(STALKER_BOOTSTRAP_HTML, {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+    }
 
     if (!mac) {
         return NextResponse.json({ error: 'MAC address required' }, { status: 400 });

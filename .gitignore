@@ -30,8 +30,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — local overrides with real secrets, never commit
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally NOT ignored — it's the public template
 
 # Kiro MCP config — contains API tokens, never commit
 .kiro/settings/mcp.json

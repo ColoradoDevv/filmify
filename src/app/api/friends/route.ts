@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getSupabaseConfig } from '@/lib/env';
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 type FriendAction = 'accept' | 'reject' | 'cancel' | 'remove';
 
@@ -13,19 +12,6 @@ interface FriendPreferences {
     outgoingFriendRequests: string[];
 }
 
-function createFriendsClient() {
-    const { url, serviceRoleKey } = getSupabaseConfig();
-    if (!url || !serviceRoleKey) {
-        return null;
-    }
-
-    return createClient(url, serviceRoleKey, {
-        auth: {
-            persistSession: false,
-        },
-    });
-}
-
 function normalizePreferences(preferences: any): FriendPreferences {
     return {
         privacy: preferences?.privacy ?? {},
@@ -35,7 +21,14 @@ function normalizePreferences(preferences: any): FriendPreferences {
     };
 }
 
-async function fetchProfilesForFriendAction(supabase: any, requesterId: string, targetId: string) {
+/**
+ * Fetches both profiles using the service-role client (needed to read/write
+ * the target user's preferences, which RLS would otherwise block).
+ * Identity of the caller is already verified before this is called.
+ */
+async function fetchProfilesForFriendAction(requesterId: string, targetId: string) {
+    const supabase = createServiceRoleClient();
+
     const [{ data: requesterData, error: requesterError }, { data: targetData, error: targetError }] = await Promise.all([
         supabase.from('profiles').select('id, preferences').eq('id', requesterId).single(),
         supabase.from('profiles').select('id, preferences').eq('id', targetId).single(),
@@ -54,24 +47,57 @@ async function fetchProfilesForFriendAction(supabase: any, requesterId: string, 
     };
 }
 
+/**
+ * Writes updated preferences for both users using the service-role client.
+ * Only called after the caller's identity has been verified via session.
+ */
+async function updateBothProfiles(
+    requesterId: string,
+    targetId: string,
+    updatedRequesterPrefs: FriendPreferences,
+    updatedTargetPrefs: FriendPreferences,
+) {
+    const supabase = createServiceRoleClient();
+
+    const [{ error: updateRequesterError }, { error: updateTargetError }] = await Promise.all([
+        supabase.from('profiles').update({ preferences: updatedRequesterPrefs }).eq('id', requesterId),
+        supabase.from('profiles').update({ preferences: updatedTargetPrefs }).eq('id', targetId),
+    ]);
+
+    return { updateRequesterError, updateTargetError };
+}
+
+/** Resolves the authenticated user from the session cookie. Returns null if not authenticated. */
+async function getAuthenticatedUserId(): Promise<string | null> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+}
+
+// ── POST /api/friends — send a friend request ─────────────────────────────────
 export async function POST(request: NextRequest) {
     try {
-        const supabase = createFriendsClient();
-        if (!supabase) {
-            return NextResponse.json({ error: 'Supabase service credentials are not configuradas.' }, { status: 500 });
+        // 1. Verify identity from session — never trust the request body for this.
+        const authenticatedUserId = await getAuthenticatedUserId();
+        if (!authenticatedUserId) {
+            return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { requesterId, targetId } = body;
+        const { targetId } = body;
 
-        if (!requesterId || !targetId) {
-            return NextResponse.json({ error: 'Faltan datos de la solicitud.' }, { status: 400 });
+        if (!targetId) {
+            return NextResponse.json({ error: 'Falta el ID del destinatario.' }, { status: 400 });
         }
+
+        // 2. requesterId is always the authenticated user — not from the body.
+        const requesterId = authenticatedUserId;
+
         if (requesterId === targetId) {
             return NextResponse.json({ error: 'No puedes enviarte una solicitud a ti mismo.' }, { status: 400 });
         }
 
-        const { requesterPrefs, targetPrefs } = await fetchProfilesForFriendAction(supabase, requesterId, targetId);
+        const { requesterPrefs, targetPrefs } = await fetchProfilesForFriendAction(requesterId, targetId);
         const allowFriendRequests = targetPrefs.privacy.allowFriendRequests ?? true;
 
         if (!allowFriendRequests) {
@@ -95,10 +121,9 @@ export async function POST(request: NextRequest) {
             outgoingFriendRequests: Array.from(new Set([...requesterPrefs.outgoingFriendRequests, targetId])),
         };
 
-        const [{ error: updateTargetError }, { error: updateRequesterError }] = await Promise.all([
-            supabase.from('profiles').update({ preferences: updatedTargetPrefs }).eq('id', targetId),
-            supabase.from('profiles').update({ preferences: updatedRequesterPrefs }).eq('id', requesterId),
-        ]);
+        const { updateRequesterError, updateTargetError } = await updateBothProfiles(
+            requesterId, targetId, updatedRequesterPrefs, updatedTargetPrefs,
+        );
 
         if (updateTargetError || updateRequesterError) {
             console.error(updateTargetError || updateRequesterError);
@@ -112,86 +137,79 @@ export async function POST(request: NextRequest) {
     }
 }
 
+// ── PATCH /api/friends — accept / reject / cancel / remove ────────────────────
 export async function PATCH(request: NextRequest) {
     try {
-        const supabase = createFriendsClient();
-        if (!supabase) {
-            return NextResponse.json({ error: 'Supabase service credentials are not configuradas.' }, { status: 500 });
+        // 1. Verify identity from session — never trust the request body for this.
+        const authenticatedUserId = await getAuthenticatedUserId();
+        if (!authenticatedUserId) {
+            return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { action, requesterId, targetId } = body;
+        const { action, targetId } = body;
 
-        if (!action || !requesterId || !targetId) {
+        if (!action || !targetId) {
             return NextResponse.json({ error: 'Faltan datos para procesar la acción.' }, { status: 400 });
         }
-        if (!['accept', 'reject', 'cancel', 'remove'].includes(action)) {
+        if (!['accept', 'reject', 'cancel', 'remove'].includes(action as FriendAction)) {
             return NextResponse.json({ error: 'Acción no válida.' }, { status: 400 });
         }
 
-        const { requesterPrefs, targetPrefs } = await fetchProfilesForFriendAction(supabase, requesterId, targetId);
+        // 2. requesterId is always the authenticated user — not from the body.
+        const requesterId = authenticatedUserId;
+
+        if (requesterId === targetId) {
+            return NextResponse.json({ error: 'Operación no válida.' }, { status: 400 });
+        }
+
+        const { requesterPrefs, targetPrefs } = await fetchProfilesForFriendAction(requesterId, targetId);
+
+        // 3. Authorization checks: verify the action is consistent with the
+        //    actual state of the relationship, preventing spoofed actions.
         const hasIncomingRequest = targetPrefs.incomingFriendRequests.includes(requesterId);
         const hasOutgoingRequest = requesterPrefs.outgoingFriendRequests.includes(targetId);
-        const areFriends = targetPrefs.friends.includes(requesterId) || requesterPrefs.friends.includes(targetId);
 
-        if (action === 'accept' || action === 'reject') {
-            if (!hasIncomingRequest) {
-                return NextResponse.json({ error: 'No existe esa solicitud de amistad.' }, { status: 400 });
-            }
+        if ((action === 'accept' || action === 'reject') && !hasIncomingRequest) {
+            return NextResponse.json({ error: 'No existe esa solicitud de amistad.' }, { status: 400 });
         }
 
-        if (action === 'cancel') {
-            if (!hasOutgoingRequest) {
-                return NextResponse.json({ error: 'No se encontró la solicitud enviada.' }, { status: 400 });
-            }
+        if (action === 'cancel' && !hasOutgoingRequest) {
+            return NextResponse.json({ error: 'No se encontró la solicitud enviada.' }, { status: 400 });
         }
 
-        const updatedTargetPrefs: FriendPreferences = {
-            ...targetPrefs,
-            privacy: targetPrefs.privacy,
-            friends: targetPrefs.friends,
-            incomingFriendRequests: targetPrefs.incomingFriendRequests,
-            outgoingFriendRequests: targetPrefs.outgoingFriendRequests,
-        };
-
-        const updatedRequesterPrefs: FriendPreferences = {
-            ...requesterPrefs,
-            privacy: requesterPrefs.privacy,
-            friends: requesterPrefs.friends,
-            incomingFriendRequests: requesterPrefs.incomingFriendRequests,
-            outgoingFriendRequests: requesterPrefs.outgoingFriendRequests,
-        };
+        const updatedTargetPrefs: FriendPreferences = { ...targetPrefs };
+        const updatedRequesterPrefs: FriendPreferences = { ...requesterPrefs };
 
         if (action === 'accept') {
-            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id: string) => id !== targetId);
-            updatedTargetPrefs.friends = Array.from(new Set([...(updatedTargetPrefs.friends || []), requesterId]));
-            updatedRequesterPrefs.friends = Array.from(new Set([...(updatedRequesterPrefs.friends || []), targetId]));
+            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id) => id !== targetId);
+            updatedTargetPrefs.friends = Array.from(new Set([...targetPrefs.friends, requesterId]));
+            updatedRequesterPrefs.friends = Array.from(new Set([...requesterPrefs.friends, targetId]));
         }
 
         if (action === 'reject') {
-            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id: string) => id !== targetId);
+            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id) => id !== targetId);
         }
 
         if (action === 'cancel') {
-            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id: string) => id !== targetId);
+            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id) => id !== targetId);
         }
 
         if (action === 'remove') {
-            updatedTargetPrefs.friends = targetPrefs.friends.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.friends = requesterPrefs.friends.filter((id: string) => id !== targetId);
-            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.incomingFriendRequests = requesterPrefs.incomingFriendRequests.filter((id: string) => id !== targetId);
-            updatedTargetPrefs.outgoingFriendRequests = targetPrefs.outgoingFriendRequests.filter((id: string) => id !== requesterId);
-            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id: string) => id !== targetId);
+            updatedTargetPrefs.friends = targetPrefs.friends.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.friends = requesterPrefs.friends.filter((id) => id !== targetId);
+            updatedTargetPrefs.incomingFriendRequests = targetPrefs.incomingFriendRequests.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.incomingFriendRequests = requesterPrefs.incomingFriendRequests.filter((id) => id !== targetId);
+            updatedTargetPrefs.outgoingFriendRequests = targetPrefs.outgoingFriendRequests.filter((id) => id !== requesterId);
+            updatedRequesterPrefs.outgoingFriendRequests = requesterPrefs.outgoingFriendRequests.filter((id) => id !== targetId);
         }
 
-        const [{ error: updateTargetError }, { error: updateRequesterError }] = await Promise.all([
-            supabase.from('profiles').update({ preferences: updatedTargetPrefs }).eq('id', targetId),
-            supabase.from('profiles').update({ preferences: updatedRequesterPrefs }).eq('id', requesterId),
-        ]);
+        const { updateRequesterError, updateTargetError } = await updateBothProfiles(
+            requesterId, targetId, updatedRequesterPrefs, updatedTargetPrefs,
+        );
 
         if (updateTargetError || updateRequesterError) {
             console.error(updateTargetError || updateRequesterError);

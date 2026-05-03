@@ -18,7 +18,7 @@ export default function Footer() {
 
     useEffect(() => {
         const supabase = createClient();
-        supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
+        supabase.auth.getUser().then(({ data }: { data: { user: any } }) => setIsLoggedIn(!!data.user));
     }, []);
 
     const handleSubscribe = async (e: React.FormEvent) => {

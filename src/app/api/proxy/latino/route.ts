@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { validateOutboundUrl } from '@/lib/ssrf-guard';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs'; // Usa Node para fetch full
+export const runtime = 'nodejs';
+
+/**
+ * Allowlist of streaming embed domains this proxy is permitted to fetch.
+ * localhost / 127.0.0.1 are intentionally excluded — they were an SSRF vector.
+ * Add new domains here only after explicit review.
+ */
+const ALLOWED_EMBED_HOSTS = new Set([
+    'unlimplay.com',
+    'vidsrc.xyz',
+    'vidsrc.to',
+    'vidsrc.in',
+    'vidlink.pro',
+    'embed.su',
+    'multiembed.mov',
+    'www.2embed.cc',
+    '2embed.cc',
+    'autoembed.co',
+    'watch.rivestream.app',
+]);
 
 export async function GET(request: NextRequest) {
+    // 1. Authentication — only logged-in users can use this proxy.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+    }
+
     const urlParam = request.nextUrl.searchParams.get('url');
     if (!urlParam) return NextResponse.json({ error: 'Falta URL' }, { status: 400 });
 
@@ -14,11 +42,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'URL inválida' }, { status: 400 });
     }
 
-    const allowedHosts = new Set([
-        'filmify.me',
-        'localhost',
-        '127.0.0.1',
-    ]);
+    // 2. Parse and validate scheme / private-IP ranges via the shared SSRF guard.
+    const guard = validateOutboundUrl(targetUrl);
+    if (!guard.ok) {
+        return NextResponse.json({ error: guard.reason }, { status: 400 });
+    }
 
     let parsedUrl: URL;
     try {
@@ -27,11 +55,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'URL inválida' }, { status: 400 });
     }
 
-    if (!allowedHosts.has(parsedUrl.hostname.toLowerCase())) {
+    // 3. Domain allowlist — only known streaming embed providers are permitted.
+    const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+    const hostnameWithWww = parsedUrl.hostname.toLowerCase();
+    if (!ALLOWED_EMBED_HOSTS.has(hostname) && !ALLOWED_EMBED_HOSTS.has(hostnameWithWww)) {
         return NextResponse.json({ error: 'Dominio no permitido' }, { status: 403 });
     }
 
-    if (parsedUrl.protocol !== 'https:' && parsedUrl.hostname !== 'localhost') {
+    // 4. HTTPS only (the SSRF guard already enforces this, but be explicit).
+    if (parsedUrl.protocol !== 'https:') {
         return NextResponse.json({ error: 'Solo se permiten URLs HTTPS' }, { status: 403 });
     }
 
@@ -70,11 +102,11 @@ export async function GET(request: NextRequest) {
         const neutralizationScript = `
             <script>
                 // Bloqueo agresivo de funciones peligrosas
-                window.atob = function(str) { 
-                    console.log('Blocked atob:', str); 
-                    return "{}"; // Return valid JSON to prevent JSON.parse crash
+                window.atob = function(str) {
+                    console.log('Blocked atob:', str);
+                    return "{}";
                 };
-                
+
                 // Bloquear fetch a endpoints sospechosos
                 const originalFetch = window.fetch;
                 window.fetch = function(input, init) {
@@ -99,27 +131,25 @@ export async function GET(request: NextRequest) {
                 const originalPostMessage = window.postMessage;
                 window.postMessage = function(message, targetOrigin, transfer) {
                     if (typeof message === 'string' && (message.includes('_fd') || message.includes('_tr') || message.includes('bhkchXscA'))) {
-                         console.log('Blocked postMessage:', message);
-                         return;
+                        console.log('Blocked postMessage:', message);
+                        return;
                     }
                     return originalPostMessage.apply(this, arguments);
                 };
 
-                // Neutralizar variables globales sospechosas
                 window._fd = null;
                 window._tr = null;
             </script>
         `;
 
-        // REESCIRITURA MÁGICA (arregla todos los errores: links, scripts, atob, _fd)
         html = html
-            .replace('<head>', '<head>' + neutralizationScript) // Inyectar script al inicio del head
-            .replace(/src="\/\//g, `src="https://`) // HTTP absolutos
+            .replace('<head>', '<head>' + neutralizationScript)
+            .replace(/src="\/\//g, `src="https://`)
             .replace(/href="\/\//g, `href="https://`)
-            .replace(/src="\//g, `src="${origin}/`) // Relativos a absolutos
+            .replace(/src="\//g, `src="${origin}/`)
             .replace(/href="\//g, `href="${origin}/`)
             .replace(/action="\//g, `action="${origin}/`)
-            .replace(/window\.location|document\.location|location\.href/g, '""'); // Bloquea redirecciones
+            .replace(/window\.location|document\.location|location\.href/g, '""');
 
         return new NextResponse(html, {
             status: 200,
