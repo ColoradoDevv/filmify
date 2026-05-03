@@ -1,410 +1,400 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, AlertCircle } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Volume2, VolumeX, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Tv } from 'lucide-react';
 import type { LiveChannel } from '@/services/liveTV';
 
 interface LiveTVPlayerProps {
     channel: LiveChannel;
+    relatedChannels?: LiveChannel[];
+    hasPrev?: boolean;
+    hasNext?: boolean;
+    onPrev?: () => void;
+    onNext?: () => void;
+    onSelectChannel?: (ch: LiveChannel) => void;
     onClose: () => void;
 }
 
-export default function LiveTVPlayer({ channel, onClose }: LiveTVPlayerProps) {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showControls, setShowControls] = useState(true);
-    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const hlsRef = useRef<any>(null);
-    const retryCountRef = useRef(0);
-    const isMountedRef = useRef(false);
+export default function LiveTVPlayer({
+    channel,
+    relatedChannels = [],
+    hasPrev = false,
+    hasNext = false,
+    onPrev,
+    onNext,
+    onSelectChannel,
+    onClose,
+}: LiveTVPlayerProps) {
+    const videoRef      = useRef<HTMLVideoElement>(null);
+    const containerRef  = useRef<HTMLDivElement>(null);
+    const hlsRef        = useRef<any>(null);
+    const isMountedRef  = useRef(false);
+    const retryRef      = useRef(0);
+    const controlsTimer = useRef<NodeJS.Timeout | null>(null);
 
-    const [retryCount, setRetryCount] = useState(0);
+    const [isPlaying,     setIsPlaying]     = useState(false);
+    const [isMuted,       setIsMuted]       = useState(false);
+    const [error,         setError]         = useState<string | null>(null);
+    const [isLoading,     setIsLoading]     = useState(true);
+    const [showControls,  setShowControls]  = useState(true);
+
     const MAX_RETRIES = 3;
 
-    // Lock body scroll
+    // ── Lock body scroll ────────────────────────────────────────────────────
     useEffect(() => {
         document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
+        return () => { document.body.style.overflow = ''; };
     }, []);
 
-    // Auto-hide controls
-    const resetControlsTimeout = () => {
+    // ── Keyboard shortcuts ──────────────────────────────────────────────────
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape')      { onClose(); return; }
+            if (e.key === 'ArrowLeft')   { onPrev?.(); return; }
+            if (e.key === 'ArrowRight')  { onNext?.(); return; }
+            if (e.key === 'm' || e.key === 'M') toggleMute();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose, onPrev, onNext]);
+
+    // ── Auto-hide controls ──────────────────────────────────────────────────
+    const showControlsFor = useCallback(() => {
         setShowControls(true);
-        if (controlsTimeoutRef.current) {
-            clearTimeout(controlsTimeoutRef.current);
-        }
-        controlsTimeoutRef.current = setTimeout(() => {
-            if (isPlaying) {
-                setShowControls(false);
-            }
-        }, 3000);
-    };
+        if (controlsTimer.current) clearTimeout(controlsTimer.current);
+        controlsTimer.current = setTimeout(() => setShowControls(false), 3000);
+    }, []);
 
     useEffect(() => {
-        const handleMouseMove = () => resetControlsTimeout();
-        const container = containerRef.current;
-        if (container) {
-            container.addEventListener('mousemove', handleMouseMove);
-            container.addEventListener('touchstart', handleMouseMove);
-            container.addEventListener('click', handleMouseMove);
-        }
+        const el = containerRef.current;
+        if (!el) return;
+        el.addEventListener('mousemove', showControlsFor);
+        el.addEventListener('touchstart', showControlsFor);
         return () => {
-            if (container) {
-                container.removeEventListener('mousemove', handleMouseMove);
-                container.removeEventListener('touchstart', handleMouseMove);
-                container.removeEventListener('click', handleMouseMove);
-            }
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current);
-            }
+            el.removeEventListener('mousemove', showControlsFor);
+            el.removeEventListener('touchstart', showControlsFor);
+            if (controlsTimer.current) clearTimeout(controlsTimer.current);
         };
-    }, [isPlaying]);
+    }, [showControlsFor]);
+
+    // ── Load stream ─────────────────────────────────────────────────────────
+    const loadStream = useCallback(async () => {
+        const video = videoRef.current;
+        if (!video || !isMountedRef.current) return;
+
+        // Destroy previous HLS instance
+        if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+
+        setIsLoading(true);
+        setError(null);
+        retryRef.current = 0;
+
+        try {
+            const Hls = (await import('hls.js')).default;
+
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    backBufferLength: 60,
+                    maxBufferLength: 20,
+                    manifestLoadingTimeOut: 15000,
+                    manifestLoadingMaxRetry: 3,
+                    levelLoadingTimeOut: 15000,
+                    fragLoadingTimeOut: 20000,
+                    fragLoadingMaxRetry: 4,
+                });
+                hlsRef.current = hls;
+
+                const proxyUrl = `/api/stream?url=${encodeURIComponent(channel.streamUrl)}`;
+                hls.loadSource(proxyUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    if (!isMountedRef.current) return;
+                    retryRef.current = 0;
+                    setIsLoading(false);
+                    video.play().catch(() => setIsPlaying(false));
+                    setIsPlaying(true);
+                    showControlsFor();
+                });
+
+                hls.on(Hls.Events.ERROR, (_: unknown, data: any) => {
+                    if (!data.fatal) return;
+
+                    const code = data.response?.code;
+
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                        // 4xx → stream is dead/geo-blocked, no point retrying
+                        if (code && code >= 400) {
+                            hls.destroy();
+                            if (isMountedRef.current) {
+                                setError(code === 403
+                                    ? 'Canal bloqueado por restricción geográfica (403).'
+                                    : `Canal no disponible (${code}). El stream puede haber cambiado de URL.`
+                                );
+                                setIsLoading(false);
+                            }
+                            return;
+                        }
+
+                        // Transient network error — retry up to MAX_RETRIES
+                        retryRef.current += 1;
+                        if (retryRef.current <= MAX_RETRIES) {
+                            setTimeout(() => { if (isMountedRef.current) hls.startLoad(); }, 1500);
+                        } else {
+                            hls.destroy();
+                            if (isMountedRef.current) {
+                                setError('No se pudo conectar al stream. Puede estar temporalmente fuera de servicio.');
+                                setIsLoading(false);
+                            }
+                        }
+                        return;
+                    }
+
+                    if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                        hls.recoverMediaError();
+                        return;
+                    }
+
+                    hls.destroy();
+                    if (isMountedRef.current) {
+                        setError('Stream no disponible. Prueba con otro canal.');
+                        setIsLoading(false);
+                    }
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari native HLS
+                video.src = channel.streamUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    if (!isMountedRef.current) return;
+                    setIsLoading(false);
+                    video.play();
+                    setIsPlaying(true);
+                    showControlsFor();
+                }, { once: true });
+                video.addEventListener('error', () => {
+                    if (!isMountedRef.current) return;
+                    setError('No se pudo reproducir el stream en Safari.');
+                    setIsLoading(false);
+                }, { once: true });
+            } else {
+                setError('Tu navegador no soporta streaming HLS.');
+                setIsLoading(false);
+            }
+        } catch {
+            if (isMountedRef.current) {
+                setError('Error inesperado al cargar el stream.');
+                setIsLoading(false);
+            }
+        }
+    }, [channel.streamUrl, showControlsFor]);
 
     useEffect(() => {
         isMountedRef.current = true;
-
-        const video = videoRef.current;
-        if (!video) return;
-
-        const loadStream = async () => {
-            if (isMountedRef.current) {
-                setIsLoading(true);
-                setError(null);
-                setRetryCount(0);
-            }
-            retryCountRef.current = 0;
-
-            try {
-                // Dynamically import hls.js
-                const Hls = (await import('hls.js')).default;
-
-                if (Hls.isSupported()) {
-                    const hls = new Hls({
-                        enableWorker: true,
-                        lowLatencyMode: false, // Disable for better stability with IPTV
-                        backBufferLength: 90,
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        manifestLoadingTimeOut: 20000, // 20 seconds
-                        manifestLoadingMaxRetry: 4,
-                        manifestLoadingRetryDelay: 1000,
-                        levelLoadingTimeOut: 20000,
-                        levelLoadingMaxRetry: 4,
-                        levelLoadingRetryDelay: 1000,
-                        fragLoadingTimeOut: 30000, // 30 seconds for fragments
-                        fragLoadingMaxRetry: 6, // More retries for fragments
-                        fragLoadingRetryDelay: 1000,
-                        xhrSetup: function (xhr: XMLHttpRequest, url: string) {
-                            // Add custom headers if needed
-                            xhr.withCredentials = false;
-                        }
-                    });
-
-                    hlsRef.current = hls;
-
-                    // Use proxy API route to bypass CORS
-                    const proxyUrl = `/api/stream?url=${encodeURIComponent(channel.streamUrl)}`;
-                    hls.loadSource(proxyUrl);
-                    hls.attachMedia(video);
-
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        retryCountRef.current = 0;
-                        if (!isMountedRef.current) return;
-                        setIsLoading(false);
-                        setRetryCount(0); // Reset retries on successful load
-                        video.play().catch(e => {
-                            console.error('Autoplay failed:', e);
-                            if (isMountedRef.current) {
-                                setIsPlaying(false);
-                            }
-                        });
-                        setIsPlaying(true);
-                        resetControlsTimeout();
-                    });
-
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        console.error('HLS error:', data.type, data.details, data);
-
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    if (data.details === 'manifestLoadError') {
-                                        // Check for 404/403 which means stream is dead/forbidden
-                                        const responseCode = data.response?.code;
-                                                                if (responseCode && responseCode >= 400) {
-                                            console.error('Stream not found or forbidden:', responseCode);
-                                            hls.destroy();
-                                            if (isMountedRef.current) {
-                                                setError(`Este canal no está disponible (Error ${responseCode}). Muchos canales gratuitos cambian frecuentemente. Intenta con otro canal.`);
-                                                setIsLoading(false);
-                                            }
-                                            return;
-                                        }
-                                        // Manifest load error without response code (likely CORS or network issue)
-                                        console.error('Manifest load error:', data);
-                                        hls.destroy();
-                                        if (isMountedRef.current) {
-                                            setError('No se pudo cargar el stream. El canal puede estar offline o bloqueado por restricciones geográficas.');
-                                            setIsLoading(false);
-                                        }
-                                        return;
-                                    }
-
-                                    if (data.details === 'levelLoadError') {
-                                        // Level/segment loading error - retry with limit
-                                        console.error('Level load error:', data);
-                                        const newCount = retryCountRef.current + 1;
-                                        retryCountRef.current = newCount;
-                                        if (newCount <= MAX_RETRIES) {
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                            }
-                                            console.log(`Level load error, retrying (${newCount}/${MAX_RETRIES})...`);
-                                            hls.startLoad();
-                                        } else {
-                                            console.error('Max retries reached for level loading.');
-                                            hls.destroy();
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                                setError('No se pudieron cargar los segmentos de video. El stream puede estar corrupto o bloqueado.');
-                                                setIsLoading(false);
-                                            }
-                                        }
-                                        return;
-                                    }
-
-                                    if (data.details === 'fragLoadError') {
-                                        // Fragment loading error - this is common with IPTV streams
-                                        console.warn('Fragment load error, attempting recovery...', data);
-                                        // Don't destroy immediately, let HLS.js try to recover
-                                        const newCount = retryCountRef.current + 1;
-                                        retryCountRef.current = newCount;
-                                        if (newCount <= MAX_RETRIES) {
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                            }
-                                            console.log(`Fragment error, retrying (${newCount}/${MAX_RETRIES})...`);
-                                            setTimeout(() => {
-                                                if (isMountedRef.current) {
-                                                    hls.startLoad();
-                                                }
-                                            }, 1000);
-                                        } else {
-                                            console.error('Too many fragment errors, giving up.');
-                                            hls.destroy();
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                                setError('El stream es demasiado inestable. Intenta con otro canal o verifica tu conexión a internet.');
-                                                setIsLoading(false);
-                                            }
-                                        }
-                                        return;
-                                    }
-
-                                    // Handle generic network errors with retry limit
-                                    {
-                                        const newCount = retryCountRef.current + 1;
-                                        retryCountRef.current = newCount;
-                                        if (newCount <= MAX_RETRIES) {
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                            }
-                                            console.log(`Network error, retrying (${newCount}/${MAX_RETRIES})...`);
-                                            hls.startLoad();
-                                        } else {
-                                            console.error('Max retries reached, giving up.');
-                                            hls.destroy();
-                                            if (isMountedRef.current) {
-                                                setRetryCount(newCount);
-                                                setError('Problemas de conexión persistentes. El canal puede estar temporalmente fuera de servicio.');
-                                                setIsLoading(false);
-                                            }
-                                        }
-                                    }
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    console.log('Fatal media error encountered, trying to recover...');
-                                    hls.recoverMediaError();
-                                    break;
-                                default:
-                                    console.error('Fatal error, cannot recover');
-                                    hls.destroy();
-                                    if (isMountedRef.current) {
-                                        setError('Stream no disponible. Intenta con otro canal.');
-                                        setIsLoading(false);
-                                    }
-                                    break;
-                            }
-                        }
-                    });
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Native HLS support (Safari)
-                    video.src = channel.streamUrl;
-                    video.addEventListener('loadedmetadata', () => {
-                        if (!isMountedRef.current) return;
-                        setIsLoading(false);
-                        video.play();
-                        setIsPlaying(true);
-                        resetControlsTimeout();
-                    });
-                } else {
-                    if (isMountedRef.current) {
-                        setError('Tu navegador no soporta streaming HLS');
-                        setIsLoading(false);
-                    }
-                }
-            } catch (err) {
-                console.error('Error loading stream:', err);
-                if (isMountedRef.current) {
-                    setError('Error al cargar el stream');
-                    setIsLoading(false);
-                }
-            }
-        };
-
         loadStream();
-
         return () => {
             isMountedRef.current = false;
-            if (hlsRef.current) {
-                hlsRef.current.destroy();
-            }
+            hlsRef.current?.destroy();
         };
-    }, [channel.streamUrl]);
-
-    const togglePlay = () => {
-        if (!videoRef.current) return;
-        if (isPlaying) {
-            videoRef.current.pause();
-        } else {
-            videoRef.current.play();
-        }
-        setIsPlaying(!isPlaying);
-        resetControlsTimeout();
-    };
+    }, [loadStream]);
 
     const toggleMute = () => {
         if (!videoRef.current) return;
         videoRef.current.muted = !isMuted;
-        setIsMuted(!isMuted);
-        resetControlsTimeout();
+        setIsMuted(v => !v);
     };
 
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
-            setIsFullscreen(true);
-        } else {
-            document.exitFullscreen();
-            setIsFullscreen(false);
-        }
-        resetControlsTimeout();
+    const togglePlay = () => {
+        if (!videoRef.current) return;
+        if (isPlaying) { videoRef.current.pause(); } else { videoRef.current.play(); }
+        setIsPlaying(v => !v);
+        showControlsFor();
     };
 
     return (
         <div
             ref={containerRef}
-            className="fixed inset-0 z-[100] bg-black flex flex-col h-[100dvh] overflow-hidden group"
+            className="fixed inset-0 z-[100] bg-black flex flex-col"
+            style={{ height: '100dvh' }}
         >
-            {/* Header */}
-            <div className={`absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/90 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm"
-                        >
-                            <X size={24} />
-                        </button>
-                        <div className="flex items-center gap-3">
-                            {channel.logo && (
-                                <img
-                                    src={channel.logo}
-                                    alt={channel.name}
-                                    className="w-10 h-10 object-contain rounded bg-white/10 p-1"
-                                />
-                            )}
-                            <div>
-                                <h2 className="text-white font-bold text-lg leading-tight">{channel.name}</h2>
-                                <p className="text-white/70 text-xs font-medium">
-                                    {channel.category} {channel.country && `• ${channel.country.toUpperCase()}`}
-                                </p>
-                            </div>
+            {/* ── Top bar ── */}
+            <div className={`absolute top-0 inset-x-0 z-20 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <button
+                    onClick={onClose}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors shrink-0"
+                    aria-label="Cerrar"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+
+                {/* Channel info */}
+                <div className="flex items-center gap-2 min-w-0">
+                    {channel.logo ? (
+                        <img src={channel.logo} alt="" className="w-7 h-7 rounded object-contain bg-white/10 p-0.5 shrink-0" />
+                    ) : (
+                        <div className="w-7 h-7 rounded bg-white/10 flex items-center justify-center shrink-0">
+                            <Tv className="w-3.5 h-3.5 text-white/60" />
                         </div>
+                    )}
+                    <div className="min-w-0">
+                        <p className="md3-label-large text-white truncate">{channel.name}</p>
+                        <p className="md3-label-small text-white/60 truncate">
+                            {channel.category}{channel.country && ` · ${channel.country.toUpperCase()}`}
+                        </p>
                     </div>
+                </div>
+
+                {/* Prev / Next channel */}
+                <div className="ml-auto flex items-center gap-1">
+                    <button
+                        onClick={onPrev}
+                        disabled={!hasPrev}
+                        aria-label="Canal anterior"
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={onNext}
+                        disabled={!hasNext}
+                        aria-label="Canal siguiente"
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
-            {/* Video Player */}
-            <div
-                className="flex-1 flex items-center justify-center relative bg-black w-full h-full"
-                onDoubleClick={toggleFullscreen}
-                onClick={togglePlay}
-            >
+            {/* ── Video ── */}
+            <div className="flex-1 flex items-center justify-center relative bg-black" onClick={togglePlay}>
                 <video
                     ref={videoRef}
                     className="w-full h-full object-contain"
                     playsInline
-                    onClick={(e) => e.stopPropagation()} // Prevent togglePlay on single click if needed, or allow it.
+                    onClick={e => e.stopPropagation()}
                 />
 
-                {/* Loading State */}
-                {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10">
-                        <div className="text-center">
-                            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="text-white font-medium">Cargando señal...</p>
-                        </div>
+                {/* Loading */}
+                {isLoading && !error && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 gap-3">
+                        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="md3-label-medium text-white/70">Cargando señal…</p>
                     </div>
                 )}
 
-                {/* Error State */}
+                {/* Error */}
                 {error && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
-                        <div className="text-center max-w-md p-8 bg-surface border border-surface-light rounded-2xl mx-4">
-                            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                            <h3 className="text-white text-xl font-bold mb-2">Señal no disponible</h3>
-                            <p className="text-text-secondary mb-6">{error}</p>
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/80 transition-colors font-medium w-full"
-                            >
-                                Regresar a la guía
-                            </button>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20 p-4">
+                        <div className="w-full max-w-md">
+                            {/* Error card */}
+                            <div className="bg-surface-container rounded-[var(--radius-xl)] p-5 border border-outline-variant mb-4">
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="w-9 h-9 rounded-full bg-error-container flex items-center justify-center shrink-0">
+                                        <AlertCircle className="w-4 h-4 text-on-error-container" />
+                                    </div>
+                                    <div>
+                                        <p className="md3-title-small text-on-surface mb-0.5">Señal no disponible</p>
+                                        <p className="md3-body-small text-on-surface-variant">{error}</p>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); loadStream(); }}
+                                        className="flex-1 h-9 rounded-full bg-secondary-container text-on-secondary-container md3-label-large flex items-center justify-center gap-1.5 hover:shadow-[var(--shadow-1)] transition-shadow"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        Reintentar
+                                    </button>
+                                    {hasNext && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onNext?.(); }}
+                                            className="flex-1 h-9 rounded-full bg-primary text-on-primary md3-label-large flex items-center justify-center gap-1.5 hover:shadow-[var(--shadow-1)] transition-shadow"
+                                        >
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                            Siguiente canal
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onClose(); }}
+                                        className="h-9 px-4 rounded-full border border-outline-variant text-on-surface-variant md3-label-large hover:bg-on-surface/8 transition-colors"
+                                    >
+                                        Volver
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Related channels */}
+                            {relatedChannels.length > 0 && (
+                                <div>
+                                    <p className="md3-label-medium text-white/50 mb-2 px-1">
+                                        Canales similares en {channel.category}
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {relatedChannels.map(ch => (
+                                            <button
+                                                key={ch.id}
+                                                onClick={(e) => { e.stopPropagation(); onSelectChannel?.(ch); }}
+                                                className="bg-surface-container rounded-[var(--radius-lg)] p-2.5 border border-outline-variant hover:border-primary/50 hover:bg-surface-container-high transition-all text-left group"
+                                            >
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {ch.logo ? (
+                                                        <img src={ch.logo} alt="" className="w-6 h-6 rounded object-contain bg-white/5 shrink-0" />
+                                                    ) : (
+                                                        <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center shrink-0">
+                                                            <Tv className="w-3 h-3 text-white/40" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="md3-label-small text-on-surface truncate group-hover:text-primary transition-colors">
+                                                    {ch.name}
+                                                </p>
+                                                {ch.country && (
+                                                    <p className="md3-label-small text-on-surface-variant/60 truncate">
+                                                        {ch.country.toUpperCase()}
+                                                    </p>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Controls */}
-            <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                            className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm"
-                        >
-                            {isPlaying ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            )}
-                        </button>
+            {/* ── Bottom controls ── */}
+            <div className={`absolute bottom-0 inset-x-0 z-20 px-4 py-4 bg-gradient-to-t from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                {/* Play/Pause */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                    aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+                >
+                    {isPlaying ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    )}
+                </button>
 
-                        <button
-                            onClick={(e) => { e.stopPropagation(); toggleMute(); }}
-                            className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm"
-                        >
-                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                        </button>
-                    </div>
+                {/* Mute */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                    aria-label={isMuted ? 'Activar sonido' : 'Silenciar'}
+                >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+
+                {/* Live badge */}
+                <div className="ml-auto flex items-center gap-1.5 px-2.5 h-6 rounded-full bg-red-500/90">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    <span className="md3-label-small text-white font-semibold">EN VIVO</span>
                 </div>
             </div>
         </div>
