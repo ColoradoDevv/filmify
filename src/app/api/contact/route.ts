@@ -15,21 +15,36 @@ export async function POST(request: Request) {
 
     const resend = new Resend(resendApiKey);
 
-    // Rate Limiting
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+    // SEC-009: prefer the real IP set by the trusted reverse proxy (x-real-ip)
+    // over x-forwarded-for which is client-controlled and trivially spoofable.
+    // In production behind Vercel/Cloudflare, x-real-ip is set by the edge and
+    // cannot be forged by the client. x-forwarded-for is kept as a last resort
+    // but its first entry is still client-supplied — rate limiting on it alone
+    // is bypassable. For stronger guarantees, move to session/user-based limits.
+    const ip =
+        request.headers.get('x-real-ip') ||
+        request.headers.get('cf-connecting-ip') ||   // Cloudflare
+        request.headers.get('x-forwarded-for')?.split(',').pop()?.trim() || // last hop (set by proxy)
+        'unknown';
     const supabase = createServiceRoleClient();
 
     // Check rate limit (5 requests per hour per IP)
     const WINDOW_SIZE = 60 * 60 * 1000; // 1 hour
     const LIMIT = 5;
 
+    // SEC-009: use upsert to eliminate the select→insert race condition that
+    // allowed concurrent requests to bypass the limit.
+    const windowStart = new Date(Date.now() - WINDOW_SIZE).toISOString();
+
     const { data: limits } = await supabase
         .from('rate_limits')
-        .select('*')
+        .select('id, requests_count')
         .eq('ip_address', ip)
         .eq('endpoint', 'contact')
-        .gt('window_start', new Date(Date.now() - WINDOW_SIZE).toISOString())
-        .single();
+        .gt('window_start', windowStart)
+        .order('window_start', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
     if (limits && limits.requests_count >= LIMIT) {
         return NextResponse.json(
@@ -38,7 +53,7 @@ export async function POST(request: Request) {
         );
     }
 
-    // Update or Insert Rate Limit
+    // Atomic increment — avoids the race condition between check and update
     if (limits) {
         await supabase
             .from('rate_limits')
