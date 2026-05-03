@@ -2,23 +2,13 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
-    Filter,
-    ChevronDown,
-    Check,
-    Calendar,
-    Film,
-    Tv,
-    LibraryBig,
-    Palette,
-    Radio,
-    ArrowDownWideNarrow,
-    X,
+    Filter, ChevronDown, Check, Calendar,
+    Film, Tv, LibraryBig, Palette, Radio,
+    ArrowDownWideNarrow, X,
 } from 'lucide-react';
 import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
+    DropdownMenu, DropdownMenuTrigger,
+    DropdownMenuContent, DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
@@ -27,32 +17,31 @@ interface FilterBarProps {
 }
 
 const SORT_OPTIONS = [
-    { id: 'popularity.desc', name: 'Más Populares' },
-    { id: 'vote_average.desc', name: 'Mejor Valorados' },
-    { id: 'primary_release_date.desc', name: 'Más Recientes' },
+    { id: 'popularity.desc',            name: 'Más Populares'  },
+    { id: 'vote_average.desc',          name: 'Mejor Valorados' },
+    { id: 'primary_release_date.desc',  name: 'Más Recientes'  },
 ];
 
 const CATEGORIES = [
-    { id: 'movie', name: 'Películas', icon: Film, color: 'text-sky-400' },
-    { id: 'tv', name: 'Series', icon: Tv, color: 'text-violet-400' },
-    { id: 'novelas', name: 'Novelas', icon: LibraryBig, color: 'text-rose-400' },
-    { id: 'anime', name: 'Anime', icon: Palette, color: 'text-amber-400' },
-    { id: 'live-tv', name: 'TV en Vivo', icon: Radio, color: 'text-red-400' },
+    { id: 'movie',   name: 'Películas',  icon: Film,       color: 'text-sky-400'    },
+    { id: 'tv',      name: 'Series',     icon: Tv,         color: 'text-violet-400' },
+    { id: 'novelas', name: 'Novelas',    icon: LibraryBig, color: 'text-rose-400'   },
+    { id: 'anime',   name: 'Anime',      icon: Palette,    color: 'text-amber-400'  },
+    { id: 'live-tv', name: 'TV en Vivo', icon: Radio,      color: 'text-red-400'    },
 ];
 
 const YEARS = Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i);
 
 export default function FilterBar({ genres }: FilterBarProps) {
-    const router = useRouter();
-    const pathname = usePathname();
+    const router       = useRouter();
+    const pathname     = usePathname();
     const searchParams = useSearchParams();
-
-    const basePath = pathname || '/browse';
+    const basePath     = pathname || '/browse';
 
     const activeCategory = searchParams.get('category') || 'movie';
-    const activeGenre = searchParams.get('genre') ? Number(searchParams.get('genre')) : null;
-    const activeYear = searchParams.get('year') ? Number(searchParams.get('year')) : null;
-    const sortBy = searchParams.get('sort_by') || SORT_OPTIONS[0].id;
+    const activeGenre    = searchParams.get('genre') ? Number(searchParams.get('genre')) : null;
+    const activeYear     = searchParams.get('year')  ? Number(searchParams.get('year'))  : null;
+    const sortBy         = searchParams.get('sort_by') || SORT_OPTIONS[0].id;
 
     const navigateWithParams = (params: URLSearchParams) => {
         const qs = params.toString();
@@ -61,250 +50,170 @@ export default function FilterBar({ genres }: FilterBarProps) {
 
     const updateFilter = (key: string, value: string | null) => {
         const params = new URLSearchParams(searchParams.toString());
-        if (value) {
-            params.set(key, value);
-        } else {
-            params.delete(key);
-        }
-
-        if (key === 'category') {
-            params.delete('genre');
-        }
-
+        if (value) { params.set(key, value); } else { params.delete(key); }
+        if (key === 'category') params.delete('genre');
         navigateWithParams(params);
     };
 
     const currentCategory = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
-    const CategoryIcon = currentCategory.icon;
+    const CategoryIcon    = currentCategory.icon;
 
-    const pillBase =
-        'inline-flex items-center gap-2 shrink-0 px-5 py-2.5 rounded-full border border-white/5 text-sm font-semibold transition-all hover:bg-white/5 hover:border-white/10 focus:outline-none focus:ring-2 focus:ring-primary/50';
+    /* MD3 filter chip base */
+    const chip =
+        'inline-flex items-center gap-1.5 shrink-0 px-3 h-8 rounded-full border ' +
+        'text-[0.75rem] leading-[1rem] tracking-[0.03125rem] font-medium ' +
+        'transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60';
 
-    const dropdownContentClass =
-        'min-w-[14rem] rounded-2xl border border-white/10 bg-surface/95 backdrop-blur-2xl shadow-2xl shadow-black/60 z-[100] overflow-hidden p-1.5';
+    const menu =
+        'rounded-[var(--radius-lg)] border border-outline-variant bg-surface-container ' +
+        'shadow-[var(--shadow-3)] z-[100] overflow-hidden p-1';
+
+    const menuItem = (active: boolean) => cn(
+        'w-full cursor-pointer px-3 py-2 rounded-[var(--radius-md)] md3-label-large',
+        'transition-colors flex items-center gap-2.5 outline-none',
+        active
+            ? 'bg-secondary-container text-on-secondary-container'
+            : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface'
+    );
 
     return (
-        <div className="flex flex-nowrap overflow-x-auto pb-2 md:pb-0 md:flex-wrap items-center gap-3 mb-10 custom-scrollbar scroll-smooth">
-            {/* Category Filter */}
+        <div className="flex flex-nowrap overflow-x-auto pb-1 md:pb-0 md:flex-wrap items-center gap-2 mb-6 scrollbar-hide">
+
+            {/* ── Category ── */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            pillBase,
-                            'bg-surface/80 border-white/10 text-text-secondary hover:border-primary/40 hover:bg-surface data-[state=open]:border-primary/40 data-[state=open]:bg-surface'
-                        )}
-                    >
-                        <CategoryIcon className={cn('w-4 h-4', currentCategory.color)} aria-hidden />
-                        <span className="text-text-secondary whitespace-nowrap">
-                            Categoría{' '}
-                            <span className="text-text-primary font-semibold inline-flex items-center gap-1.5">
-                                {currentCategory.name}
-                            </span>
-                        </span>
-                        <ChevronDown className="w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                    <button type="button" className={cn(chip,
+                        'bg-surface-container border-outline-variant text-on-surface-variant',
+                        'hover:bg-on-surface/8 hover:text-on-surface',
+                        'data-[state=open]:bg-secondary-container data-[state=open]:border-secondary-container data-[state=open]:text-on-secondary-container'
+                    )}>
+                        <CategoryIcon className={cn('w-3.5 h-3.5', currentCategory.color)} aria-hidden />
+                        <span className="whitespace-nowrap">{currentCategory.name}</span>
+                        <ChevronDown className="w-3 h-3 opacity-60 transition-transform [[data-state=open]_&]:rotate-180" />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className={cn(dropdownContentClass, 'w-56')}>
-                    <div className="flex flex-col gap-0.5">
-                        {CATEGORIES.map((category) => {
-                            const Icon = category.icon;
-                            return (
-                                <DropdownMenuItem
-                                    key={category.id}
-                                    onClick={() => updateFilter('category', category.id)}
-                                    className={cn(
-                                        'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-3 outline-none focus:bg-white/5',
-                                        activeCategory === category.id
-                                            ? 'bg-primary/15 text-white border border-primary/25'
-                                            : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                                    )}
-                                >
-                                    <Icon className={cn('w-4 h-4 shrink-0', category.color)} aria-hidden />
-                                    <span className="font-medium">{category.name}</span>
-                                    {activeCategory === category.id && <Check className="w-4 h-4 ml-auto text-primary" aria-hidden />}
-                                </DropdownMenuItem>
-                            );
-                        })}
-                    </div>
+                <DropdownMenuContent align="start" className={cn(menu, 'w-52')}>
+                    {CATEGORIES.map((cat) => {
+                        const Icon = cat.icon;
+                        return (
+                            <DropdownMenuItem key={cat.id} onClick={() => updateFilter('category', cat.id)}
+                                className={menuItem(activeCategory === cat.id)}>
+                                <Icon className={cn('w-3.5 h-3.5 shrink-0', cat.color)} aria-hidden />
+                                <span>{cat.name}</span>
+                                {activeCategory === cat.id && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
+                            </DropdownMenuItem>
+                        );
+                    })}
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Genre Filter */}
+            {/* ── Genre ── */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            pillBase,
-                            activeGenre
-                                ? 'bg-primary/15 border-primary/50 text-primary'
-                                : 'bg-surface/80 border-white/10 text-text-secondary hover:border-primary/40',
-                            'data-[state=open]:border-primary/40'
-                        )}
-                    >
-                        <Filter className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                    <button type="button" className={cn(chip,
+                        activeGenre
+                            ? 'bg-secondary-container border-secondary-container text-on-secondary-container'
+                            : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-on-surface/8',
+                        'data-[state=open]:bg-secondary-container data-[state=open]:border-secondary-container'
+                    )}>
+                        <Filter className="w-3.5 h-3.5 shrink-0" aria-hidden />
                         <span className="whitespace-nowrap">Género</span>
-                        <ChevronDown className="w-4 h-4 shrink-0 opacity-70 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                        <ChevronDown className="w-3 h-3 opacity-60 transition-transform [[data-state=open]_&]:rotate-180" />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className={cn(dropdownContentClass, 'w-56')}>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
-                        <DropdownMenuItem
-                            onClick={() => updateFilter('genre', null)}
-                            className={cn(
-                                'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm font-medium transition-colors outline-none focus:bg-white/5',
-                                !activeGenre
-                                    ? 'bg-primary/15 text-primary border border-primary/20'
-                                    : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                            )}
-                        >
+                <DropdownMenuContent align="start" className={cn(menu, 'w-52')}>
+                    <div className="max-h-56 overflow-y-auto scrollbar-hide flex flex-col gap-0.5">
+                        <DropdownMenuItem onClick={() => updateFilter('genre', null)} className={menuItem(!activeGenre)}>
                             Todos los géneros
                         </DropdownMenuItem>
-                        {genres.map((genre) => (
-                            <DropdownMenuItem
-                                key={genre.id}
-                                onClick={() => updateFilter('genre', String(genre.id))}
-                                className={cn(
-                                    'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between gap-2 outline-none focus:bg-white/5',
-                                    activeGenre === genre.id
-                                        ? 'bg-primary/15 text-primary border border-primary/20'
-                                        : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                                )}
-                            >
-                                <span className="truncate">{genre.name}</span>
-                                {activeGenre === genre.id && <Check className="w-4 h-4 shrink-0 text-primary" aria-hidden />}
+                        {genres.map((g) => (
+                            <DropdownMenuItem key={g.id} onClick={() => updateFilter('genre', String(g.id))}
+                                className={cn(menuItem(activeGenre === g.id), 'justify-between')}>
+                                <span className="truncate">{g.name}</span>
+                                {activeGenre === g.id && <Check className="w-3.5 h-3.5 shrink-0 text-primary" />}
                             </DropdownMenuItem>
                         ))}
                     </div>
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Year Filter */}
+            {/* ── Year ── */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            pillBase,
-                            activeYear
-                                ? 'bg-primary/15 border-primary/50 text-primary'
-                                : 'bg-surface/80 border-white/10 text-text-secondary hover:border-primary/40',
-                            'data-[state=open]:border-primary/40'
-                        )}
-                    >
-                        <Calendar className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
+                    <button type="button" className={cn(chip,
+                        activeYear
+                            ? 'bg-secondary-container border-secondary-container text-on-secondary-container'
+                            : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-on-surface/8',
+                        'data-[state=open]:bg-secondary-container data-[state=open]:border-secondary-container'
+                    )}>
+                        <Calendar className="w-3.5 h-3.5 shrink-0" aria-hidden />
                         <span className="whitespace-nowrap">Año</span>
-                        <ChevronDown className="w-4 h-4 shrink-0 opacity-70 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                        <ChevronDown className="w-3 h-3 opacity-60 transition-transform [[data-state=open]_&]:rotate-180" />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className={cn(dropdownContentClass, 'w-36')}>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
-                        <DropdownMenuItem
-                            onClick={() => updateFilter('year', null)}
-                            className={cn(
-                                'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm font-medium transition-colors outline-none focus:bg-white/5',
-                                !activeYear
-                                    ? 'bg-primary/15 text-primary border border-primary/20'
-                                    : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                            )}
-                        >
+                <DropdownMenuContent align="start" className={cn(menu, 'w-32')}>
+                    <div className="max-h-56 overflow-y-auto scrollbar-hide flex flex-col gap-0.5">
+                        <DropdownMenuItem onClick={() => updateFilter('year', null)} className={menuItem(!activeYear)}>
                             Cualquiera
                         </DropdownMenuItem>
-                        {YEARS.map((year) => (
-                            <DropdownMenuItem
-                                key={year}
-                                onClick={() => updateFilter('year', String(year))}
-                                className={cn(
-                                    'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between outline-none focus:bg-white/5',
-                                    activeYear === year
-                                        ? 'bg-primary/15 text-primary border border-primary/20'
-                                        : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                                )}
-                            >
-                                {year}
-                                {activeYear === year && <Check className="w-4 h-4 shrink-0 text-primary" aria-hidden />}
+                        {YEARS.map((y) => (
+                            <DropdownMenuItem key={y} onClick={() => updateFilter('year', String(y))}
+                                className={cn(menuItem(activeYear === y), 'justify-between')}>
+                                {y}
+                                {activeYear === y && <Check className="w-3.5 h-3.5 shrink-0 text-primary" />}
                             </DropdownMenuItem>
                         ))}
                     </div>
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Sort Filter */}
+            {/* ── Sort ── */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            pillBase,
-                            'bg-surface/80 border-white/10 text-text-secondary hover:border-primary/40 data-[state=open]:border-primary/40 data-[state=open]:bg-surface'
-                        )}
-                    >
-                        <ArrowDownWideNarrow className="w-4 h-4 shrink-0 opacity-80" aria-hidden />
-                        <span className="text-text-secondary whitespace-nowrap">
-                            Ordenar{' '}
-                            <span className="text-text-primary font-semibold">
-                                {SORT_OPTIONS.find(o => o.id === sortBy)?.name}
-                            </span>
-                        </span>
-                        <ChevronDown className="w-4 h-4 shrink-0 text-text-muted transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                    <button type="button" className={cn(chip,
+                        'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-on-surface/8',
+                        'data-[state=open]:bg-secondary-container data-[state=open]:border-secondary-container data-[state=open]:text-on-secondary-container'
+                    )}>
+                        <ArrowDownWideNarrow className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                        <span className="whitespace-nowrap">{SORT_OPTIONS.find(o => o.id === sortBy)?.name}</span>
+                        <ChevronDown className="w-3 h-3 opacity-60 transition-transform [[data-state=open]_&]:rotate-180" />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className={cn(dropdownContentClass, 'w-60')}>
-                    <div className="flex flex-col gap-0.5">
-                        {SORT_OPTIONS.map((option) => (
-                            <DropdownMenuItem
-                                key={option.id}
-                                onClick={() => updateFilter('sort_by', option.id)}
-                                className={cn(
-                                    'w-full cursor-pointer px-3 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between gap-2 outline-none focus:bg-white/5',
-                                    sortBy === option.id
-                                        ? 'bg-primary/15 text-primary border border-primary/20'
-                                        : 'text-text-secondary hover:bg-white/5 hover:text-text-primary border border-transparent'
-                                )}
-                            >
-                                <span className="font-medium">{option.name}</span>
-                                {sortBy === option.id && <Check className="w-4 h-4 shrink-0 text-primary" aria-hidden />}
-                            </DropdownMenuItem>
-                        ))}
-                    </div>
+                <DropdownMenuContent align="start" className={cn(menu, 'w-52')}>
+                    {SORT_OPTIONS.map((opt) => (
+                        <DropdownMenuItem key={opt.id} onClick={() => updateFilter('sort_by', opt.id)}
+                            className={cn(menuItem(sortBy === opt.id), 'justify-between')}>
+                            <span>{opt.name}</span>
+                            {sortBy === opt.id && <Check className="w-3.5 h-3.5 shrink-0 text-primary" />}
+                        </DropdownMenuItem>
+                    ))}
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* ── Active filter chips ── */}
             {(activeGenre || activeYear) && (
-                <div className="flex flex-wrap items-center gap-2 pl-1 animate-fade-in">
+                <div className="flex flex-wrap items-center gap-1.5 pl-1">
                     {activeGenre && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-xs font-medium text-primary">
-                            <span className="max-w-[10rem] truncate">{genres.find(g => g.id === activeGenre)?.name}</span>
-                            <button
-                                type="button"
-                                onClick={() => updateFilter('genre', null)}
-                                className="rounded-full p-0.5 hover:bg-primary/20 tv-focusable focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                                aria-label="Quitar filtro de género"
-                            >
-                                <X className="w-3 h-3" />
+                        <span className="flex items-center gap-1 px-2.5 h-7 rounded-full bg-primary-container border border-primary/30 md3-label-small text-on-primary-container">
+                            <span className="max-w-[8rem] truncate">{genres.find(g => g.id === activeGenre)?.name}</span>
+                            <button type="button" onClick={() => updateFilter('genre', null)}
+                                className="rounded-full hover:bg-primary/20 p-0.5 focus:outline-none" aria-label="Quitar género">
+                                <X className="w-2.5 h-2.5" />
                             </button>
-                        </div>
+                        </span>
                     )}
                     {activeYear && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-xs font-medium text-primary">
+                        <span className="flex items-center gap-1 px-2.5 h-7 rounded-full bg-primary-container border border-primary/30 md3-label-small text-on-primary-container">
                             <span>{activeYear}</span>
-                            <button
-                                type="button"
-                                onClick={() => updateFilter('year', null)}
-                                className="rounded-full p-0.5 hover:bg-primary/20 tv-focusable focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                                aria-label="Quitar filtro de año"
-                            >
-                                <X className="w-3 h-3" />
+                            <button type="button" onClick={() => updateFilter('year', null)}
+                                className="rounded-full hover:bg-primary/20 p-0.5 focus:outline-none" aria-label="Quitar año">
+                                <X className="w-2.5 h-2.5" />
                             </button>
-                        </div>
+                        </span>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => router.push(basePath)}
-                        className="text-xs font-medium text-text-muted hover:text-text-primary underline-offset-2 hover:underline tv-focusable focus:outline-none focus-visible:text-text-primary"
-                    >
-                        Limpiar filtros
+                    <button type="button" onClick={() => router.push(basePath)}
+                        className="md3-label-small text-on-surface-variant hover:text-on-surface underline-offset-2 hover:underline focus:outline-none">
+                        Limpiar
                     </button>
                 </div>
             )}

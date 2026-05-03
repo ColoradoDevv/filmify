@@ -3,71 +3,152 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* FilmiFy Brand Theme Configuration */
+/*
+ * FilmiFy — Material Design 3 Token System
+ * Dark scheme mapped to MD3 color roles.
+ * Tonal palette: primary = cyan (#00c2ff), error = red (#ff3b30)
+ */
 @theme inline {
-  /* Brand Colors */
-  --color-primary: #00c2ff;
-  --color-primary-hover: #00a8e1;
-  --color-accent: #ff3b30;
-  --color-accent-hover: #ff2d55;
+  /* ── MD3 Color Roles ─────────────────────────────────────────────────── */
+  --color-primary:            #00c2ff;   /* md.sys.color.primary            */
+  --color-on-primary:         #001f2a;   /* md.sys.color.on-primary         */
+  --color-primary-container:  #003547;   /* md.sys.color.primary-container  */
+  --color-on-primary-container: #b3eaff; /* md.sys.color.on-primary-container */
 
-  /* Background Colors */
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-surface: #121214;
-  --color-surface-light: #18181b;
-  --color-surface-hover: #27272a;
+  --color-secondary:          #4fc3f7;   /* md.sys.color.secondary          */
+  --color-on-secondary:       #001e2c;   /* md.sys.color.on-secondary       */
+  --color-secondary-container:#002d3f;   /* md.sys.color.secondary-container*/
+  --color-on-secondary-container: #c8e6ff;
 
-  /* Text Colors */
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #71717a;
+  --color-surface:            #0f1113;   /* md.sys.color.surface            */
+  --color-surface-variant:    #1a1d20;   /* md.sys.color.surface-variant    */
+  --color-on-surface:         #e2e2e5;   /* md.sys.color.on-surface         */
+  --color-on-surface-variant: #8a8d91;   /* md.sys.color.on-surface-variant */
+  --color-surface-container-lowest:  #09090b;
+  --color-surface-container-low:     #111315;
+  --color-surface-container:         #161819;
+  --color-surface-container-high:    #1c1f21;
+  --color-surface-container-highest: #232628;
+
+  --color-outline:            #3a3d40;   /* md.sys.color.outline            */
+  --color-outline-variant:    #252729;   /* md.sys.color.outline-variant    */
+
+  --color-error:              #ffb4ab;   /* md.sys.color.error              */
+  --color-on-error:           #690005;
+  --color-error-container:    #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-inverse-surface:    #e2e2e5;
+  --color-inverse-on-surface: #2e3133;
+  --color-inverse-primary:    #006782;
+
+  /* ── Legacy aliases (keep existing Tailwind classes working) ─────────── */
+  --color-primary-hover:      #00a8e1;
+  --color-accent:             #ff3b30;
+  --color-accent-hover:       #ff2d55;
+  --color-background:         #09090b;
+  --color-foreground:         #e2e2e5;
+  --color-surface-light:      #1c1f21;
+  --color-surface-hover:      #232628;
+  --color-text-primary:       #e2e2e5;
+  --color-text-secondary:     #8a8d91;
+  --color-text-muted:         #5c5f63;
 
   /* Shadcn standard mappings */
-  --color-primary-foreground: #09090b;
-  --color-secondary: #18181b;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #18181b;
-  --color-muted-foreground: #a1a1aa;
-  --color-destructive: #ff3b30;
+  --color-primary-foreground: #001f2a;
+  --color-secondary-foreground: #e2e2e5;
+  --color-muted:              #1a1d20;
+  --color-muted-foreground:   #8a8d91;
+  --color-destructive:        #ff3b30;
   --color-destructive-foreground: #fafafa;
-  --color-popover: #121214;
-  --color-popover-foreground: #fafafa;
-  --color-card: #121214;
-  --color-card-foreground: #fafafa;
+  --color-popover:            #161819;
+  --color-popover-foreground: #e2e2e5;
+  --color-card:               #161819;
+  --color-card-foreground:    #e2e2e5;
+  --color-success:            #10b981;
+  --color-warning:            #f59e0b;
+  --color-border:             #3a3d40;
+  --color-ring:               #00c2ff;
+  --color-input:              #252729;
 
-  /* Utility Colors */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-border: #27272a;
-  --color-ring: #00c2ff;
-  --color-input: #27272a;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  /* ── MD3 Shape Scale ─────────────────────────────────────────────────── */
+  /* none=0, extra-small=4px, small=8px, medium=12px, large=16px,
+     extra-large=28px, full=9999px                                          */
+  --radius:    0.5rem;   /* 8px  — MD3 small                               */
+  --radius-sm: 0.25rem;  /* 4px  — MD3 extra-small                         */
+  --radius-md: 0.75rem;  /* 12px — MD3 medium                              */
+  --radius-lg: 1rem;     /* 16px — MD3 large                               */
+  --radius-xl: 1.75rem;  /* 28px — MD3 extra-large                         */
+
+  /* ── MD3 Elevation (box-shadow tokens) ──────────────────────────────── */
+  --shadow-1: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15);
+  --shadow-2: 0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15);
+  --shadow-3: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3);
+  --shadow-4: 0 6px 10px 4px rgba(0,0,0,.15), 0 2px 3px rgba(0,0,0,.3);
+  --shadow-5: 0 8px 12px 6px rgba(0,0,0,.15), 0 4px 4px rgba(0,0,0,.3);
+
+  /* ── MD3 Typography Scale ────────────────────────────────────────────── */
+  /* display-large  57/64  -0.25 */
+  /* display-medium 45/52   0    */
+  /* display-small  36/44   0    */
+  /* headline-large 32/40   0    */
+  /* headline-medium 28/36  0    */
+  /* headline-small  24/32  0    */
+  /* title-large    22/28   0    */
+  /* title-medium   16/24  +0.15 */
+  /* title-small    14/20  +0.1  */
+  /* label-large    14/20  +0.1  */
+  /* label-medium   12/16  +0.5  */
+  /* label-small    11/16  +0.5  */
+  /* body-large     16/24  +0.5  */
+  /* body-medium    14/20  +0.25 */
+  /* body-small     12/16  +0.4  */
 }
 
-/* Custom Utilities */
+/* ── MD3 Utility Classes ─────────────────────────────────────────────────── */
 @layer utilities {
+  /* State layers (MD3 interaction model) */
+  .state-hover  { @apply relative after:absolute after:inset-0 after:rounded-[inherit] after:bg-current after:opacity-0 hover:after:opacity-[0.08] after:transition-opacity after:pointer-events-none; }
+  .state-pressed{ @apply active:after:opacity-[0.12]; }
+  .state-focus  { @apply focus-visible:after:opacity-[0.12]; }
+
+  /* MD3 elevation tints (surface + primary tint) */
+  .elevation-1  { background-color: color-mix(in srgb, var(--color-primary) 5%,  var(--color-surface)); box-shadow: var(--shadow-1); }
+  .elevation-2  { background-color: color-mix(in srgb, var(--color-primary) 8%,  var(--color-surface)); box-shadow: var(--shadow-2); }
+  .elevation-3  { background-color: color-mix(in srgb, var(--color-primary) 11%, var(--color-surface)); box-shadow: var(--shadow-3); }
+  .elevation-4  { background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)); box-shadow: var(--shadow-4); }
+  .elevation-5  { background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface)); box-shadow: var(--shadow-5); }
+
+  /* MD3 Typography helpers */
+  .md3-display-large   { @apply text-[3.5625rem] leading-[4rem]   tracking-[-0.015625rem] font-normal; }
+  .md3-display-medium  { @apply text-[2.8125rem] leading-[3.25rem] tracking-0 font-normal; }
+  .md3-display-small   { @apply text-[2.25rem]  leading-[2.75rem] tracking-0 font-normal; }
+  .md3-headline-large  { @apply text-[2rem]     leading-[2.5rem]  tracking-0 font-normal; }
+  .md3-headline-medium { @apply text-[1.75rem]  leading-[2.25rem] tracking-0 font-normal; }
+  .md3-headline-small  { @apply text-[1.5rem]   leading-[2rem]    tracking-0 font-normal; }
+  .md3-title-large     { @apply text-[1.375rem] leading-[1.75rem] tracking-0 font-medium; }
+  .md3-title-medium    { @apply text-[1rem]     leading-[1.5rem]  tracking-[0.009375rem] font-medium; }
+  .md3-title-small     { @apply text-[0.875rem] leading-[1.25rem] tracking-[0.00625rem]  font-medium; }
+  .md3-label-large     { @apply text-[0.875rem] leading-[1.25rem] tracking-[0.00625rem]  font-medium; }
+  .md3-label-medium    { @apply text-[0.75rem]  leading-[1rem]    tracking-[0.03125rem]  font-medium; }
+  .md3-label-small     { @apply text-[0.6875rem] leading-[1rem]   tracking-[0.03125rem]  font-medium; }
+  .md3-body-large      { @apply text-[1rem]     leading-[1.5rem]  tracking-[0.03125rem]  font-normal; }
+  .md3-body-medium     { @apply text-[0.875rem] leading-[1.25rem] tracking-[0.015625rem] font-normal; }
+  .md3-body-small      { @apply text-[0.75rem]  leading-[1rem]    tracking-[0.025rem]    font-normal; }
+
+  /* Legacy helpers */
   .text-gradient {
     @apply bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent;
   }
-
-  .card {
-    @apply bg-surface rounded-2xl border border-surface-light;
-  }
-
-  .card-hover {
-    @apply transition-all duration-300 hover:border-white/10 hover:shadow-2xl hover:shadow-black/50;
-  }
-
   .glass-effect {
-    @apply bg-background/70 backdrop-blur-2xl border border-white/5;
+    @apply bg-surface-container/80 backdrop-blur-xl border border-outline-variant;
   }
-
   .glow-subtle {
-    box-shadow: 0 0 20px rgba(0, 194, 255, 0.1);
+    box-shadow: 0 0 16px rgba(0, 194, 255, 0.08);
   }
+  /* card / card-hover kept for backward compat */
+  .card       { @apply bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant; }
+  .card-hover { @apply transition-all duration-200 hover:shadow-[var(--shadow-2)]; }
 }
 
 /* Advanced Animations */
@@ -487,7 +568,7 @@ body.tv-mode main {
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 }
 
 .dark {
@@ -500,6 +581,9 @@ body.tv-mode main {
 
   body {
     @apply bg-background text-foreground;
+    font-size: 0.875rem; /* MD3 body-medium as base */
+    line-height: 1.25rem;
+    letter-spacing: 0.015625rem;
   }
 
   /*
