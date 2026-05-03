@@ -31,15 +31,19 @@ type Server = {
     type: 'latino' | 'castellano' | 'multi';
 };
 
+// Vimeus view_key — public by design (validates domain, not a secret)
+const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
+
 const SERVERS: Server[] = [
-    { id: 'cuevana-dynamic', name: 'Auto (Mejor Latino)', baseUrl: '/api/scrape', lang: 'es', type: 'multi' },
-    { id: 'unlimplay', name: 'UnLimPlay (Latino)', baseUrl: 'https://unlimplay.com/play/embed', lang: 'es', type: 'latino' },
-    { id: 'superembed', name: 'SuperEmbed Latino', baseUrl: 'https://multiembed.mov', lang: 'es', type: 'latino' },
-    { id: 'vidsrc-xyz', name: 'VidSrc XYZ', baseUrl: 'https://vidsrc.xyz/embed', lang: 'es', type: 'multi' },
-    { id: 'vidsrc-to', name: 'VidSrc.to (Subs ES)', baseUrl: 'https://vidsrc.to/embed', lang: 'es', type: 'multi' },
-    { id: 'vidlink', name: 'VidLink Pro', baseUrl: 'https://vidlink.pro', lang: 'es', type: 'multi' },
-    { id: 'embed-su', name: 'Embed.su', baseUrl: 'https://embed.su/embed', lang: 'es', type: 'multi' },
-    { id: 'rivestream', name: 'Rivestream', baseUrl: 'https://watch.rivestream.app/embed', lang: 'es', type: 'multi' },
+    { id: 'vimeus',         name: '⭐ Vimeus (Sin anuncios)', baseUrl: 'https://vimeus.com/e', lang: 'es', type: 'multi' },
+    { id: 'cuevana-dynamic', name: 'Auto (Mejor Latino)',      baseUrl: '/api/scrape',          lang: 'es', type: 'multi' },
+    { id: 'unlimplay',      name: 'UnLimPlay (Latino)',        baseUrl: 'https://unlimplay.com/play/embed', lang: 'es', type: 'latino' },
+    { id: 'superembed',     name: 'SuperEmbed Latino',         baseUrl: 'https://multiembed.mov',           lang: 'es', type: 'latino' },
+    { id: 'vidsrc-xyz',     name: 'VidSrc XYZ',               baseUrl: 'https://vidsrc.xyz/embed',         lang: 'es', type: 'multi' },
+    { id: 'vidsrc-to',      name: 'VidSrc.to (Subs ES)',       baseUrl: 'https://vidsrc.to/embed',          lang: 'es', type: 'multi' },
+    { id: 'vidlink',        name: 'VidLink Pro',               baseUrl: 'https://vidlink.pro',              lang: 'es', type: 'multi' },
+    { id: 'embed-su',       name: 'Embed.su',                  baseUrl: 'https://embed.su/embed',           lang: 'es', type: 'multi' },
+    { id: 'rivestream',     name: 'Rivestream',                baseUrl: 'https://watch.rivestream.app/embed', lang: 'es', type: 'multi' },
 ];
 
 const PREFERRED_SERVER_KEY = 'filmify:preferred-server';
@@ -59,6 +63,13 @@ const SCRAPING_STEPS = [
 function buildEmbedUrl(server: Server, mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
     const isMovie = mediaType === 'movie';
     switch (server.id) {
+        case 'vimeus': {
+            const vk = VIMEUS_VIEW_KEY;
+            if (isMovie) {
+                return `${server.baseUrl}/movie?tmdb=${mediaId}&view_key=${vk}`;
+            }
+            return `${server.baseUrl}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&view_key=${vk}`;
+        }
         case 'unlimplay':
             return isMovie ? `${server.baseUrl}/movie/${mediaId}` : `${server.baseUrl}/tv/${mediaId}/${season}/${episode}`;
         case 'vidsrc-xyz':
@@ -94,7 +105,10 @@ export default function VideoPlayer({ mediaId, mediaType, season = 1, episode = 
     const addWatched = useStore((state) => state.addWatched);
     const [error, setError] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [activeServer, setActiveServer] = useState<Server>(SERVERS[0]);
+    const [activeServer, setActiveServer] = useState<Server>(
+        // Default to Vimeus if view_key is configured, otherwise fall back to scraper
+        VIMEUS_VIEW_KEY ? SERVERS[0] : SERVERS[1]
+    );
     const [dynamicUrl, setDynamicUrl] = useState<string | null>(null);
     const [scrapingStep, setScrapingStep] = useState(0);
     const [availableResults, setAvailableResults] = useState<DynamicResult[]>([]);
@@ -421,7 +435,7 @@ export default function VideoPlayer({ mediaId, mediaType, season = 1, episode = 
                         title={`Reproductor: ${title}`}
                         className="w-full h-full border-0"
                         onLoad={handleIframeLoad}
-                        referrerPolicy="no-referrer"
+                        referrerPolicy={activeServer.id === 'vimeus' ? 'origin' : 'no-referrer'}
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     />
                 ) : null}
