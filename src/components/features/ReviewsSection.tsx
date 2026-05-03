@@ -42,6 +42,35 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [hoverRating, setHoverRating] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
+    const fetchReviews = useCallback(async (pageIndex: number, replace: boolean) => {
+        if (replace) { setLoading(true); } else { setLoadingMore(true); }
+        try {
+            const from = pageIndex * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            const { data, error, count } = await supabase
+                .from('reviews')
+                .select(
+                    `*, profiles:user_id (full_name, username, avatar_url)`,
+                    { count: 'exact' }
+                )
+                .eq('media_id', mediaId)
+                .eq('media_type', mediaType)
+                .order('created_at', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            setReviews(prev => replace ? (data ?? []) : [...prev, ...(data ?? [])]);
+            if (count !== null) setTotalCount(count);
+            setPage(pageIndex);
+        } catch (err) {
+            console.error('Error fetching reviews:', err);
+        } finally {
+            if (replace) { setLoading(false); } else { setLoadingMore(false); }
+        }
+    }, [supabase, mediaId, mediaType]);
+
     useEffect(() => {
         let active = true;
 
@@ -67,35 +96,6 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mediaId, mediaType]);
-
-    const fetchReviews = useCallback(async (pageIndex: number, replace: boolean) => {
-        replace ? setLoading(true) : setLoadingMore(true);
-        try {
-            const from = pageIndex * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            const { data, error, count } = await supabase
-                .from('reviews')
-                .select(
-                    `*, profiles:user_id (full_name, username, avatar_url)`,
-                    { count: 'exact' }
-                )
-                .eq('media_id', mediaId)
-                .eq('media_type', mediaType)
-                .order('created_at', { ascending: false })
-                .range(from, to);
-
-            if (error) throw error;
-
-            setReviews(prev => replace ? (data ?? []) : [...prev, ...(data ?? [])]);
-            if (count !== null) setTotalCount(count);
-            setPage(pageIndex);
-        } catch (err) {
-            console.error('Error fetching reviews:', err);
-        } finally {
-            replace ? setLoading(false) : setLoadingMore(false);
-        }
-    }, [supabase, mediaId, mediaType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

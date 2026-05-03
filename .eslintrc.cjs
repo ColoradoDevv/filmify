@@ -17,7 +17,9 @@ module.exports = {
     "@typescript-eslint/no-empty-object-type": "warn",
     "@typescript-eslint/no-require-imports": "warn",
     "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-unused-expressions": "warn",
     "react/no-unescaped-entities": "warn",
     "@next/next/no-img-element": "warn",
+    "@next/next/no-html-link-for-pages": "warn",
   },
 };

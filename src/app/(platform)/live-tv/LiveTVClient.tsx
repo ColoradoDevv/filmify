@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, X, Tv, Globe, Tag, TrendingUp, Radio, Loader2 } from 'lucide-react';
 import type { LiveChannel } from '@/services/liveTV';
-import { fetchAllChannels, getCategories, getCountries } from '@/services/liveTV';
 import LiveTVGrid from '@/components/live-tv/LiveTVGrid';
 
 interface LiveTVClientProps {
@@ -28,10 +27,12 @@ export default function LiveTVClient({ initialChannels: propChannels, categories
             const loadChannels = async () => {
                 try {
                     setIsLoading(true);
-                    const fetchedChannels = await fetchAllChannels();
-                    setChannels(fetchedChannels);
-                    setCategories(getCategories(fetchedChannels));
-                    setCountries(getCountries(fetchedChannels));
+                    const res = await fetch('/api/channels');
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    setChannels(data.channels ?? []);
+                    setCategories(data.categories ?? []);
+                    setCountries(data.countries ?? []);
                 } catch (error) {
                     console.error('Error loading channels:', error);
                 } finally {
