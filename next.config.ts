@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Turbopack is the default bundler in Next.js 16.
+  // An empty config silences the "webpack config without turbopack config" warning.
+  turbopack: {},
   images: {
     unoptimized: true, // Deshabilita optimización para evitar límites de Vercel
     remotePatterns: [
