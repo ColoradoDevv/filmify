@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
 import FilterBar from '@/components/features/FilterBar';
-import AIRecommendations from '@/components/features/AIRecommendations';
+// import AIRecommendations from '@/components/features/AIRecommendations'; // stand-by
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
 import { TrendingUp, Tv } from 'lucide-react';
@@ -144,8 +144,8 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                 </div>
             </div>
 
-            {/* AI Recommendations */}
-            <AIRecommendations />
+            {/* AI Recommendations — stand-by, desactivado temporalmente */}
+            {/* <AIRecommendations /> */}
 
             <Suspense
                 fallback={
