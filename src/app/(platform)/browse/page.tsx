@@ -62,12 +62,12 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <TVLayoutWrapper
                 forceTVMode={true}
                 tvLayout={
-                    <div className="flex min-h-screen bg-background text-white">
+                    <>
                         <TVSidebar />
-                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                        <main className="ml-16 lg:ml-24 p-4 lg:p-8 min-h-screen overflow-x-hidden">
                             <BrowsePageTV searchParams={searchParams} />
                         </main>
-                    </div>
+                    </>
                 }>
                 <div />
             </TVLayoutWrapper>

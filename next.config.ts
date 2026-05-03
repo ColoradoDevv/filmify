@@ -49,34 +49,9 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Headers', value: '*' },
         ],
       },
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            // SEC-013: 'unsafe-inline' in script-src completely neutralises XSS
-            // protection. Removed it. Inline scripts that are genuinely needed
-            // should use a nonce (see middleware.ts) or be moved to external files.
-            // 'unsafe-inline' is kept only for style-src because CSS-in-JS
-            // libraries require it and CSS injection is lower-risk than JS.
-            value: `
-              default-src 'self';
-              script-src 'self' https:;
-              style-src 'self' 'unsafe-inline' https:;
-              img-src 'self' data: blob https:;
-              media-src 'self' blob https:;
-              connect-src 'self' https: wss:;
-              font-src 'self' data: https:;
-              frame-src https:;
-              frame-ancestors 'self';
-              object-src 'none';
-              base-uri 'self';
-              form-action 'self';
-              upgrade-insecure-requests;
-            `.replace(/\s{2,}/g, ' ').trim(),
-          },
-        ],
-      },
+      // NOTE: Content-Security-Policy is set per-request in middleware.ts
+      // with a unique nonce. Do NOT add a static CSP here — it would override
+      // the nonce-based policy and break Next.js inline scripts.
     ];
   },
 } satisfies NextConfig & { eslint?: { ignoreDuringBuilds?: boolean } };

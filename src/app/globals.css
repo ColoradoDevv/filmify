@@ -559,13 +559,8 @@ body.tv-mode .platform-content {
   display: none !important;
 }
 
-/* Ensure TV layout takes full width */
-body.tv-mode main {
-  width: 100vw;
-  max-width: 100vw;
-  padding: 0;
-  margin: 0;
-}
+/* TV layout: main content respects the fixed sidebar width.
+   The ml-24 / p-8 classes on <main> handle spacing — do not override here. */
 
 :root {
   --radius: 0.5rem;
