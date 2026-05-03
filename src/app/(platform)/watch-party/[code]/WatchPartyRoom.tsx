@@ -295,11 +295,11 @@ export default function WatchPartyRoom({ code }: Props) {
     const sendMessage = useCallback(async () => {
         if (!msgText.trim() || sending) return;
         setSending(true);
+        // SEC-010: only send text and reply_to_id — the server resolves
+        // reply_preview and reply_username from the DB to prevent spoofing.
         const body: Record<string, unknown> = { text: msgText.trim() };
         if (replyTo) {
-            body.reply_to_id   = replyTo.id;
-            body.reply_preview = replyTo.text.slice(0, 80);
-            body.reply_username = replyTo.username;
+            body.reply_to_id = replyTo.id;
         }
         await fetch(`/api/watch-party/${code}/message`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
