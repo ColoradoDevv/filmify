@@ -254,51 +254,51 @@ export default function ProfilePage() {
             }
 
             if (action === 'accept') {
-                setIncomingFriendRequests((current) => current.filter((request) => request.id !== requesterId));
+                setIncomingFriendRequests((current) => current.filter((request) => request.id !== otherUserId));
                 setFriendList((current) => {
-                    if (current.some((item) => item.id === requesterId)) return current;
-                    const accepted = incomingFriendRequests.find((item) => item.id === requesterId);
+                    if (current.some((item) => item.id === otherUserId)) return current;
+                    const accepted = incomingFriendRequests.find((item) => item.id === otherUserId);
                     return accepted ? [...current, accepted] : current;
                 });
                 setProfilePreferences((current) => {
                     if (!current) return current;
                     return {
                         ...current,
-                        incomingFriendRequests: (current.incomingFriendRequests || []).filter((id) => id !== requesterId),
-                        friends: Array.from(new Set([...(current.friends || []), requesterId])),
+                        incomingFriendRequests: (current.incomingFriendRequests || []).filter((id) => id !== otherUserId),
+                        friends: Array.from(new Set([...(current.friends || []), otherUserId])),
                     };
                 });
             }
 
             if (action === 'reject') {
-                setIncomingFriendRequests((current) => current.filter((request) => request.id !== requesterId));
+                setIncomingFriendRequests((current) => current.filter((request) => request.id !== otherUserId));
                 setProfilePreferences((current) => {
                     if (!current) return current;
                     return {
                         ...current,
-                        incomingFriendRequests: (current.incomingFriendRequests || []).filter((id) => id !== requesterId),
+                        incomingFriendRequests: (current.incomingFriendRequests || []).filter((id) => id !== otherUserId),
                     };
                 });
             }
 
             if (action === 'cancel') {
-                setOutgoingFriendRequests((current) => current.filter((request) => request.id !== targetId));
+                setOutgoingFriendRequests((current) => current.filter((request) => request.id !== otherUserId));
                 setProfilePreferences((current) => {
                     if (!current) return current;
                     return {
                         ...current,
-                        outgoingFriendRequests: (current.outgoingFriendRequests || []).filter((id) => id !== targetId),
+                        outgoingFriendRequests: (current.outgoingFriendRequests || []).filter((id) => id !== otherUserId),
                     };
                 });
             }
 
             if (action === 'remove') {
-                setFriendList((current) => current.filter((friend) => friend.id !== requesterId));
+                setFriendList((current) => current.filter((friend) => friend.id !== otherUserId));
                 setProfilePreferences((current) => {
                     if (!current) return current;
                     return {
                         ...current,
-                        friends: (current.friends || []).filter((id) => id !== requesterId),
+                        friends: (current.friends || []).filter((id) => id !== otherUserId),
                     };
                 });
             }
