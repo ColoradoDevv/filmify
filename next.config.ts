@@ -4,11 +4,12 @@ const nextConfig = {
   // Turbopack is the default bundler in Next.js 16.
   // An empty config silences the "webpack config without turbopack config" warning.
   turbopack: {},
-  // ESLint warnings should not fail the production build.
-  // Errors are still caught; warnings are reported but non-blocking.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // SEC-025: re-enable ESLint during builds so security-relevant rules
+  // (no-eval, no-implied-eval, etc.) can catch issues before deployment.
+  // Remove this block entirely once all pre-existing lint warnings are resolved.
+  // eslint: {
+  //   ignoreDuringBuilds: true,
+  // },
   images: {
     unoptimized: true, // Deshabilita optimización para evitar límites de Vercel
     remotePatterns: [
