@@ -90,6 +90,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     const body = await req.json();
     const { status } = body;
 
+    // SEC-023: whitelist valid status values — reject arbitrary strings that
+    // could corrupt the parties table or bypass business logic.
+    const VALID_STATUSES = ['waiting', 'playing', 'paused', 'finished'] as const;
+    if (!status || !VALID_STATUSES.includes(status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
     const { data: party } = await supabase
         .from('parties')
         .select('id, host_id')

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { hashRoomPassword } from '@/lib/watch-party-crypto';
+import { randomBytes } from 'crypto';
+
+/** SEC-019: cryptographically secure room code — avoids Math.random() which is
+ *  not a CSPRNG and produces only ~2.1B combinations, brute-forceable in minutes.
+ *  Uses an unambiguous alphabet (no 0/O, 1/I/L) for better UX. */
+function generateRoomCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = randomBytes(6);
+    return Array.from(bytes).map(b => chars[b % chars.length]).join('');
+}
 
 // ── POST /api/watch-party — create a party ────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -15,13 +25,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // SEC-022: limit active parties per user to prevent DoS via table flooding.
+    const { count: activeCount } = await supabase
+        .from('parties')
+        .select('id', { count: 'exact', head: true })
+        .eq('host_id', user.id)
+        .neq('status', 'finished');
+
+    if ((activeCount ?? 0) >= 3) {
+        return NextResponse.json(
+            { error: 'Límite de salas activas alcanzado (máximo 3)' },
+            { status: 429 }
+        );
+    }
+
     // Hash the room password before storing — never persist plaintext.
     const passwordHash = (is_private && password)
         ? await hashRoomPassword(password)
         : null;
 
-    // Generate unique 6-char room code
-    const room_code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    // SEC-019: use CSPRNG-based room code instead of Math.random()
+    const room_code = generateRoomCode();
 
     const { data: party, error } = await supabase
         .from('parties')

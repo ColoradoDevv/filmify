@@ -194,7 +194,9 @@ export async function registerAction(
                     id: newUserId,
                     username,
                     full_name: fullName || username,
-                    email,
+                    // SEC-026: do NOT store email in the public profiles table.
+                    // Email already lives in auth.users; duplicating it here
+                    // exposes it to anyone who can read the profiles table via RLS.
                     updated_at: new Date().toISOString(),
                 },
                 { onConflict: 'id' }

@@ -12,36 +12,12 @@ import {
     getExternalIds
 } from '@/lib/tmdb/service';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { createHmac } from 'crypto';
+// SEC-027: use static top-level imports instead of dynamic require('crypto')
+// inside functions — dynamic require is susceptible to prototype pollution
+// and module injection in compromised environments.
+import { createHash, createHmac, randomBytes } from 'crypto';
 
 import { getOptionalApiKeys, getPortalDeviceSecret } from '@/lib/env';
-
-/**
- * Minimal Stalker bootstrap HTML.
- * STBEmu / MAG devices load /portal.php with no params first.
- * This page reads the device MAC via the STB JS API and immediately
- * redirects to the handshake endpoint with the MAC as a query param.
- */
-const STALKER_BOOTSTRAP_HTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>FilmiFy Portal</title></head>
-<body>
-<script>
-(function() {
-  var mac = '';
-  try { mac = window.stb ? window.stb.GetDeviceInfo().mac : ''; } catch(e) {}
-  if (!mac) { try { mac = window.stbApi ? window.stbApi.getDeviceInfo().mac : ''; } catch(e) {} }
-  if (!mac) { try { mac = window.gSTB ? window.gSTB.GetDeviceInfo().mac : ''; } catch(e) {} }
-  if (mac) {
-    document.cookie = 'mac=' + mac + '; path=/';
-    window.location.href = '/portal.php?type=stb&action=handshake&mac=' + encodeURIComponent(mac);
-  } else {
-    document.body.innerHTML = '<p>No se pudo detectar la MAC del dispositivo. Configura la MAC manualmente en la app.</p>';
-  }
-})();
-</script>
-</body>
-</html>`;
 
 // Configuration
 const PORTAL_NAME = 'FilmiFy TV';
@@ -53,8 +29,7 @@ const BASE_URL = getOptionalApiKeys().appUrl;
  * Helper to generate a token based on MAC address
  */
 function generateToken(mac: string): string {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(mac + Date.now().toString() + PORTAL_NAME).digest('hex');
+    return createHash('sha256').update(mac + Date.now().toString() + PORTAL_NAME).digest('hex');
 }
 
 /**
@@ -183,32 +158,15 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Initial portal load (no type/action/mac) ──────────────────────────────
-    // STBEmu and MAG devices first load /portal.php with no parameters.
-    // The real Stalker middleware responds with an HTML bootstrap page that
-    // sets a cookie and loads the portal JS. We serve a minimal redirect page
-    // that sets the mac cookie from the User-Agent (MAG devices embed the MAC
-    // in the UA string) and then reloads so the JS can start the handshake.
+    // MAG/STBEmu devices load /portal.php with no parameters on first contact.
+    // The MAC address must come from the cookie set by the STBEmu app config.
+    // If there's no MAC anywhere, return a Stalker-protocol error response
+    // (not HTML — MAG200 doesn't execute JS).
     if (!type && !action && !mac) {
-        // Try to extract MAC from User-Agent (MAG devices: "MAG200 stbapp ... mac=XX:XX:XX:XX:XX:XX")
-        const ua = request.headers.get('user-agent') || '';
-        const uaMac = ua.match(/([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}/)?.[0] || '';
-
-        if (uaMac) {
-            // Redirect back with mac as query param so the handshake can proceed.
-            const url = new URL(request.url);
-            url.searchParams.set('type', 'stb');
-            url.searchParams.set('action', 'handshake');
-            url.searchParams.set('mac', uaMac);
-            const response = NextResponse.redirect(url);
-            response.cookies.set('mac', uaMac, { path: '/', sameSite: 'lax' });
-            return response;
-        }
-
-        // No MAC anywhere — return the Stalker bootstrap HTML.
-        // The client JS will read its own MAC and send it on the next request.
-        return new NextResponse(STALKER_BOOTSTRAP_HTML, {
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
+        return NextResponse.json(
+            { js: false, error: 'MAC address not found. Please configure your MAC in the STBEmu app settings.' },
+            { status: 400 }
+        );
     }
 
     if (!mac) {
@@ -241,7 +199,7 @@ async function handleSTBRequest(action: string, mac: string) {
                 return NextResponse.json({
                     js: {
                         token: generateToken(mac),
-                        random: crypto.randomBytes(16).toString('hex'),
+                        random: randomBytes(16).toString('hex'),
                         mac: mac,
                         support_token: true
                     }

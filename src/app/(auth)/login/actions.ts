@@ -5,6 +5,24 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getOptionalApiKeys } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
+/**
+ * SEC-016: Validates that a redirect path is a safe relative URL.
+ * Rejects anything that could be interpreted as an absolute URL by browsers,
+ * including /\example.com, //%09example.com, /%2F%2Fexample.com, etc.
+ */
+function isSafeRedirectPath(path: string): boolean {
+    if (!path || !path.startsWith('/')) return false;
+    if (path.startsWith('//')) return false;
+    if (path.startsWith('/\\')) return false;
+    try {
+        // Resolve against a known origin — if the hostname changes, it's unsafe.
+        const url = new URL(path, 'https://filmify.me');
+        return url.hostname === 'filmify.me';
+    } catch {
+        return false;
+    }
+}
+
 export type LoginState = {
     error: string;
 };
@@ -86,9 +104,8 @@ export async function loginAction(
         return { error: LOGIN_INVALID_CREDENTIALS };
     }
 
-    // Redirect to the originally requested page, or /browse as default.
-    // Only allow relative paths to prevent open redirect attacks.
+    // SEC-016: validate the redirect target strictly — paths like /\example.com
+    // or /%2F%2Fexample.com can be interpreted as absolute URLs by some browsers.
     const next = String(formData.get('next') ?? '').trim();
-    const safePath = next.startsWith('/') && !next.startsWith('//') ? next : '/browse';
-    return redirect(safePath);
+    return redirect(isSafeRedirectPath(next) ? next : '/browse');
 }

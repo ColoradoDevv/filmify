@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getOptionalApiKeys } from '@/lib/env';
 
@@ -12,7 +12,9 @@ export async function GET(request: Request) {
     }
 
     try {
-        const supabase = await createClient();
+        // SEC-018: use service role client — cron jobs run without a user session,
+        // so the anon client would have no permissions to execute the RPC.
+        const supabase = createServiceRoleClient();
 
         const { error } = await supabase.rpc('cleanup_inactive_parties');
 

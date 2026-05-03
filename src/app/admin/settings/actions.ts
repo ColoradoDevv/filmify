@@ -112,7 +112,20 @@ export async function deactivateAnnouncement(id: string) {
 }
 
 export async function getAnnouncementHistory() {
+    // SEC-020: verify admin role before exposing announcement history.
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return [];
+
     const supabase = createServiceRoleClient();
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') return [];
 
     const { data: announcements, error } = await supabase
         .from('announcements')

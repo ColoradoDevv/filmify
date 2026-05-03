@@ -59,7 +59,13 @@ export async function markAsRead(id: string): Promise<void> {
 /** Mark all notifications as read for the current user. */
 export async function markAllAsRead(): Promise<void> {
     const supabase = createClient();
-    await supabase.from('notifications').update({ read: true }).eq('read', false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)   // SEC-015: explicit user filter — never touch other users' rows
+        .eq('read', false);
 }
 
 /**
