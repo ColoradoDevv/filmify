@@ -20,7 +20,7 @@ export type AdminAction =
  * Helper to ensure the current user is an admin.
  * Throws an error if not authorized.
  */
-async function requireAdmin() {
+export async function requireAdmin() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -178,13 +178,16 @@ export async function impersonateUser(userId: string) {
             return { success: false, error: 'Invalid magic link URL' };
         }
 
+        // SEC-011: always audit-log impersonation BEFORE returning the link
+        await logAdminAction('IMPERSONATE_USER', userId, {
+            timestamp: new Date().toISOString(),
+        });
+
         return { success: true, url: actionLink };
     } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-}
-
-export async function banIp(ip: string, userId?: string) {
+}(ip: string, userId?: string) {
     try {
         const user = await requireAdmin();
         const supabase = await createAdminClient();
