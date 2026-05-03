@@ -19,7 +19,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
 
     useEffect(() => {
         const supabase = createClient();
-        supabase.auth.getUser().then(({ data }) => {
+        supabase.auth.getUser().then(({ data }: { data: { user: any } }) => {
             setIsLoggedIn(!!data.user);
         });
     }, []);
