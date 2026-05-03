@@ -182,9 +182,11 @@ export default async function middleware(request: NextRequest) {
     // 3. Authenticated user → auth page: redirect to browse (or ?next param)
     if (user && isAuthPage && !pathname.startsWith('/confirm-email')) {
         const next = request.nextUrl.searchParams.get('next') ?? '/browse';
-        // Only allow relative paths to prevent open redirect
-        const safePath = next.startsWith('/') ? next : '/browse';
-        return NextResponse.redirect(new URL(safePath, request.url));
+        // SEC-016: validate strictly — /\example.com and similar bypass naive checks
+        const isSafe = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') && (() => {
+            try { return new URL(next, 'https://filmify.me').hostname === 'filmify.me'; } catch { return false; }
+        })();
+        return NextResponse.redirect(new URL(isSafe ? next : '/browse', request.url));
     }
 
     return response;
