@@ -69,6 +69,10 @@ const SECURITY_HEADERS: Record<string, string> = {
     'X-Frame-Options':           'SAMEORIGIN',
     'X-Content-Type-Options':    'nosniff',
     'Referrer-Policy':           'origin-when-cross-origin',
+    // SEC-024: restrict browser feature APIs and cross-origin isolation
+    'Permissions-Policy':              'camera=(), microphone=(), geolocation=(), payment=()',
+    'Cross-Origin-Opener-Policy':      'same-origin',
+    'Cross-Origin-Resource-Policy':    'same-origin',
 };
 
 /** TV device User-Agent keywords — must stay in sync with src/lib/device-detection.ts */
