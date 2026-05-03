@@ -1,13 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { createServiceRoleClient } from './supabase/server';
-import { getSupabaseConfig } from './env';
-
-// Cheap pre-check so we can skip the DB path silently when the service role
-// key isn't configured, instead of constructing a client that throws.
-const hasServiceRoleKey = () => Boolean(getSupabaseConfig().serviceRoleKey);
-
-const SETTINGS_FILE = path.join(process.cwd(), 'admin-settings.json');
 
 export interface AdminSettings {
     enableAi: boolean;
@@ -28,99 +19,63 @@ const DEFAULT_SETTINGS: AdminSettings = {
 };
 
 export async function getSettings(): Promise<AdminSettings> {
-    let dbSettings: AdminSettings | null = null;
-
-    // Try fetching from DB only if Supabase service role is configured —
-    // otherwise fall straight through to the file-backed fallback without
-    // logging a scary warning on every page load.
-    if (hasServiceRoleKey()) try {
+    try {
         const supabase = createServiceRoleClient();
 
-        // Fetch System Settings
-        const { data: settingsData, error: settingsError } = await supabase
-            .from('system_settings')
-            .select('*')
-            .single();
+        const [{ data: settingsData, error: settingsError }, { data: announcementData }] =
+            await Promise.all([
+                supabase.from('system_settings').select('*').single(),
+                supabase
+                    .from('announcements')
+                    .select('message, type')
+                    .eq('is_active', true)
+                    .lte('start_at', new Date().toISOString())
+                    .or(`end_at.is.null,end_at.gt.${new Date().toISOString()}`)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single(),
+            ]);
 
-        // Fetch Active Announcement
-        const { data: announcementData, error: announcementError } = await supabase
-            .from('announcements')
-            .select('message, type')
-            .eq('is_active', true)
-            .lte('start_at', new Date().toISOString())
-            .or(`end_at.is.null,end_at.gt.${new Date().toISOString()}`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-        if (settingsData && !settingsError) {
-            dbSettings = {
-                enableAi: settingsData.enable_ai,
-                enableWatchParty: settingsData.enable_watch_party,
-                allowRegistration: settingsData.allow_registration,
-                maintenanceMode: settingsData.maintenance_mode,
-                activeAnnouncement: announcementData?.message || "",
-                announcementType: announcementData?.type || 'info'
-            };
+        if (settingsError || !settingsData) {
+            console.error('Failed to fetch settings from DB:', settingsError);
+            return DEFAULT_SETTINGS;
         }
-    } catch (error) {
-        console.warn('Failed to fetch settings from DB, falling back to file:', error);
-    }
 
-    if (dbSettings) return dbSettings;
-
-    // Fallback to File
-    try {
-        const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+        return {
+            enableAi: settingsData.enable_ai,
+            enableWatchParty: settingsData.enable_watch_party,
+            allowRegistration: settingsData.allow_registration,
+            maintenanceMode: settingsData.maintenance_mode,
+            activeAnnouncement: announcementData?.message ?? "",
+            announcementType: announcementData?.type ?? 'info',
+        };
     } catch (error) {
+        console.error('Exception fetching settings from DB:', error);
         return DEFAULT_SETTINGS;
     }
 }
 
 export async function saveSettings(settings: AdminSettings): Promise<boolean> {
-    let dbSuccess = false;
-    let fileSuccess = false;
-
-    // Save to DB — skipped silently if service role isn't configured.
-    if (hasServiceRoleKey()) try {
+    try {
         const supabase = createServiceRoleClient();
-        const { error } = await supabase
-            .from('system_settings')
-            .upsert({
-                id: 1,
-                enable_ai: settings.enableAi,
-                enable_watch_party: settings.enableWatchParty,
-                allow_registration: settings.allowRegistration,
-                maintenance_mode: settings.maintenanceMode,
-                active_announcement: settings.activeAnnouncement,
-                updated_at: new Date().toISOString()
-            });
+
+        const { error } = await supabase.from('system_settings').upsert({
+            id: 1,
+            enable_ai: settings.enableAi,
+            enable_watch_party: settings.enableWatchParty,
+            allow_registration: settings.allowRegistration,
+            maintenance_mode: settings.maintenanceMode,
+            updated_at: new Date().toISOString(),
+        });
 
         if (error) {
             console.error('Error saving settings to DB:', error);
-        } else {
-            dbSuccess = true;
+            return false;
         }
+
+        return true;
     } catch (error) {
         console.error('Exception saving settings to DB:', error);
+        return false;
     }
-
-    // Save to File (Always try to save locally as backup/cache)
-    try {
-        await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
-        fileSuccess = true;
-    } catch (error) {
-        console.error('Error saving settings to file:', error);
-    }
-
-    // Return true if at least one method succeeded
-    if (dbSuccess || fileSuccess) {
-        if (!dbSuccess) {
-            console.warn('Settings saved to file but failed to save to DB (likely missing table).');
-        }
-        return true;
-    }
-
-    return false;
 }
