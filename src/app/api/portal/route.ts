@@ -12,7 +12,10 @@ import {
     getExternalIds
 } from '@/lib/tmdb/service';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { createHmac } from 'crypto';
+// SEC-027: use static top-level imports instead of dynamic require('crypto')
+// inside functions — dynamic require is susceptible to prototype pollution
+// and module injection in compromised environments.
+import { createHash, createHmac, randomBytes } from 'crypto';
 
 import { getOptionalApiKeys, getPortalDeviceSecret } from '@/lib/env';
 
@@ -26,8 +29,7 @@ const BASE_URL = getOptionalApiKeys().appUrl;
  * Helper to generate a token based on MAC address
  */
 function generateToken(mac: string): string {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(mac + Date.now().toString() + PORTAL_NAME).digest('hex');
+    return createHash('sha256').update(mac + Date.now().toString() + PORTAL_NAME).digest('hex');
 }
 
 /**
@@ -197,7 +199,7 @@ async function handleSTBRequest(action: string, mac: string) {
                 return NextResponse.json({
                     js: {
                         token: generateToken(mac),
-                        random: crypto.randomBytes(16).toString('hex'),
+                        random: randomBytes(16).toString('hex'),
                         mac: mac,
                         support_token: true
                     }
