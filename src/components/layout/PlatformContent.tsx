@@ -11,7 +11,7 @@ export default function PlatformContent({
 
     return (
         <div
-            className={`transition-all duration-300 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+            className={`transition-all duration-300 ${isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-56'
                 }`}
         >
             {children}

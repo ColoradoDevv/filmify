@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X, ArrowLeft } from 'lucide-react';
+import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X, ArrowLeft, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { getBackdropUrl } from '@/lib/tmdb/helpers';
 import { useStore } from '@/lib/store/useStore';
 import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
@@ -235,6 +236,16 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                 {mediaType === 'tv' ? `VER T${selectedSeason} • E${selectedEpisode}` : 'VER AHORA'}
                             </button>
 
+                            {/* Watch Party button */}
+                            <WatchPartyButton
+                                tmdbId={movie.id}
+                                title={movie.title}
+                                posterPath={movie.poster_path}
+                                mediaType={mediaType}
+                                season={selectedSeason}
+                                episode={selectedEpisode}
+                            />
+
                             {trailer && !showVideo && (
                                 <button
                                     onClick={() => {
@@ -294,5 +305,57 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                 />
             )}
         </div>
+    );
+}
+
+// ── Watch Party quick-create button ──────────────────────────────────────────
+
+interface WatchPartyButtonProps {
+    tmdbId: number;
+    title: string;
+    posterPath: string | null;
+    mediaType: 'movie' | 'tv';
+    season?: number;
+    episode?: number;
+}
+
+function WatchPartyButton({ tmdbId, title, posterPath, mediaType, season, episode }: WatchPartyButtonProps) {
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+
+    const handleCreate = async () => {
+        setLoading(true);
+        const res = await fetch('/api/watch-party', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tmdb_id:     tmdbId,
+                title,
+                poster_path: posterPath,
+                media_type:  mediaType,
+                season:      season ?? null,
+                episode:     episode ?? null,
+                name:        `Sala de ${title}`,
+                is_private:  false,
+            }),
+        });
+        const data = await res.json();
+        setLoading(false);
+        if (data.party?.room_code) {
+            router.push(`/watch-party/${data.party.room_code}`);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleCreate}
+            disabled={loading}
+            className="px-6 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-base hover:bg-white/10 hover:border-primary/40 transition-all duration-300 backdrop-blur-md flex items-center gap-2 disabled:opacity-50"
+        >
+            {loading
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creando...</>
+                : <><Users className="w-4 h-4" /> Watch Party</>
+            }
+        </button>
     );
 }

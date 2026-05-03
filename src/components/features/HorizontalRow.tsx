@@ -15,13 +15,11 @@ interface HorizontalRowProps {
 
 export default function HorizontalRow({ title, items, mediaType = 'movie', onFocus, icon: Icon }: HorizontalRowProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollLeft,  setCanScrollLeft]  = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
-    const [focusedIndex, setFocusedIndex] = useState(-1);
 
     const checkScrollButtons = () => {
         if (!scrollContainerRef.current) return;
-
         const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
         setCanScrollLeft(scrollLeft > 0);
         setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
@@ -38,109 +36,81 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
 
     const scroll = (direction: 'left' | 'right') => {
         if (!scrollContainerRef.current) return;
-
-        const scrollAmount = scrollContainerRef.current.clientWidth * 0.8;
-        const newScrollLeft = direction === 'left'
-            ? scrollContainerRef.current.scrollLeft - scrollAmount
-            : scrollContainerRef.current.scrollLeft + scrollAmount;
-
+        const amount = scrollContainerRef.current.clientWidth * 0.75;
         scrollContainerRef.current.scrollTo({
-            left: newScrollLeft,
-            behavior: 'smooth'
+            left: scrollContainerRef.current.scrollLeft + (direction === 'left' ? -amount : amount),
+            behavior: 'smooth',
         });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
         const container = scrollContainerRef.current;
         if (!container) return;
-
-        switch (e.key) {
-            case 'ArrowLeft':
-                if (index > 0) {
-                    e.preventDefault();
-                    const prevCard = container.children[index - 1] as HTMLElement;
-                    const focusable = prevCard.querySelector('[tabindex="0"]') as HTMLElement;
-                    focusable?.focus();
-
-                    // Auto-scroll if needed
-                    if (prevCard.offsetLeft < container.scrollLeft) {
-                        scroll('left');
-                    }
-                }
-                break;
-            case 'ArrowRight':
-                if (index < items.length - 1) {
-                    e.preventDefault();
-                    const nextCard = container.children[index + 1] as HTMLElement;
-                    const focusable = nextCard.querySelector('[tabindex="0"]') as HTMLElement;
-                    focusable?.focus();
-
-                    // Auto-scroll if needed
-                    const cardRight = nextCard.offsetLeft + nextCard.offsetWidth;
-                    const containerRight = container.scrollLeft + container.clientWidth;
-                    if (cardRight > containerRight) {
-                        scroll('right');
-                    }
-                }
-                break;
+        if (e.key === 'ArrowLeft' && index > 0) {
+            e.preventDefault();
+            const prev = container.children[index - 1] as HTMLElement;
+            (prev.querySelector('[tabindex="0"]') as HTMLElement)?.focus();
+            if (prev.offsetLeft < container.scrollLeft) scroll('left');
+        }
+        if (e.key === 'ArrowRight' && index < items.length - 1) {
+            e.preventDefault();
+            const next = container.children[index + 1] as HTMLElement;
+            (next.querySelector('[tabindex="0"]') as HTMLElement)?.focus();
+            const cardRight = next.offsetLeft + next.offsetWidth;
+            if (cardRight > container.scrollLeft + container.clientWidth) scroll('right');
         }
     };
 
     return (
-        <div className="mb-12 tv-row" onFocus={onFocus}>
-            {/* Row Title */}
-            <div className="flex items-center justify-between mb-6 px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-4">
+        <div className="mb-8 tv-row" onFocus={onFocus}>
+            {/* Row header */}
+            <div className="flex items-center justify-between mb-3 px-4 sm:px-5">
+                <div className="flex items-center gap-2">
                     {Icon && (
-                        <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" strokeWidth={2.5} />
+                        /* MD3 icon in a tonal container */
+                        <div className="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center">
+                            <Icon className="w-3.5 h-3.5 text-on-secondary-container" strokeWidth={2} />
                         </div>
                     )}
-                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                        {title}
-                    </h2>
+                    <h2 className="md3-title-large text-on-surface">{title}</h2>
                 </div>
 
-                {/* Scroll Buttons (visible on hover/focus) */}
-                <div className="hidden lg:flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* MD3 icon buttons for scroll */}
+                <div className="hidden lg:flex gap-1">
                     <button
                         onClick={() => scroll('left')}
                         disabled={!canScrollLeft}
-                        className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed tv-focusable"
-                        aria-label="Scroll left"
+                        aria-label="Anterior"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-on-surface/8 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => scroll('right')}
                         disabled={!canScrollRight}
-                        className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed tv-focusable"
-                        aria-label="Scroll right"
+                        aria-label="Siguiente"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-on-surface/8 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {/* Horizontal Scrolling Container */}
-            <div className="relative group px-4 sm:px-6 lg:px-8">
+            {/* Scroll container */}
+            <div className="relative px-4 sm:px-5">
                 <div
                     ref={scrollContainerRef}
-                    className="flex gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-smooth pb-4"
-                    style={{
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none'
-                    }}
+                    className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                     role="list"
                     aria-label={title}
                 >
                     {items.map((item, index) => (
                         <div
                             key={item.id}
-                            className="flex-shrink-0 w-[160px] sm:w-[200px] lg:w-[240px] tv-row-item"
+                            /* MD3 card widths: smaller than before */
+                            className="flex-shrink-0 w-[130px] sm:w-[155px] lg:w-[175px] tv-row-item"
                             role="listitem"
-                            onFocus={() => setFocusedIndex(index)}
-                            onBlur={() => setFocusedIndex(-1)}
                             onKeyDown={(e) => handleKeyDown(e, index)}
                         >
                             <MovieCard movie={item} mediaType={mediaType} />
@@ -148,12 +118,12 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
                     ))}
                 </div>
 
-                {/* Gradient Overlays for scroll indication */}
+                {/* Edge fade overlays */}
                 {canScrollLeft && (
-                    <div className="absolute left-0 top-0 bottom-4 w-16 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+                    <div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-background to-transparent pointer-events-none" />
                 )}
                 {canScrollRight && (
-                    <div className="absolute right-0 top-0 bottom-4 w-16 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+                    <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-background to-transparent pointer-events-none" />
                 )}
             </div>
         </div>

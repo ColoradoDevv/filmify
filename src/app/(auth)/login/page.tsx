@@ -2,14 +2,12 @@
 
 import { useState, useRef, useActionState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, Lock, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { loginAction } from './actions';
 
-const initialState = {
-    error: '',
-};
-
+const initialState = { error: '' };
 const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
 const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
@@ -19,8 +17,9 @@ export default function LoginPage() {
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const captchaRef = useRef<HCaptcha>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const searchParams = useSearchParams();
+    const next = searchParams.get('next') ?? '';
 
-    // Reset captcha when error occurs
     useEffect(() => {
         if (state?.error) {
             captchaRef.current?.resetCaptcha();
@@ -29,10 +28,8 @@ export default function LoginPage() {
     }, [state?.error]);
 
     const handleSubmit = (formData: FormData) => {
-        if (hcaptchaConfigured) {
-            if (!captchaToken) return;
-            formData.set('captchaToken', captchaToken);
-        }
+        if (hcaptchaConfigured && !captchaToken) return;
+        if (hcaptchaConfigured && captchaToken) formData.set('captchaToken', captchaToken);
         formAction(formData);
     };
 
@@ -80,6 +77,8 @@ export default function LoginPage() {
 
                 {/* Form */}
                 <form action={handleSubmit} className="space-y-4" ref={formRef}>
+                    {/* Preserve redirect destination */}
+                    {next && <input type="hidden" name="next" value={next} />}
                     {/* Email/Nickname Field */}
                     <div>
                         <label

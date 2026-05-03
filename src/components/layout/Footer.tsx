@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Github, Twitter, Instagram, Mail, Heart, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+/** Returns the correct href: if user is logged in go directly, otherwise gate via login */
+function gatedHref(path: string, isLoggedIn: boolean): string {
+    return isLoggedIn ? path : `/login?next=${encodeURIComponent(path)}`;
+}
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
     const [email, setEmail] = useState('');
     const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
+    }, []);
 
     const handleSubscribe = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -88,19 +100,27 @@ export default function Footer() {
                     <div className="lg:col-span-2 md:col-span-1">
                         <h4 className="font-semibold text-white mb-6">Explorar</h4>
                         <ul className="space-y-4 text-sm">
-                            <li><Link href="/browse" className="text-text-secondary hover:text-primary transition-colors">Películas</Link></li>
-                            <li><Link href="/trending" className="text-text-secondary hover:text-primary transition-colors">Tendencias</Link></li>
-                            <li><Link href="/new" className="text-text-secondary hover:text-primary transition-colors">Estrenos</Link></li>
-                            <li><Link href="/collections" className="text-text-secondary hover:text-primary transition-colors">Colecciones</Link></li>
+                            <li><Link href={gatedHref('/browse', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Películas</Link></li>
+                            <li><Link href={gatedHref('/browse?category=tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Series</Link></li>
+                            <li><Link href={gatedHref('/live-tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">TV en Vivo</Link></li>
+                            <li><Link href={gatedHref('/favorites', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Favoritos</Link></li>
                         </ul>
                     </div>
 
                     <div className="lg:col-span-2 md:col-span-1">
-                        <h4 className="font-semibold text-white mb-6">Comunidad</h4>
+                        <h4 className="font-semibold text-white mb-6">Cuenta</h4>
                         <ul className="space-y-4 text-sm">
-                            <li><Link href="/about" className="text-text-secondary hover:text-primary transition-colors">Nosotros</Link></li>
-                            <li><Link href="/blog" className="text-text-secondary hover:text-primary transition-colors">Blog</Link></li>
-                            <li><Link href="/forum" className="text-text-secondary hover:text-primary transition-colors">Foro</Link></li>
+                            {isLoggedIn ? (
+                                <>
+                                    <li><Link href="/profile" className="text-text-secondary hover:text-primary transition-colors">Mi Perfil</Link></li>
+                                    <li><Link href="/settings" className="text-text-secondary hover:text-primary transition-colors">Configuración</Link></li>
+                                </>
+                            ) : (
+                                <>
+                                    <li><Link href="/login" className="text-text-secondary hover:text-primary transition-colors">Iniciar Sesión</Link></li>
+                                    <li><Link href="/register" className="text-text-secondary hover:text-primary transition-colors">Crear Cuenta</Link></li>
+                                </>
+                            )}
                             <li><Link href="/contact" className="text-text-secondary hover:text-primary transition-colors">Contacto</Link></li>
                         </ul>
                     </div>

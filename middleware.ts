@@ -2,124 +2,157 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 
+// ── Route classification ──────────────────────────────────────────────────────
+
+/** Publicly accessible — no auth required */
+const PUBLIC_ROUTES = [
+    '/',                    // landing / call-to-action
+    '/contact',
+    '/legal',
+    '/security',
+];
+
+/** Auth pages — redirect to /browse if already logged in */
+const AUTH_ROUTES = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/confirm-email',
+];
+
+/** Platform routes that require authentication */
+const PROTECTED_PREFIXES = [
+    '/browse',
+    '/favorites',
+    '/lists',
+    '/live-tv',
+    '/movie',
+    '/tv',
+    '/search',
+    '/settings',
+    '/profile',
+    '/watch-party',
+];
+
+/** Admin routes — require admin/super_admin role */
+const ADMIN_PREFIX = '/admin';
+
+/** API & auth callback routes — always pass through */
+const PASSTHROUGH_PREFIXES = [
+    '/api/',
+    '/auth/',
+    '/_next/',
+];
+
+function isMatch(pathname: string, prefixes: string[]): boolean {
+    return prefixes.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
+}
+
+// ── Security headers ──────────────────────────────────────────────────────────
+
+const SECURITY_HEADERS: Record<string, string> = {
+    'X-DNS-Prefetch-Control':    'on',
+    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+    'X-Frame-Options':           'SAMEORIGIN',
+    'X-Content-Type-Options':    'nosniff',
+    'Referrer-Policy':           'origin-when-cross-origin',
+};
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
 export default async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    });
+    const { pathname } = request.nextUrl;
+
+    // Always pass through static assets and API/auth routes
+    if (isMatch(pathname, PASSTHROUGH_PREFIXES)) {
+        return NextResponse.next();
+    }
+
+    let response = NextResponse.next({ request: { headers: request.headers } });
+
+    // Apply security headers to all responses
+    Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
 
     const { url, anonKey } = getSupabaseConfig();
-    const hasSupabase = url && anonKey;
+    const hasSupabase = !!(url && anonKey);
 
-    // --- SECURITY HEADERS ---
-    const securityHeaders = {
-        'X-DNS-Prefetch-Control': 'on',
-        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-        'X-Frame-Options': 'SAMEORIGIN',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'origin-when-cross-origin',
-    };
-
-    Object.entries(securityHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
-
-    // If Supabase is not configured, allow public access but block admin/protected routes
+    // ── No Supabase configured ────────────────────────────────────────────────
     if (!hasSupabase) {
-        const protectedRoutes = ['/browse', '/favorites', '/settings', '/admin', '/movie', '/tv', '/live-tv', '/search'];
-        const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-
-        if (isProtectedRoute) {
-            // If trying to access protected route without DB, redirect to home
+        const needsAuth =
+            isMatch(pathname, PROTECTED_PREFIXES) ||
+            pathname.startsWith(ADMIN_PREFIX);
+        if (needsAuth) {
             return NextResponse.redirect(new URL('/', request.url));
         }
         return response;
     }
 
-    const supabase = createServerClient(
-        url,
-        anonKey,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll();
-                },
-                setAll(cookiesToSet) {
-                    // Create new response for cookie updates
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    });
-                    // Set cookies on response only
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    );
-                },
+    // ── Build Supabase client (refreshes session cookie if needed) ────────────
+    const supabase = createServerClient(url, anonKey, {
+        cookies: {
+            getAll: () => request.cookies.getAll(),
+            setAll: (cookiesToSet) => {
+                response = NextResponse.next({ request: { headers: request.headers } });
+                Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                cookiesToSet.forEach(({ name, value, options }) =>
+                    response.cookies.set(name, value, options)
+                );
             },
-        }
-    );
+        },
+    });
 
-    // IP Blocking Check
-    // Use forwarded headers to determine the client IP in edge middleware.
+    // ── IP ban check ──────────────────────────────────────────────────────────
     const ip =
         request.headers.get('x-real-ip') ||
-        request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         '127.0.0.1';
     try {
-        const { data: bannedIp } = await supabase
+        const { data: banned } = await supabase
             .from('ip_bans')
             .select('id')
             .eq('ip_address', ip)
             .single();
-
-        if (bannedIp) {
+        if (banned) {
             return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
         }
-    } catch {
-        // Ignore error if table doesn't exist or query fails
+    } catch { /* table may not exist yet */ }
+
+    // ── Get current user ──────────────────────────────────────────────────────
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
+    const isAdmin     = pathname.startsWith(ADMIN_PREFIX);
+    const isAuthPage  = isMatch(pathname, AUTH_ROUTES);
+
+    // 1. Unauthenticated user → protected/admin route: redirect to login
+    //    Preserve the intended destination so we can redirect back after login.
+    if (!user && (isProtected || isAdmin)) {
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('next', pathname);
+        return NextResponse.redirect(loginUrl);
     }
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-
-    const protectedRoutes = ['/browse', '/favorites', '/settings', '/movie', '/tv', '/live-tv', '/search'];
-    const authRoutes = ['/login', '/register', '/confirm-email'];
-    const adminRoutes = ['/admin'];
-
-    const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-    const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-    const isAdminRoute = adminRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-
-    // 1. Protect private routes
-    // If user is NOT logged in and tries to access a protected route -> Redirect to Login
-    if (!user && (isProtectedRoute || isAdminRoute)) {
-        const redirectUrl = new URL('/login', request.url);
-        return NextResponse.redirect(redirectUrl);
-    }
-
-    // 2. Protect Admin routes
-    if (user && isAdminRoute) {
-        // Fetch user profile to check role
+    // 2. Admin route: verify role
+    if (user && isAdmin) {
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
             .single();
 
-        if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-            // Redirect unauthorized users to home
-            return NextResponse.redirect(new URL('/', request.url));
+        const isAdminRole = profile?.role === 'admin' || profile?.role === 'super_admin';
+        if (!isAdminRole) {
+            return NextResponse.redirect(new URL('/browse', request.url));
         }
     }
 
-    // 3. Prevent authenticated users from accessing auth pages
-    // If user IS logged in and tries to access login/register -> Redirect to Browse
-    // Note: We allow /confirm-email even if logged in, in case they need to verify
-    if (user && isAuthRoute && !request.nextUrl.pathname.startsWith('/confirm-email')) {
-        return NextResponse.redirect(new URL('/browse', request.url));
+    // 3. Authenticated user → auth page: redirect to browse (or ?next param)
+    if (user && isAuthPage && !pathname.startsWith('/confirm-email')) {
+        const next = request.nextUrl.searchParams.get('next') ?? '/browse';
+        // Only allow relative paths to prevent open redirect
+        const safePath = next.startsWith('/') ? next : '/browse';
+        return NextResponse.redirect(new URL(safePath, request.url));
     }
 
     return response;
@@ -127,13 +160,7 @@ export default async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder files (svg, png, etc)
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        // Run on all paths except static files
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt)$).*)',
     ],
 };

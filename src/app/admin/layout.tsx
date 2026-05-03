@@ -43,7 +43,7 @@ export default async function AdminLayout({
 }) {
     const isAdmin = await verifyAdminAccess();
     if (!isAdmin) {
-        redirect('/');
+        redirect('/browse');
     }
 
     return (
