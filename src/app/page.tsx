@@ -188,7 +188,7 @@ export default async function LandingPage() {
               {/* CTA Buttons with Premium Effects */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
                 <Link
-                  href={heroMovie ? `/movie/${heroMovie.id}` : "/browse"}
+                  href="/login"
                   className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -412,7 +412,7 @@ export default async function LandingPage() {
                     </Link>
 
                     <Link
-                      href="/browse"
+                      href="/login?next=/browse"
                       className="px-8 py-3 glass-effect rounded-xl font-semibold text-base text-white transition-all duration-300 hover:bg-white/10 hover:scale-105"
                     >
                       Explorar Catálogo

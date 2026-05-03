@@ -1,16 +1,38 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Movie } from '@/types/tmdb';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 import { Star, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
 
 interface TrendingScrollerProps {
     movies: Movie[];
 }
 
 export default function TrendingScroller({ movies }: TrendingScrollerProps) {
+    const router = useRouter();
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+            setIsLoggedIn(!!data.user);
+        });
+    }, []);
+
+    const handleMovieClick = (e: React.MouseEvent, movieId: number) => {
+        e.preventDefault();
+        if (isLoggedIn) {
+            router.push(`/movie/${movieId}`);
+        } else {
+            router.push(`/login?next=/movie/${movieId}`);
+        }
+    };
+
     // Duplicate movies array for seamless infinite scroll
     const duplicatedMovies = [...movies, ...movies];
 
@@ -37,7 +59,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                         </p>
                     </div>
                     <Link
-                        href="/browse"
+                        href="/login?next=/browse"
                         className="hidden md:flex items-center gap-2 px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white"
                     >
                         Explorar Todo
@@ -60,10 +82,11 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                         const year = new Date(movie.release_date).getFullYear();
 
                         return (
-                            <Link
+                            <a
                                 key={`${movie.id}-${index}`}
-                                href={`/movie/${movie.id}`}
-                                className="flex-shrink-0 group relative"
+                                href={isLoggedIn ? `/movie/${movie.id}` : `/login?next=/movie/${movie.id}`}
+                                onClick={(e) => handleMovieClick(e, movie.id)}
+                                className="flex-shrink-0 group relative cursor-pointer"
                             >
                                 {/* Movie Card */}
                                 <div className="relative w-52 h-80 rounded-2xl overflow-hidden bg-surface border border-surface-light/30 transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50 group-hover:shadow-2xl group-hover:shadow-primary/20">
@@ -85,7 +108,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                         </div>
                                     )}
 
-                                    {/* Hover Overlay (Minimalist) */}
+                                    {/* Hover Overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                                     {/* Movie Info */}
@@ -98,8 +121,6 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                             <span className="text-sm text-text-secondary font-medium">
                                                 {year}
                                             </span>
-
-                                            {/* Rating */}
                                             <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-surface-light/30">
                                                 <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                                                 <span className="text-sm font-bold text-white">{rating}</span>
@@ -107,12 +128,12 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                         </div>
                                     </div>
 
-                                    {/* Subtle shine effect */}
+                                    {/* Shine effect */}
                                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                                     </div>
                                 </div>
-                            </Link>
+                            </a>
                         );
                     })}
                 </div>
@@ -121,7 +142,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
             {/* Mobile "Ver todo" button */}
             <div className="md:hidden relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
                 <Link
-                    href="/browse"
+                    href="/login?next=/browse"
                     className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 text-white"
                 >
                     Explorar Todo
