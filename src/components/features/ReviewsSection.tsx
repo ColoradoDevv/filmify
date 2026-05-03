@@ -43,7 +43,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
     const [error, setError] = useState<string | null>(null);
 
     const fetchReviews = useCallback(async (pageIndex: number, replace: boolean) => {
-        replace ? setLoading(true) : setLoadingMore(true);
+        if (replace) { setLoading(true); } else { setLoadingMore(true); }
         try {
             const from = pageIndex * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
@@ -67,7 +67,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
         } catch (err) {
             console.error('Error fetching reviews:', err);
         } finally {
-            replace ? setLoading(false) : setLoadingMore(false);
+            if (replace) { setLoading(false); } else { setLoadingMore(false); }
         }
     }, [supabase, mediaId, mediaType]);
 
