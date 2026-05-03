@@ -99,11 +99,11 @@ export function subscribeToMembers(
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'party_members',
             filter: `party_id=eq.${partyId}`,
-        }, (p) => onInsert(p.new))
+        }, (p: { new: any }) => onInsert(p.new))
         .on('postgres_changes', {
             event: 'DELETE', schema: 'public', table: 'party_members',
             filter: `party_id=eq.${partyId}`,
-        }, (p) => onDelete(p.old))
+        }, (p: { old: any }) => onDelete(p.old))
         .subscribe();
 }
 
@@ -117,8 +117,8 @@ export function subscribeToMessages(
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'party_messages',
             filter: `party_id=eq.${partyId}`,
-        }, async (payload) => {
-            const row = payload.new as any;
+        }, async (payload: { new: any }) => {
+            const row = payload.new;
             // Fetch profile for the new message
             const { data: profile } = await supabase
                 .from('profiles')
