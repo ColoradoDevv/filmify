@@ -56,50 +56,61 @@ function formatContent(item: any, categoryId: string) {
     };
 }
 
+// Only allow valid MAC addresses (colon or hyphen separated)
+const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+
+// Max new device registrations per 24-hour window across the whole portal
+const DEVICE_REGISTRATION_DAILY_LIMIT = 500;
+
 /**
- * Authenticate or register STB device via Supabase
+ * Authenticate or register STB device via Supabase.
+ * - Validates MAC format before touching the DB
+ * - Checks a daily registration cap to prevent user-creation floods
+ * - Reuses existing accounts on re-handshake (no duplicate creates)
  */
 async function authenticateDevice(mac: string) {
-    const supabase = createServiceRoleClient();
-    const email = `${mac.replace(/:/g, '')}@stb.filmify.com`;
-    const password = mac; // Simple password for STB (MAC address)
-
-    // 1. Try to sign in (checks if user exists and password matches)
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    if (signInData.user) {
-        return signInData.user;
+    if (!MAC_REGEX.test(mac)) {
+        throw new Error('Invalid MAC address format');
     }
 
-    // 2. If sign in fails, try to create new user
-    // (Only if error is "Invalid login credentials" or similar, but we'll try create anyway)
+    const supabase = createServiceRoleClient();
+    const email = `${mac.replace(/[:-]/g, '').toLowerCase()}@stb.filmify.com`;
+    const password = mac;
+
+    // 1. Try to sign in — fast path for returning devices
+    const { data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInData.user) return signInData.user;
+
+    // 2. New device — enforce daily registration cap before creating anything
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_stb', true)
+        .gte('created_at', since);
+
+    if ((count ?? 0) >= DEVICE_REGISTRATION_DAILY_LIMIT) {
+        throw new Error('Device registration limit reached. Try again later.');
+    }
+
+    // 3. Create the user
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: email,
-        password: password,
+        email,
+        password,
         email_confirm: true,
         user_metadata: {
             full_name: `STB Device (${mac})`,
             is_stb: true,
-            mac_address: mac
-        }
+            mac_address: mac,
+        },
     });
 
     if (createError) {
-        // If create fails, maybe the user exists but password was wrong (changed?)
-        // In that case, we might want to reset the password or just fail.
-        // For now, let's try to get the user by listing (fallback) if create says "already registered"
-        // Also catch 'email_exists' code which Supabase returns
+        // Race condition: another request created the same device between steps 1 and 3
         if (createError.message.includes('already registered') || createError.code === 'email_exists') {
-            // Fallback: List users (not ideal but works for now if sign in failed)
-            // Note: signIn might fail if email is not confirmed, but we set email_confirm: true
-            const { data: users } = await supabase.auth.admin.listUsers();
-            const existing = users?.users.find(u => u.email === email);
-            if (existing) return existing;
+            const { data: signInRetry } = await supabase.auth.signInWithPassword({ email, password });
+            if (signInRetry.user) return signInRetry.user;
         }
-
         console.error('Error creating STB user:', createError);
         throw new Error('Failed to register device');
     }

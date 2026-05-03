@@ -4,8 +4,9 @@ import { SmartScraper } from '@/lib/scraper';
 /**
  * FilmiFy Scraper API
  *
- * Probes a known set of embed providers in parallel and returns only the
- * ones that responded. See `src/lib/scraper.ts` for the probe strategy.
+ * Builds embed provider URLs ordered by priority and returns them immediately
+ * — no server-side probing. Dead providers are handled client-side via iframe
+ * load timeouts, which is more accurate anyway (HTTP 200 ≠ iframe-loadable).
  */
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -26,10 +27,6 @@ export async function GET(request: NextRequest) {
             episode
         );
 
-        if (streams.length === 0) {
-            return NextResponse.json({ error: 'No streams found' }, { status: 404 });
-        }
-
         return NextResponse.json({
             success: true,
             results: streams,
@@ -39,15 +36,15 @@ export async function GET(request: NextRequest) {
                 season,
                 episode,
                 timestamp: new Date().toISOString(),
-                strategy: 'health-probe',
-                probed: streams.length,
+                strategy: 'priority-sorted',
+                count: streams.length,
             },
         });
     } catch (error) {
         console.error('API Scrape Error:', error);
-        return NextResponse.json({ error: 'Failed to scrape streams' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to build stream list' }, { status: 500 });
     }
 }
 
 export const runtime = 'nodejs';
-export const revalidate = 600; // 10 min cache; provider health changes faster than 1h
+export const revalidate = 3600; // 1 h — provider list changes slowly
