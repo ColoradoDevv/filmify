@@ -7,6 +7,7 @@ import { User, LogOut, Settings, Menu } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import SearchInput from '@/components/features/SearchInput';
+import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 
 export default function PlatformHeader() {
     const router = useRouter();
@@ -59,6 +60,9 @@ export default function PlatformHeader() {
 
                     {user && (
                         <div className="flex items-center gap-3 pl-4 border-l border-surface-light/50 relative">
+                            {/* Notification Center */}
+                            <NotificationCenter user={user} />
+
                             <div
                                 className="relative group cursor-pointer tv-focusable focus:outline-none focus:ring-2 focus:ring-primary rounded-xl transition-all"
                                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}

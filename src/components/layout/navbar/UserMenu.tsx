@@ -6,9 +6,10 @@ import { User, Settings, LogOut } from 'lucide-react';
 
 interface UserMenuProps {
     onLogoutClick: () => void;
+    avatarUrl?: string | null;
 }
 
-export default function UserMenu({ onLogoutClick }: UserMenuProps) {
+export default function UserMenu({ onLogoutClick, avatarUrl }: UserMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -49,8 +50,16 @@ export default function UserMenu({ onLogoutClick }: UserMenuProps) {
                 aria-haspopup="true"
                 aria-expanded={isOpen}
             >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all">
-                    <User className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all overflow-hidden">
+                    {avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <User className="w-5 h-5" />
+                    )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
             </button>

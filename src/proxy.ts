@@ -27,7 +27,7 @@ export default async function proxy(request: NextRequest) {
 
     // If Supabase is not configured, allow public access but block admin/protected routes
     if (!hasSupabase) {
-        const protectedRoutes = ['/browse', '/favorites', '/settings', '/admin'];
+        const protectedRoutes = ['/browse', '/favorites', '/settings', '/admin', '/movie', '/tv', '/live-tv', '/search'];
         const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
         if (isProtectedRoute) {
@@ -81,7 +81,7 @@ export default async function proxy(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
-    const protectedRoutes = ['/browse', '/favorites', '/settings'];
+    const protectedRoutes = ['/browse', '/favorites', '/settings', '/movie', '/tv', '/live-tv', '/search'];
     const authRoutes = ['/login', '/register', '/confirm-email'];
     const adminRoutes = ['/admin'];
 

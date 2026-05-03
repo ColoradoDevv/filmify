@@ -210,7 +210,7 @@ export default function Navbar() {
 
                                             {/* User Menu */}
                                             <div className="pl-4 border-l border-white/10">
-                                                <UserMenu onLogoutClick={handleLogoutClick} />
+                                                <UserMenu onLogoutClick={handleLogoutClick} avatarUrl={user.user_metadata?.avatar_url} />
                                             </div>
                                         </>
                                     ) : (
