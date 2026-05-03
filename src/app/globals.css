@@ -121,12 +121,12 @@
 
   /* MD3 Typography helpers */
   .md3-display-large   { @apply text-[3.5625rem] leading-[4rem]   tracking-[-0.015625rem] font-normal; }
-  .md3-display-medium  { @apply text-[2.8125rem] leading-[3.25rem] tracking-0 font-normal; }
-  .md3-display-small   { @apply text-[2.25rem]  leading-[2.75rem] tracking-0 font-normal; }
-  .md3-headline-large  { @apply text-[2rem]     leading-[2.5rem]  tracking-0 font-normal; }
-  .md3-headline-medium { @apply text-[1.75rem]  leading-[2.25rem] tracking-0 font-normal; }
-  .md3-headline-small  { @apply text-[1.5rem]   leading-[2rem]    tracking-0 font-normal; }
-  .md3-title-large     { @apply text-[1.375rem] leading-[1.75rem] tracking-0 font-medium; }
+  .md3-display-medium  { @apply text-[2.8125rem] leading-[3.25rem] tracking-normal font-normal; }
+  .md3-display-small   { @apply text-[2.25rem]  leading-[2.75rem] tracking-normal font-normal; }
+  .md3-headline-large  { @apply text-[2rem]     leading-[2.5rem]  tracking-normal font-normal; }
+  .md3-headline-medium { @apply text-[1.75rem]  leading-[2.25rem] tracking-normal font-normal; }
+  .md3-headline-small  { @apply text-[1.5rem]   leading-[2rem]    tracking-normal font-normal; }
+  .md3-title-large     { @apply text-[1.375rem] leading-[1.75rem] tracking-normal font-medium; }
   .md3-title-medium    { @apply text-[1rem]     leading-[1.5rem]  tracking-[0.009375rem] font-medium; }
   .md3-title-small     { @apply text-[0.875rem] leading-[1.25rem] tracking-[0.00625rem]  font-medium; }
   .md3-label-large     { @apply text-[0.875rem] leading-[1.25rem] tracking-[0.00625rem]  font-medium; }
