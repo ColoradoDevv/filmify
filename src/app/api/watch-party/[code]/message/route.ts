@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { text } = await req.json();
+    const { text, reply_to_id, reply_preview } = await req.json();
     if (!text?.trim() || text.length > 500) {
         return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
     }
@@ -33,7 +33,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     const { error } = await supabase
         .from('party_messages')
-        .insert({ party_id: party.id, user_id: user.id, text: text.trim(), type: 'user' });
+        .insert({
+            party_id:      party.id,
+            user_id:       user.id,
+            text:          text.trim(),
+            type:          'user',
+            reply_to_id:   reply_to_id   ?? null,
+            reply_preview: reply_preview ?? null,
+        });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });

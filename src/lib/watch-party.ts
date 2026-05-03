@@ -36,19 +36,21 @@ export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> 
     const supabase = createClient();
     const { data } = await supabase
         .from('party_messages')
-        .select('id, user_id, text, type, created_at, profiles:user_id(username, avatar_url)')
+        .select('id, user_id, text, type, created_at, reply_to_id, reply_preview, profiles:user_id(username, avatar_url)')
         .eq('party_id', partyId)
         .order('created_at', { ascending: true })
         .limit(200);
 
     return (data ?? []).map((m: any) => ({
-        id:         m.id,
-        user_id:    m.user_id,
-        username:   m.profiles?.username ?? 'Usuario',
-        avatar_url: m.profiles?.avatar_url ?? null,
-        text:       m.text,
-        timestamp:  m.created_at,
-        type:       m.type ?? 'user',
+        id:            m.id,
+        user_id:       m.user_id,
+        username:      m.profiles?.username ?? 'Usuario',
+        avatar_url:    m.profiles?.avatar_url ?? null,
+        text:          m.text,
+        timestamp:     m.created_at,
+        type:          m.type ?? 'user',
+        reply_to_id:   m.reply_to_id   ?? null,
+        reply_preview: m.reply_preview ?? null,
     }));
 }
 
@@ -123,13 +125,15 @@ export function subscribeToMessages(
                 .eq('id', row.user_id)
                 .single();
             onMessage({
-                id:         row.id,
-                user_id:    row.user_id,
-                username:   profile?.username ?? 'Usuario',
-                avatar_url: profile?.avatar_url ?? null,
-                text:       row.text,
-                timestamp:  row.created_at,
-                type:       row.type ?? 'user',
+                id:            row.id,
+                user_id:       row.user_id,
+                username:      profile?.username ?? 'Usuario',
+                avatar_url:    profile?.avatar_url ?? null,
+                text:          row.text,
+                timestamp:     row.created_at,
+                type:          row.type ?? 'user',
+                reply_to_id:   row.reply_to_id   ?? null,
+                reply_preview: row.reply_preview ?? null,
             });
         })
         .subscribe();

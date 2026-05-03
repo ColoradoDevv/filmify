@@ -41,6 +41,9 @@ export interface ChatMessage {
     text: string;
     timestamp: string;
     type?: 'user' | 'system';
+    reply_to_id?: string | null;
+    reply_preview?: string | null;
+    reply_username?: string | null;
 }
 
 export interface PartyState {
