@@ -35,6 +35,18 @@ const PROTECTED_PREFIXES = [
     '/watch-party',
 ];
 
+/**
+ * Content routes that TV devices can access without authentication.
+ * Personal routes (favorites, lists, settings, profile, watch-party) still require login.
+ */
+const TV_PUBLIC_PREFIXES = [
+    '/browse',
+    '/movie',
+    '/tv',
+    '/search',
+    '/live-tv',
+];
+
 /** Admin routes — require admin/super_admin role */
 const ADMIN_PREFIX = '/admin';
 
@@ -58,6 +70,20 @@ const SECURITY_HEADERS: Record<string, string> = {
     'X-Content-Type-Options':    'nosniff',
     'Referrer-Policy':           'origin-when-cross-origin',
 };
+
+/** TV device User-Agent keywords — must stay in sync with src/lib/device-detection.ts */
+const TV_UA_KEYWORDS = [
+    'tizen', 'webos', 'web0s', 'vidaa', 'android tv', 'google tv', 'googletv',
+    'fire tv', 'firetv', 'appletv', 'roku', 'smarttv', 'smart-tv', 'hbbtv',
+    'mag200', 'mag250', 'mag254', 'mag256', 'mag322', 'mag349', 'mag351',
+    'mag410', 'mag420', 'mag520', 'stbapp', 'qtembedded',
+    'formuler', 'crkey', 'chromecast',
+];
+
+function isTVUserAgent(ua: string): boolean {
+    const lower = ua.toLowerCase();
+    return TV_UA_KEYWORDS.some(kw => lower.includes(kw));
+}
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -126,8 +152,14 @@ export default async function middleware(request: NextRequest) {
     const isAuthPage  = isMatch(pathname, AUTH_ROUTES);
 
     // 1. Unauthenticated user → protected/admin route: redirect to login
+    //    TV devices get a pass on content routes — they can't easily log in.
     //    Preserve the intended destination so we can redirect back after login.
     if (!user && (isProtected || isAdmin)) {
+        const ua = request.headers.get('user-agent') || '';
+        if (isTVUserAgent(ua) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
+            // TV device accessing a content route — allow without auth.
+            return response;
+        }
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('next', pathname);
         return NextResponse.redirect(loginUrl);

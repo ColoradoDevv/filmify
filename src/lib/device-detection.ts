@@ -21,7 +21,10 @@ export async function isTVDevice(): Promise<boolean> {
         'technicolor', 'thomson', 'medion', 'infinix tv', 'itel tv', 'realme tv',
 
         // Cajas IPTV y Android TV Boxes
-        'mag25', 'mag32', 'mag35', 'mag42', 'mag52', 'formuler', 'buzz tv',
+        'mag25', 'mag32', 'mag35', 'mag42', 'mag52', 'mag200', 'mag250', 'mag254',
+        'mag256', 'mag322', 'mag349', 'mag351', 'mag410', 'mag420', 'mag520',
+        'stbapp', 'qtembedded',
+        'formuler', 'buzz tv',
         'dreamlink', 'dreambox', 'vu+', 'zgemma', 'amiko', 'edision',
         'octagon', 'gigablue', 'xtrend', 'technomate', 'starsat', 'qviart',
         'mutant hd', 'axas', 'venton', 'ixuss', 'openbox', 'skybox',
