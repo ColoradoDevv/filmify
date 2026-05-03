@@ -36,7 +36,7 @@ export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> 
     const supabase = createClient();
     const { data } = await supabase
         .from('party_messages')
-        .select('id, user_id, text, type, created_at, reply_to_id, reply_preview, profiles:user_id(username, avatar_url)')
+        .select('id, user_id, text, type, created_at, reply_to_id, reply_preview, reply_username, profiles:user_id(username, avatar_url)')
         .eq('party_id', partyId)
         .order('created_at', { ascending: true })
         .limit(200);
@@ -49,8 +49,9 @@ export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> 
         text:          m.text,
         timestamp:     m.created_at,
         type:          m.type ?? 'user',
-        reply_to_id:   m.reply_to_id   ?? null,
-        reply_preview: m.reply_preview ?? null,
+        reply_to_id:    m.reply_to_id    ?? null,
+        reply_preview:  m.reply_preview  ?? null,
+        reply_username: m.reply_username ?? null,
     }));
 }
 
@@ -132,8 +133,9 @@ export function subscribeToMessages(
                 text:          row.text,
                 timestamp:     row.created_at,
                 type:          row.type ?? 'user',
-                reply_to_id:   row.reply_to_id   ?? null,
-                reply_preview: row.reply_preview ?? null,
+                reply_to_id:    row.reply_to_id    ?? null,
+                reply_preview:  row.reply_preview  ?? null,
+                reply_username: row.reply_username ?? null,
             });
         })
         .subscribe();
