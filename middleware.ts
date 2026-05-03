@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 
+/** Generate a cryptographically random base64 nonce using the Web Crypto API.
+ *  Works in both Edge Runtime and Node.js — no 'crypto' module import needed. */
+function generateNonce(): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return btoa(String.fromCharCode(...bytes));
+}
+
 // ── Route classification ──────────────────────────────────────────────────────
 
 /** Publicly accessible — no auth required */
@@ -99,10 +107,38 @@ export default async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    let response = NextResponse.next({ request: { headers: request.headers } });
+    // Generate a per-request nonce for CSP (base64, 16 bytes = 128 bits)
+    const nonce = generateNonce();
+
+    // Build CSP with nonce — allows Next.js inline scripts and GTM consent init
+    // while blocking all other inline scripts (XSS protection).
+    const csp = [
+        `default-src 'self'`,
+        // 'self' + nonce for Next.js hydration scripts + GTM consent init
+        // 'unsafe-eval' is NOT included — no eval() allowed
+        `script-src 'self' 'nonce-${nonce}' https:`,
+        `style-src 'self' 'unsafe-inline' https:`,
+        `img-src 'self' data: blob: https:`,
+        `media-src 'self' blob: https:`,
+        `connect-src 'self' https: wss:`,
+        `font-src 'self' data: https:`,
+        `frame-src https:`,
+        `frame-ancestors 'self'`,
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `form-action 'self'`,
+        `upgrade-insecure-requests`,
+    ].join('; ');
+
+    // Forward nonce to page components via request header
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+
+    let response = NextResponse.next({ request: { headers: requestHeaders } });
 
     // Apply security headers to all responses
     Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+    response.headers.set('Content-Security-Policy', csp);
 
     const { url, anonKey } = getSupabaseConfig();
     const hasSupabase = !!(url && anonKey);
@@ -123,8 +159,9 @@ export default async function middleware(request: NextRequest) {
         cookies: {
             getAll: () => request.cookies.getAll(),
             setAll: (cookiesToSet) => {
-                response = NextResponse.next({ request: { headers: request.headers } });
+                response = NextResponse.next({ request: { headers: requestHeaders } });
                 Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                response.headers.set('Content-Security-Policy', csp);
                 cookiesToSet.forEach(({ name, value, options }) =>
                     response.cookies.set(name, value, options)
                 );

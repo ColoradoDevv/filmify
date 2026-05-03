@@ -6,6 +6,7 @@ import { useFavorites } from '@/lib/store/useStore';
 import MovieCard from '@/components/features/MovieCard';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
+import TVFavoritesPage from '@/components/tv/TVFavoritesPage';
 
 export default function FavoritesPage() {
     const favorites = useFavorites();
@@ -14,9 +15,15 @@ export default function FavoritesPage() {
 
     useSpatialNavigation(containerRef, {
         enabled: isTV,
-        focusOnMount: true
+        focusOnMount: true,
     });
 
+    // TV mode: render dedicated TV layout
+    if (isTV) {
+        return <TVFavoritesPage />;
+    }
+
+    // Desktop/mobile layout — unchanged
     return (
         <div className="space-y-8" ref={containerRef}>
             {/* Header */}

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ArrowLeft } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
+import TVKeyboard from '@/components/tv/TVKeyboard';
 import MovieCard from '@/components/features/MovieCard';
 import type { Movie } from '@/types/tmdb';
 
@@ -16,102 +17,151 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState<Movie[]>(initialResults);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [showKeyboard, setShowKeyboard] = useState(!initialQuery);
+    const [isSearching, setIsSearching] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const resultsRef = useRef<HTMLDivElement>(null);
 
-    // Enable spatial navigation
-    useSpatialNavigation(containerRef, {
-        enabled: true,
-        focusOnMount: true
-    });
+    useSpatialNavigation(containerRef, { enabled: true });
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (query.trim()) {
-            router.push(`/search?q=${encodeURIComponent(query)}&tv=true`);
-        }
+    const handleSearch = useCallback(async (q: string) => {
+        if (!q.trim()) return;
+        setIsSearching(true);
+        setShowKeyboard(false);
+        router.push(`/search?q=${encodeURIComponent(q)}`);
+    }, [router]);
+
+    const handleQueryChange = (val: string) => {
+        setQuery(val);
+    };
+
+    const handleKeyboardSubmit = () => {
+        handleSearch(query);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Backspace' && query.length > 0 && document.activeElement !== inputRef.current) {
-            setQuery(prev => prev.slice(0, -1));
-            inputRef.current?.focus();
+        if (e.key === 'Escape') {
+            if (showKeyboard) {
+                setShowKeyboard(false);
+            } else {
+                router.back();
+            }
         }
     };
-
-    const filteredResults = results;
 
     return (
         <div
             ref={containerRef}
-            className="min-h-screen p-8"
+            className="min-h-screen p-6 lg:p-8"
             onKeyDown={handleKeyDown}
         >
-            {/* Search Header */}
-            <div className="mb-12">
-                <div className="flex items-center gap-4 mb-8">
-                    <Search className="w-10 h-10 text-primary" />
-                    <h1 className="text-4xl font-bold text-white">Buscar</h1>
+            {/* Header */}
+            <div className="mb-8">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center">
+                        <Search className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold text-white">Buscar</h1>
+                        <p className="text-white/40 text-sm mt-0.5">Películas, series y más</p>
+                    </div>
                 </div>
 
-                <form onSubmit={handleSearch} className="relative max-w-3xl">
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Escribe el título de una película o serie..."
-                        className="w-full bg-white/10 border-2 border-white/10 text-white text-2xl px-8 py-6 rounded-2xl focus:outline-none focus:border-primary focus:bg-white/20 transition-all placeholder:text-white/30 tv-focusable"
-                        autoFocus
-                    />
-                    <button
-                        type="submit"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors tv-focusable"
-                    >
-                        <Search className="w-6 h-6" />
-                    </button>
-                </form>
-
-                <div className="mt-4 flex gap-4 text-text-secondary text-sm">
-                    <span className="flex items-center gap-2">
-                        <kbd className="px-2 py-1 bg-white/10 rounded border border-white/10">Enter</kbd>
-                        Buscar
+                {/* Search bar — acts as keyboard toggle */}
+                <button
+                    onClick={() => setShowKeyboard(true)}
+                    className={[
+                        'w-full max-w-2xl flex items-center gap-4 px-6 py-4 rounded-2xl border-2 transition-all text-left',
+                        'tv-focusable focus:outline-none',
+                        showKeyboard
+                            ? 'border-primary bg-primary/10 shadow-[0_0_0_4px_rgba(0,194,255,0.15)]'
+                            : 'border-outline-variant bg-surface-container hover:border-primary/50 focus:border-primary focus:bg-primary/5',
+                    ].join(' ')}
+                    tabIndex={0}
+                    data-focusable="true"
+                    aria-label="Abrir teclado de búsqueda"
+                    aria-expanded={showKeyboard}
+                >
+                    <Search className="w-5 h-5 text-white/40 flex-shrink-0" />
+                    <span className={`text-xl flex-1 ${query ? 'text-white' : 'text-white/30'}`}>
+                        {query || 'Toca para buscar...'}
                     </span>
-                    <span className="flex items-center gap-2">
-                        <kbd className="px-2 py-1 bg-white/10 rounded border border-white/10">Esc</kbd>
-                        Volver
-                    </span>
-                </div>
+                    {query && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setQuery(''); setResults([]); }}
+                            className="p-1 rounded-full hover:bg-white/10 transition-colors tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                            aria-label="Limpiar búsqueda"
+                            tabIndex={0}
+                            data-focusable="true"
+                        >
+                            <X className="w-5 h-5 text-white/50" />
+                        </button>
+                    )}
+                </button>
             </div>
 
-            {/* Results Grid */}
-            {filteredResults.length > 0 ? (
-                <div>
-                    <h2 className="text-2xl font-semibold text-white mb-6">
-                        Resultados ({filteredResults.length})
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                        {filteredResults.map((movie) => (
-                            <div key={movie.id} className="transform transition-transform duration-300 hover:scale-105">
-                                <MovieCard
-                                    movie={movie}
-                                    mediaType="movie"
-                                />
+            {/* Virtual keyboard */}
+            {showKeyboard && (
+                <div className="mb-8 max-w-2xl">
+                    <TVKeyboard
+                        value={query}
+                        onChange={handleQueryChange}
+                        onSubmit={handleKeyboardSubmit}
+                        onClose={() => setShowKeyboard(false)}
+                    />
+                </div>
+            )}
+
+            {/* Results */}
+            {isSearching ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="flex flex-col items-center gap-4 text-white/40">
+                        <div className="w-12 h-12 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        <p className="text-lg">Buscando...</p>
+                    </div>
+                </div>
+            ) : results.length > 0 ? (
+                <div ref={resultsRef}>
+                    <div className="flex items-center gap-3 mb-6">
+                        <h2 className="text-xl font-semibold text-white">
+                            Resultados
+                        </h2>
+                        <span className="px-2.5 py-0.5 bg-primary/15 text-primary text-sm font-medium rounded-full border border-primary/20">
+                            {results.length}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+                        {results.map((movie) => (
+                            <div
+                                key={movie.id}
+                                className="tv-row-item"
+                            >
+                                <MovieCard movie={movie} mediaType="movie" />
                             </div>
                         ))}
                     </div>
                 </div>
-            ) : query ? (
-                <div className="flex flex-col items-center justify-center py-20 text-text-secondary opacity-50">
-                    <Search className="w-24 h-24 mb-6" />
-                    <p className="text-2xl">No se encontraron resultados para "{query}"</p>
+            ) : query && !showKeyboard ? (
+                <div className="flex flex-col items-center justify-center py-20 text-white/30">
+                    <Search className="w-20 h-20 mb-4 opacity-20" />
+                    <p className="text-2xl font-medium mb-2">Sin resultados</p>
+                    <p className="text-base">No encontramos nada para "{query}"</p>
+                    <button
+                        onClick={() => setShowKeyboard(true)}
+                        className="mt-6 px-6 py-3 bg-primary/15 text-primary border border-primary/20 rounded-xl font-medium hover:bg-primary/25 transition-colors tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                        tabIndex={0}
+                        data-focusable="true"
+                    >
+                        Intentar de nuevo
+                    </button>
                 </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-text-secondary opacity-50">
-                    <Search className="w-24 h-24 mb-6" />
-                    <p className="text-2xl">Empieza a escribir para buscar</p>
+            ) : !query ? (
+                <div className="flex flex-col items-center justify-center py-20 text-white/20">
+                    <Search className="w-24 h-24 mb-6 opacity-10" />
+                    <p className="text-2xl font-medium">Empieza a escribir</p>
+                    <p className="text-base mt-2">Usa el teclado para buscar contenido</p>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

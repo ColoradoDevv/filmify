@@ -10,6 +10,7 @@ import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
+import { headers } from "next/headers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -100,6 +101,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const isTV = await isTVDevice();
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? undefined;
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -115,7 +118,7 @@ export default async function RootLayout({
         <GoogleAnalytics gaId={gaId} />
         <Analytics />
         <CookieConsent />
-        <Script id="google-consent-mode" strategy="beforeInteractive">
+        <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}

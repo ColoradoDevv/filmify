@@ -13,9 +13,9 @@ export default async function PlatformLayout({
 
     if (isTV) {
         return (
-            <div className="flex min-h-screen bg-background text-white">
+            <div className="min-h-screen bg-background text-white">
                 <TVSidebar />
-                <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                <main className="ml-16 lg:ml-24 p-4 lg:p-8 overflow-x-hidden">
                     {children}
                 </main>
             </div>
