@@ -32,17 +32,23 @@ async function runTests() {
     console.log(`🎯 Target User ID: ${victimUser.id}`);
     console.log(`🦹 Attacker User ID: ${attackerUser.id}\n`);
 
-    // 1. Mass Assignment Attempt (Should FAIL)
-    console.log('1️⃣  Test: Mass Assignment (Privilege Escalation) via Anon Key');
-    // We need to sign in as the attacker to have a valid session for RLS
-    const { data: { session }, error: loginError } = await supabaseAnon.auth.signInWithPassword({
-        email: 'test@example.com', // You might need to adjust this or create a temp user
-        password: 'password123'
-    });
+    // SEC-017: never hardcode credentials in source code.
+    // Provide test credentials via environment variables so they are never
+    // committed to the repository or exposed in CI/CD logs.
+    const testEmail    = process.env.SECURITY_TEST_EMAIL;
+    const testPassword = process.env.SECURITY_TEST_PASSWORD;
 
-    // If we can't login easily, we'll try to update without auth (should definitely fail) or skip
-    // For this script, let's assume we are testing the RLS policy itself which often requires being authenticated.
-    // If we can't login, we will try to update as "public" which should also fail.
+    if (!testEmail || !testPassword) {
+        console.warn('⚠️  Skipping authenticated test: set SECURITY_TEST_EMAIL and SECURITY_TEST_PASSWORD env vars.');
+    } else {
+        const { data: { session }, error: loginError } = await supabaseAnon.auth.signInWithPassword({
+            email:    testEmail,
+            password: testPassword,
+        });
+        if (loginError) {
+            console.warn('⚠️  Could not sign in with test credentials:', loginError.message);
+        }
+    }
 
     const { error: massAssignmentError } = await supabaseAnon
         .from('profiles')
