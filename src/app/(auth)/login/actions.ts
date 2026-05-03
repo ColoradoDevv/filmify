@@ -80,14 +80,15 @@ export async function loginAction(
     });
 
     if (error) {
-        // If email isn't confirmed, redirect user to confirm-email page with
-        // the email pre-filled so they can resend. Do NOT leak this via error
-        // text — just surface the confirm-email flow on next render.
         if (error.message?.toLowerCase().includes('email not confirmed')) {
             return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
         }
         return { error: LOGIN_INVALID_CREDENTIALS };
     }
 
-    return redirect('/browse');
+    // Redirect to the originally requested page, or /browse as default.
+    // Only allow relative paths to prevent open redirect attacks.
+    const next = String(formData.get('next') ?? '').trim();
+    const safePath = next.startsWith('/') && !next.startsWith('//') ? next : '/browse';
+    return redirect(safePath);
 }
