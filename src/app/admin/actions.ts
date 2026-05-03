@@ -187,7 +187,9 @@ export async function impersonateUser(userId: string) {
     } catch (error) {
         return { success: false, error: 'Unauthorized' };
     }
-}(ip: string, userId?: string) {
+}
+
+export async function banIp(ip: string, userId?: string) {
     try {
         const user = await requireAdmin();
         const supabase = await createAdminClient();
