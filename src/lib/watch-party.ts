@@ -84,7 +84,7 @@ export function subscribeToParty(
         .on('postgres_changes', {
             event: 'UPDATE', schema: 'public', table: 'parties',
             filter: `id=eq.${partyId}`,
-        }, (payload) => onPartyChange(payload.new as Partial<Party>))
+        }, (payload: { new: Partial<Party> }) => onPartyChange(payload.new))
         .subscribe();
 }
 
