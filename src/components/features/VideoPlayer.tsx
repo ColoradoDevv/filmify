@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, AlertCircle, Globe, Settings, ChevronDown, Check, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 interface VideoPlayerProps {
     mediaId: number;
@@ -185,28 +186,58 @@ export default function VideoPlayer({
     const menuRef = useRef<HTMLDivElement>(null);
     const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fetchAbortRef = useRef<AbortController | null>(null);
+    const supabase = createClient();
 
-    // Restore the user's preferred server on mount.
+    // Restore the user's preferred server on mount — Supabase first, localStorage fallback.
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem(PREFERRED_SERVER_KEY);
-            if (saved) {
-                const found = SERVERS.find((s) => s.id === saved);
-                if (found) setActiveServer(found);
+        (async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const saved: string | undefined =
+                    user?.user_metadata?.preferredVideoServer ??
+                    localStorage.getItem(PREFERRED_SERVER_KEY) ??
+                    undefined;
+                if (saved) {
+                    const found = SERVERS.find((s) => s.id === saved);
+                    if (found) setActiveServer(found);
+                }
+            } catch {
+                // Private mode or no session — fall back silently
+                try {
+                    const saved = localStorage.getItem(PREFERRED_SERVER_KEY);
+                    if (saved) {
+                        const found = SERVERS.find((s) => s.id === saved);
+                        if (found) setActiveServer(found);
+                    }
+                } catch { /* ignore */ }
             }
-        } catch {
-            // localStorage may be unavailable (private mode, etc.) — fine.
-        }
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Persist server preference whenever it changes.
-    useEffect(() => {
+    // Persist server preference whenever it changes — Supabase + localStorage fallback.
+    const handleSelectServer = useCallback(async (server: Server) => {
+        setActiveServer(server);
+        setIsMenuOpen(false);
+
+        // Always write to localStorage as an instant, offline-capable fallback
+        try { localStorage.setItem(PREFERRED_SERVER_KEY, server.id); } catch { /* ignore */ }
+
+        // Persist to user_metadata so the preference follows the user across devices
         try {
-            localStorage.setItem(PREFERRED_SERVER_KEY, activeServer.id);
-        } catch {
-            // ignore
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                await supabase.auth.updateUser({
+                    data: {
+                        ...user.user_metadata,
+                        preferredVideoServer: server.id,
+                    },
+                });
+            }
+        } catch (err) {
+            console.warn('[VideoPlayer] could not persist server preference to Supabase:', err);
         }
-    }, [activeServer]);
+    }, [supabase]);
 
     const embedUrl = useMemo(
         () => buildEmbedUrl(activeServer, mediaId, mediaType, season, episode),
@@ -370,11 +401,6 @@ export default function VideoPlayer({
             clearTimeout(loadTimeoutRef.current);
             loadTimeoutRef.current = null;
         }
-    }, []);
-
-    const handleSelectServer = useCallback((server: Server) => {
-        setActiveServer(server);
-        setIsMenuOpen(false);
     }, []);
 
     return (

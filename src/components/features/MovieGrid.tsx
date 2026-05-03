@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Sparkles, Loader2, Film, Tv } from 'lucide-react';
 import MovieCard from '@/components/features/MovieCard';
+import { MovieCardSkeleton } from '@/components/features/MovieCardSkeleton';
 import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
 import type { Movie, TVShow } from '@/types/tmdb';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
@@ -127,6 +128,13 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
                         role="gridcell"
                     >
                         <MovieCard movie={movie} mediaType={mediaType} />
+                    </div>
+                ))}
+
+                {/* Skeleton placeholders while loading the next page */}
+                {loading && Array.from({ length: 10 }).map((_, i) => (
+                    <div key={`skeleton-${i}`} role="gridcell" aria-hidden>
+                        <MovieCardSkeleton />
                     </div>
                 ))}
             </div>

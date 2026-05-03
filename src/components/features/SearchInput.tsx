@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search, Film, Tv, User, Loader2, Clock, X } from 'lucide-react';
-import { searchMulti, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
 import { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
 import { addToHistory, getHistory, clearHistory, SearchHistoryItem } from '@/lib/supabase/history';
 import Image from 'next/image';
@@ -38,36 +38,45 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
         setShowSuggestions(false);
     }, [pathname]);
 
-    // Debounce search
+    // Debounce search with AbortController so stale requests don't overwrite
+    // results from a newer query that resolved faster.
     useEffect(() => {
+        if (query.trim().length < 2) {
+            setSuggestions([]);
+            setShowSuggestions(query.trim().length === 0);
+            return;
+        }
+
+        const controller = new AbortController();
+
         const timer = setTimeout(async () => {
-            if (query.trim().length >= 2) {
-                setLoading(true);
-                try {
-                    const { results } = await searchMulti(query);
-                    // Filter out people without known for, and limit to 5 results
-                    const filtered = results
-                        .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
-                        .slice(0, 5);
-                    setSuggestions(filtered);
-                    setShowSuggestions(true);
-                } catch (error) {
-                    console.error('Search error:', error);
-                } finally {
-                    setLoading(false);
-                }
-            } else {
-                setSuggestions([]);
-                // Show history if query is empty
-                if (query.trim().length === 0) {
-                    setShowSuggestions(true);
-                } else {
-                    setShowSuggestions(false);
-                }
+            setLoading(true);
+            try {
+                const response = await fetch(
+                    `/api/tmdb/search?query=${encodeURIComponent(query)}`,
+                    { signal: controller.signal }
+                );
+                const data = await response.json();
+                const filtered = (data.results ?? [])
+                    .filter((item: MultiSearchResult) =>
+                        item.media_type === 'movie' ||
+                        item.media_type === 'tv' ||
+                        item.media_type === 'person'
+                    )
+                    .slice(0, 5);
+                setSuggestions(filtered);
+                setShowSuggestions(true);
+            } catch (e: any) {
+                if (e.name !== 'AbortError') console.error('Search error:', e);
+            } finally {
+                if (!controller.signal.aborted) setLoading(false);
             }
         }, 300);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
     }, [query]);
 
     // Close on click outside
