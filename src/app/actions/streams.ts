@@ -1,6 +1,47 @@
 'use server';
 
+import { validateOutboundUrl } from '@/lib/ssrf-guard';
+
+/**
+ * Known streaming embed domains that checkUrlAvailability is allowed to probe.
+ * Any URL whose hostname is not in this list is rejected before any fetch.
+ */
+const ALLOWED_CHECK_HOSTS = new Set([
+    'unlimplay.com',
+    'vidsrc.xyz',
+    'vidsrc.to',
+    'vidsrc.in',
+    'vidlink.pro',
+    'embed.su',
+    'multiembed.mov',
+    'www.2embed.cc',
+    '2embed.cc',
+    'autoembed.co',
+    'watch.rivestream.app',
+]);
+
 export async function checkUrlAvailability(url: string): Promise<boolean> {
+    // 1. SSRF guard — reject private IPs, non-HTTPS schemes, internal hosts.
+    const guard = validateOutboundUrl(url);
+    if (!guard.ok) {
+        console.log(`🚫 checkUrlAvailability blocked (${guard.reason}): ${url}`);
+        return false;
+    }
+
+    // 2. Domain allowlist — only known streaming providers.
+    let parsed: URL;
+    try {
+        parsed = new URL(url);
+    } catch {
+        return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (!ALLOWED_CHECK_HOSTS.has(hostname)) {
+        console.log(`🚫 checkUrlAvailability blocked (domain not in allowlist): ${hostname}`);
+        return false;
+    }
+
     try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
@@ -13,7 +54,7 @@ export async function checkUrlAvailability(url: string): Promise<boolean> {
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
             },
-            cache: 'no-store'
+            cache: 'no-store',
         });
 
         clearTimeout(timeout);
@@ -41,16 +82,12 @@ export async function checkUrlAvailability(url: string): Promise<boolean> {
             'hugedomains.com',
         ];
 
-        const isParkingPage = parkingIndicators.some(indicator =>
-            lowerHtml.includes(indicator)
-        );
-
-        if (isParkingPage) {
+        if (parkingIndicators.some(indicator => lowerHtml.includes(indicator))) {
             console.log(`🚫 ${url} - Parking page detected`);
             return false;
         }
 
-        // Verificar que tenga contenido de video/streaming O sea una página de redirección válida
+        // Verificar que tenga contenido de video/streaming
         const hasStreamingContent =
             lowerHtml.includes('iframe') ||
             lowerHtml.includes('video') ||

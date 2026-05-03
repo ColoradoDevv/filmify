@@ -12,8 +12,9 @@ import {
     getExternalIds
 } from '@/lib/tmdb/service';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createHmac } from 'crypto';
 
-import { getOptionalApiKeys } from '@/lib/env';
+import { getOptionalApiKeys, getPortalDeviceSecret } from '@/lib/env';
 
 // Configuration
 const PORTAL_NAME = 'FilmiFy TV';
@@ -65,6 +66,8 @@ const DEVICE_REGISTRATION_DAILY_LIMIT = 500;
 /**
  * Authenticate or register STB device via Supabase.
  * - Validates MAC format before touching the DB
+ * - Derives a server-side password via HMAC(secret, mac) so that knowing
+ *   the MAC address alone is not sufficient to authenticate
  * - Checks a daily registration cap to prevent user-creation floods
  * - Reuses existing accounts on re-handshake (no duplicate creates)
  */
@@ -73,9 +76,20 @@ async function authenticateDevice(mac: string) {
         throw new Error('Invalid MAC address format');
     }
 
+    const deviceSecret = getPortalDeviceSecret();
+    if (!deviceSecret) {
+        throw new Error('STB portal is not configured (missing PORTAL_DEVICE_SECRET)');
+    }
+
     const supabase = createServiceRoleClient();
     const email = `${mac.replace(/[:-]/g, '').toLowerCase()}@stb.filmify.com`;
-    const password = mac;
+
+    // Derive a server-side password: HMAC-SHA256(secret, mac).
+    // The MAC address is public — using it directly as a password (SEC-006)
+    // allowed anyone who knew a device's MAC to impersonate it.
+    const password = createHmac('sha256', deviceSecret)
+        .update(mac.toLowerCase())
+        .digest('hex');
 
     // 1. Try to sign in — fast path for returning devices
     const { data: signInData } = await supabase.auth.signInWithPassword({ email, password });
