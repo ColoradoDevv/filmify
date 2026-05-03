@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getOptionalApiKeys } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
 /**
@@ -39,15 +38,9 @@ export async function loginAction(
 ): Promise<LoginState> {
     const identifier = String(formData.get('email') ?? '').trim();
     const password = String(formData.get('password') ?? '');
-    const captchaToken = String(formData.get('captchaToken') ?? '');
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!identifier || !password) {
         return { error: 'Por favor completa todos los campos' };
-    }
-
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Por favor completa el captcha' };
     }
 
     let email = identifier;
@@ -92,9 +85,6 @@ export async function loginAction(
     const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        ...(hcaptchaEnabled && captchaToken
-            ? { options: { captchaToken } }
-            : {}),
     });
 
     if (error) {
