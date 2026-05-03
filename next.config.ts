@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   // Turbopack is the default bundler in Next.js 16.
   // An empty config silences the "webpack config without turbopack config" warning.
   turbopack: {},
@@ -73,6 +73,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-};
+} satisfies NextConfig & { eslint?: { ignoreDuringBuilds?: boolean } };
 
 export default nextConfig;
