@@ -59,23 +59,15 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
 
                 {/* Logo + title */}
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <Link href="/editorial" className="flex items-center gap-3 group">
+                    <Link href="/editorial" className="flex items-center group">
                         <Image
-                            src="/logo-icon.svg"
-                            alt="FilmiFy"
-                            width={36}
-                            height={36}
-                            className="group-hover:scale-105 transition-transform"
+                            src="/logo-full-editorial.svg"
+                            alt="FilmiFy Editorial"
+                            width={220}
+                            height={48}
+                            className="h-10 w-auto group-hover:opacity-90 transition-opacity"
+                            priority
                         />
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl sm:text-2xl font-black tracking-tight text-on-surface">FilmiFy</span>
-                                <span className="text-xl sm:text-2xl font-light text-primary tracking-widest uppercase">Editorial</span>
-                            </div>
-                            <p className="text-[10px] text-on-surface-variant tracking-widest uppercase hidden sm:block">
-                                Cine · Streaming · Series
-                            </p>
-                        </div>
                     </Link>
 
                     {/* Search hint */}
@@ -123,8 +115,7 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-8">
                         <div>
                             <div className="flex items-center gap-2 mb-3">
-                                <Image src="/logo-icon.svg" alt="FilmiFy" width={24} height={24} />
-                                <span className="font-bold text-on-surface">FilmiFy Editorial</span>
+                                <Image src="/logo-full-editorial.svg" alt="FilmiFy Editorial" width={140} height={30} className="h-7 w-auto" />
                             </div>
                             <p className="text-xs text-on-surface-variant leading-relaxed">
                                 Noticias, guías y análisis sobre cine y streaming. Contenido propio y curaduría de las mejores fuentes del sector.
