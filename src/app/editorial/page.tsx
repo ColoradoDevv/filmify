@@ -93,9 +93,11 @@ function HeroCard({ article }: { article: any }) {
 /** Medium card — image top, text bottom */
 function MedCard({ article }: { article: any }) {
     return (
-        <Link href={`/editorial/${article.slug}`} className="group block h-full">
-            <article className="h-full flex flex-col rounded-xl overflow-hidden bg-surface-container border border-outline-variant hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-3)]">
-                <div className="relative h-40 flex-shrink-0 overflow-hidden bg-surface-container-high">
+        <article className="group relative h-full flex flex-col rounded-xl overflow-hidden bg-surface-container border border-outline-variant hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-3)]">
+            {/* Full-card link (behind everything) */}
+            <Link href={`/editorial/${article.slug}`} className="absolute inset-0 z-0" aria-label={article.title} />
+
+            <div className="relative h-40 flex-shrink-0 overflow-hidden bg-surface-container-high">
                     {article.cover_url ? (
                         <Image
                             src={article.cover_url}
@@ -110,11 +112,12 @@ function MedCard({ article }: { article: any }) {
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-surface-container/70 to-transparent" />
-                    <Link href={`/editorial/categoria/${article.category}`} onClick={e => e.stopPropagation()} className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white/70 hover:text-primary rounded text-[9px] font-bold uppercase tracking-wider border border-white/10 transition-colors z-10">
+                    {/* Category badge — z-10 so it sits above the full-card link */}
+                    <Link href={`/editorial/categoria/${article.category}`} className="relative z-10 absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white/70 hover:text-primary rounded text-[9px] font-bold uppercase tracking-wider border border-white/10 transition-colors">
                         {CATEGORIES[article.category] ?? article.category}
                     </Link>
                 </div>
-                <div className="flex-1 flex flex-col p-4 min-w-0">
+                <div className="relative z-0 flex-1 flex flex-col p-4 min-w-0">
                     <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-3 leading-snug text-sm mb-2 break-words">
                         {article.title}
                     </h3>
@@ -129,20 +132,20 @@ function MedCard({ article }: { article: any }) {
                         <ArrowRight className="w-3.5 h-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                 </div>
-            </article>
-        </Link>
+        </article>
     );
 }
 
 /** Compact list item — horizontal */
 function ListCard({ article, index }: { article: any; index: number }) {
     return (
-        <Link href={`/editorial/${article.slug}`} className="group flex items-start gap-3 py-3 border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-high/50 -mx-3 px-3 rounded-lg transition-colors">
-            <span className="text-2xl font-black text-outline-variant/60 leading-none w-6 flex-shrink-0 mt-0.5 group-hover:text-primary/40 transition-colors">
+        <article className="group relative flex items-start gap-3 py-3 border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-high/50 -mx-3 px-3 rounded-lg transition-colors">
+            <Link href={`/editorial/${article.slug}`} className="absolute inset-0 z-0" aria-label={article.title} />
+            <span className="relative z-0 text-2xl font-black text-outline-variant/60 leading-none w-6 flex-shrink-0 mt-0.5 group-hover:text-primary/40 transition-colors">
                 {String(index + 1).padStart(2, '0')}
             </span>
-            <div className="flex-1 min-w-0">
-                <Link href={`/editorial/categoria/${article.category}`} onClick={e => e.stopPropagation()} className="text-[9px] font-bold text-primary uppercase tracking-wider hover:underline">
+            <div className="relative z-0 flex-1 min-w-0">
+                <Link href={`/editorial/categoria/${article.category}`} className="relative z-10 text-[9px] font-bold text-primary uppercase tracking-wider hover:underline">
                     {CATEGORIES[article.category] ?? article.category}
                 </Link>
                 <h4 className="text-sm font-semibold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug mt-0.5">
@@ -153,17 +156,11 @@ function ListCard({ article, index }: { article: any; index: number }) {
                 </span>
             </div>
             {article.cover_url && (
-                <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden">
-                    <Image
-                        src={article.cover_url}
-                        alt={article.title}
-                        width={56}
-                        height={56}
-                        className="object-cover w-full h-full"
-                    />
+                <div className="relative z-0 w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden">
+                    <Image src={article.cover_url} alt={article.title} width={56} height={56} className="object-cover w-full h-full" />
                 </div>
             )}
-        </Link>
+        </article>
     );
 }
 
