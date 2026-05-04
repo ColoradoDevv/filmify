@@ -26,7 +26,7 @@ function fmt(d: string | null) {
     return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export const CATEGORIES_ORDER = ['noticias', 'streaming', 'peliculas', 'series', 'premios', 'guias'];
+const CATEGORIES_ORDER = ['noticias', 'streaming', 'peliculas', 'series', 'premios', 'guias'];
 
 export default async function CategoryPage({ params }: Props) {
     const { cat } = await params;
