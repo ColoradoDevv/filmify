@@ -1,0 +1,15 @@
+<svg width="320" height="58" viewBox="0 0 320 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon -->
+  <g transform="translate(6, 4) scale(0.082)">
+    <path d="M120 100 H220 V412 H120 V100 Z" fill="#00c2ff"/>
+    <circle cx="170" cy="160" r="18" fill="#0b0e11"/>
+    <circle cx="170" cy="256" r="18" fill="#0b0e11"/>
+    <circle cx="170" cy="352" r="18" fill="#0b0e11"/>
+    <path d="M220 100 H392 C403 100 412 109 412 120 V180 H220 V100 Z" fill="#00c2ff"/>
+    <path d="M220 236 H340 C351 236 360 245 360 256 V316 H220 V236 Z" fill="#ff0a16"/>
+  </g>
+  <!-- Main title -->
+  <text x="44" y="30" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="24" fill="#ffffff" letter-spacing="-0.5">Filmi<tspan fill="#00c2ff">Fy</tspan><tspan fill="#ffffff" font-weight="300" letter-spacing="2"> EDITORIAL</tspan></text>
+  <!-- Subtitle -->
+  <text x="45" y="46" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="400" font-size="9" fill="#8a8d91" letter-spacing="2.5">CINE · STREAMING · SERIES</text>
+</svg>
