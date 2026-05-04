@@ -57,7 +57,7 @@ export default async function LandingPage() {
   const scrollerMovies = trendingMovies.slice(0, 15);
 
   const backdropUrl = heroMovie 
-    ? getImageUrl(heroMovie.backdrop_path, isMobile ? 'w780' : 'w1280') 
+    ? getImageUrl(heroMovie.backdrop_path, isMobile ? 'w780' : 'original') 
     : null;
 
   // JSON-LD Structured Data for SEO
