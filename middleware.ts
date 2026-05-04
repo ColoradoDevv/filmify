@@ -15,6 +15,7 @@ function generateNonce(): string {
 /** Publicly accessible — no auth required */
 const PUBLIC_ROUTES = [
     '/',                    // landing / call-to-action
+    '/about',
     '/contact',
     '/legal',
     '/security',

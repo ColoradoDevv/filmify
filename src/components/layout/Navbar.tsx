@@ -7,11 +7,24 @@ import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Us
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
-import SearchInput from '@/components/features/SearchInput';
+import dynamic from 'next/dynamic';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
-import UserMenu from './navbar/UserMenu';
-import NotificationCenter from './navbar/NotificationCenter';
-import MobileMenu from './navbar/MobileMenu';
+
+const SearchInput = dynamic(() => import('@/components/features/SearchInput'), {
+    ssr: false
+});
+
+const UserMenu = dynamic(() => import('./navbar/UserMenu'), {
+    ssr: false
+});
+
+const NotificationCenter = dynamic(() => import('./navbar/NotificationCenter'), {
+    ssr: false
+});
+
+const MobileMenu = dynamic(() => import('./navbar/MobileMenu'), {
+    ssr: false
+});
 
 let supabase: SupabaseClient | undefined;
 try {
@@ -279,46 +292,54 @@ export default function Navbar() {
 
             {/* Mobile Bottom Navigation for logged-in users */}
             {user && !isAuthPage && (
-                <div className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-background/90 border-t border-white/10 backdrop-blur-xl shadow-2xl">
-                    <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-                        <button
-                            type="button"
-                            onClick={() => router.push('/browse')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/browse') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a Explorar"
-                        >
-                            <Clapperboard className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Explorar</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/live-tv')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a TV en Vivo"
-                        >
-                            <Tv className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">TV</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/favorites')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname === '/favorites' ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a Favoritos"
-                        >
-                            <Heart className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Favoritos</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/search')}
-                            className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                            aria-label="Buscar"
-                        >
-                            <Search className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Buscar</span>
-                        </button>
-                    </div>
-                </div>
+                <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-background/90 border-t border-white/10 backdrop-blur-xl shadow-2xl" aria-label="Navegación móvil">
+                    <ul className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2 list-none">
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/browse')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/browse') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Explorar"
+                            >
+                                <Clapperboard className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Explorar</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/live-tv')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a TV en Vivo"
+                            >
+                                <Tv className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">TV</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/favorites')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname === '/favorites' ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Mis Favoritos"
+                            >
+                                <Heart className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Favoritos</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/editorial')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/editorial') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Editorial"
+                            >
+                                <BookOpen className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Editorial</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             )}
 
             {user && !isAuthPage && <div className="h-20 md:hidden" />}

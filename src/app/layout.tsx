@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import dynamic from 'next/dynamic';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -82,6 +83,9 @@ export const metadata: Metadata = {
     images: ["/logo-icon.svg"],
     creator: "@filmify",
   },
+  alternates: {
+    canonical: 'https://filmify.me',
+  },
   category: "entertainment",
 };
 
@@ -106,6 +110,10 @@ export default async function RootLayout({
 
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://image.tmdb.org" />
+        <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
+      </head>
       <body
         suppressHydrationWarning
         style={{ paddingTop: 'var(--announcement-height, 0px)' }}

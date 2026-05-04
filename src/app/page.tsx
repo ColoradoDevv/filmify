@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Film, Heart, Search, Zap } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ArrowRight, Film, Heart, Newspaper, Search, Zap } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
-import { getTrending, getBackdropUrl } from '@/server/services/tmdb';
+import { headers } from 'next/headers';
+import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import type { Movie } from '@/types/tmdb';
 
 export const metadata: Metadata = {
@@ -42,18 +44,21 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
-  // Fetch trending movies for the day (gracefully degrade if TMDB unavailable).
-  let trendingMovies: Movie[] = [];
-  try {
-    const trendingData = await getTrending('movie', 'day');
-    trendingMovies = trendingData.results;
-  } catch (err) {
-    console.warn('[landing] Failed to fetch trending movies:', err);
-  }
+  const userAgent = (await headers()).get('user-agent') || '';
+  const isMobile = /mobile/i.test(userAgent);
 
+  const trendingData = await getTrending('movie', 'day', 20);
+  const trendingMovies = trendingData.results;
+  
   // Select the top trending movie for the hero
   const heroMovie = trendingMovies[0];
-  const backdropUrl = getBackdropUrl(heroMovie?.backdrop_path);
+  
+  // Limit movies for TrendingScroller to 15 to reduce initial DOM nodes
+  const scrollerMovies = trendingMovies.slice(0, 15);
+
+  const backdropUrl = heroMovie 
+    ? getImageUrl(heroMovie.backdrop_path, isMobile ? 'w780' : 'w1280') 
+    : null;
 
   // JSON-LD Structured Data for SEO
   const structuredData = {
@@ -141,10 +146,11 @@ export default async function LandingPage() {
                 src={backdropUrl}
                 alt={`Imagen de fondo de la película ${heroMovie.title}`}
                 fill
-                className="object-cover scale-110 animate-[scale_20s_ease-in-out_infinite]"
+                className="object-cover animate-scale-slow"
                 priority
-                quality={100}
-                unoptimized
+                {...({ fetchPriority: 'high' } as any)}
+                quality={90}
+                sizes="100vw"
               />
             </div>
           )}
@@ -153,8 +159,8 @@ export default async function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-transparent to-background/95" />
 
-          {/* Animated particles effect */}
-          <div className="absolute inset-0 opacity-30">
+          {/* Animated particles effect - Hidden on mobile for performance */}
+          <div className="absolute inset-0 opacity-30 hidden md:block">
             <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-float" />
             <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-accent rounded-full animate-float delay-200" />
             <div className="absolute bottom-1/3 left-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-float delay-300" />
@@ -172,7 +178,7 @@ export default async function LandingPage() {
               </div>
 
               {/* Main Heading with Premium Gradient */}
-              <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-2 text-white">
+              <h1 className="text-4xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-3 text-white px-2">
                 {heroMovie?.title || (
                   <>
                     Tu Universo de{' '}
@@ -181,15 +187,15 @@ export default async function LandingPage() {
                 )}
               </h1>
 
-              <p className="text-xl sm:text-2xl text-gray-300 max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3">
+              <p className="text-lg sm:text-2xl text-gray-300 max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3 px-4">
                 {heroMovie?.overview || "Descubre, organiza y disfruta de miles de películas. Tu colección personal de películas en un solo lugar."}
               </p>
 
               {/* CTA Buttons with Premium Effects */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300 px-6">
                 <Link
                   href="/login"
-                  className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
+                  className="group relative flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <span className="relative z-10">
@@ -200,10 +206,11 @@ export default async function LandingPage() {
                 </Link>
 
                 <Link
-                  href="/register"
-                  className="group px-8 py-4 glass-effect text-text-primary rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 border border-surface-light/50 hover:border-primary/50"
+                  href="/editorial"
+                  className="group flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
                 >
-                  Crear Cuenta
+                  <Newspaper className="w-5 h-5 text-primary group-hover:rotate-12 transition-transform" />
+                  <span>Leer Editorial</span>
                 </Link>
               </div>
 
@@ -231,7 +238,7 @@ export default async function LandingPage() {
           </div>
 
           {/* Scroll Indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <div className="absolute bottom-8 left-1/2 animate-bounce-custom">
             <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex items-start justify-center p-2">
               <div className="w-1 h-2 bg-primary rounded-full animate-pulse" />
             </div>
@@ -239,7 +246,7 @@ export default async function LandingPage() {
         </section>
 
         {/* Trending Movies Scroller */}
-        <TrendingScroller movies={trendingMovies} />
+        <TrendingScroller movies={scrollerMovies} />
 
         {/* Features Section */}
         <section className="py-16 relative" aria-label="Características principales de FilmiFy">

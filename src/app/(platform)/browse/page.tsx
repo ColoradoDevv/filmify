@@ -10,6 +10,7 @@ import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
 import { isTVDevice } from '@/lib/device-detection';
+import { headers } from 'next/headers';
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -46,6 +47,9 @@ export const metadata: Metadata = {
 // ...
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
+    const userAgent = (await headers()).get('user-agent') || '';
+    const isMobile = /mobile/i.test(userAgent);
+
     const params = await searchParams;
 
     // Check for TV mode via server-side detection or search params
@@ -96,26 +100,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     }
 
     const isTV = category === 'tv';
-    let content;
 
-    if (genre || sortBy || year) {
-        const data = isTV
-            ? await discoverTV({ genre, year, sortBy, page: 1 })
-            : await discoverMovies({ genre, year, sortBy, page: 1 });
-        content = data.results;
-    } else {
-        // Fetch trending content on the server
-        if (isTV) {
-            const trendingData = await getTrending('tv', 'week', 1);
-            content = trendingData.results;
-        } else {
-            const trendingData = await getTrending('movie', 'week', 1);
-            content = trendingData.results;
-        }
-    }
+    // Fetch trending content and genres in parallel for better performance (TTFB)
+    const [contentData, genresData] = await Promise.all([
+        genre || sortBy || year
+            ? (isTV
+                ? discoverTV({ genre, year, sortBy, page: 1 })
+                : discoverMovies({ genre, year, sortBy, page: 1 }))
+            : (isTV
+                ? getTrending('tv', 'week', 1)
+                : getTrending('movie', 'week', 1)),
+        isTV ? getTVGenres() : getGenres()
+    ]);
 
-    // Fetch genres based on category
-    const { genres } = isTV ? await getTVGenres() : await getGenres();
+    const content = contentData.results;
+    const { genres } = genresData;
 
     return (
         <div className="space-y-8 pb-20">

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Settings, LogOut } from 'lucide-react';
+import Image from 'next/image';
 
 interface UserMenuProps {
     onLogoutClick: () => void;
@@ -52,9 +53,11 @@ export default function UserMenu({ onLogoutClick, avatarUrl }: UserMenuProps) {
             >
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary border border-primary/20 group-hover:border-primary/40 transition-all overflow-hidden">
                     {avatarUrl ? (
-                        <img
+                        <Image
                             src={avatarUrl}
                             alt="Avatar"
+                            width={40}
+                            height={40}
                             className="w-full h-full object-cover"
                         />
                     ) : (
