@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { getArticlesAction, saveArticleAction, deleteArticleAction } from './actions';
-import { CATEGORIES } from '@/lib/editorial';
-import type { Article } from '@/lib/editorial';
+import { CATEGORIES } from '@/lib/editorial-types';
+import type { Article } from '@/lib/editorial-types';
 import Link from 'next/link';
 
 const EMPTY: Partial<Article> = {

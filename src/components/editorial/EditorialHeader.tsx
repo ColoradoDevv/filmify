@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CATEGORIES } from '@/lib/editorial';
+import { CATEGORIES } from '@/lib/editorial-types';
 
 export default function EditorialHeader() {
     const pathname = usePathname();

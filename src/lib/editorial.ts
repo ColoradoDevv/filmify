@@ -1,23 +1,11 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Article, NewsItem } from '@/lib/editorial-types';
+import { CATEGORIES } from '@/lib/editorial-types';
 
-export interface Article {
-    id: string;
-    slug: string;
-    title: string;
-    excerpt: string;
-    content: string;
-    cover_url: string | null;
-    category: string;
-    tags: string[];
-    author_name: string;
-    status: 'draft' | 'published';
-    featured: boolean;
-    read_time: number;
-    published_at: string | null;
-    created_at: string;
-    updated_at: string;
-}
+// Re-export so server components can keep importing from '@/lib/editorial'
+export type { Article, NewsItem };
+export { CATEGORIES };
 
 export async function getPublishedArticles(limit = 20): Promise<Article[]> {
     const supabase = await createClient();
@@ -111,15 +99,6 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
     if (error) return { success: false, error: error.message };
     return { success: true };
 }
-
-export const CATEGORIES: Record<string, string> = {
-    general:   'General',
-    streaming: 'Streaming',
-    series:    'Series',
-    peliculas: 'Películas',
-    guias:     'Guías',
-    noticias:  'Noticias',
-};
 
 // ── Mock Content Generator for SEO & AdSense (Mayo 2026) ─────────────────────
 
@@ -256,21 +235,6 @@ const generateMockNews = (cat: string): NewsItem[] => {
 };
 
 // ── News feed (external RSS) ─────────────────────────────────────────────────
-
-export interface NewsItem {
-    id: string;
-    guid: string;
-    title: string;
-    excerpt: string;
-    image_url: string | null;
-    source_name: string;
-    source_url: string;
-    author: string | null;
-    original_url: string;
-    category: string;
-    published_at: string | null;
-    fetched_at: string;
-}
 
 export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
     const supabase = await createClient();
