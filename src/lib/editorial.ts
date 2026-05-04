@@ -112,3 +112,30 @@ export const CATEGORIES: Record<string, string> = {
     consejos:  'Consejos',
     noticias:  'Noticias',
 };
+
+// ── News feed (external RSS) ─────────────────────────────────────────────────
+
+export interface NewsItem {
+    id: string;
+    guid: string;
+    title: string;
+    excerpt: string;
+    image_url: string | null;
+    source_name: string;
+    source_url: string;
+    author: string | null;
+    original_url: string;
+    category: string;
+    published_at: string | null;
+    fetched_at: string;
+}
+
+export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
+    const supabase = await createClient();
+    const { data } = await supabase
+        .from('news_feed')
+        .select('*')
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .limit(limit);
+    return (data ?? []) as NewsItem[];
+}
