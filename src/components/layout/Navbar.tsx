@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
+import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
@@ -210,6 +210,16 @@ export default function Navbar() {
                                                         }`}
                                                 >
                                                     Favoritos
+                                                </Link>
+                                                <Link
+                                                    href="/editorial"
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/editorial')
+                                                        ? 'bg-primary/10 text-primary'
+                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    <BookOpen className="w-3.5 h-3.5" />
+                                                    Editorial
                                                 </Link>
                                             </div>
 

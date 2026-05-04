@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Heart, LogOut } from 'lucide-react';
+import { Search, Heart, LogOut, BookOpen } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 import SearchInput from '@/components/features/SearchInput';
@@ -96,6 +96,14 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                             >
                                 <Heart className="w-5 h-5 text-accent" />
                                 <span className="font-medium">Favoritos</span>
+                            </Link>
+                            <Link
+                                href="/editorial"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                                onClick={onClose}
+                            >
+                                <BookOpen className="w-5 h-5 text-primary" />
+                                <span className="font-medium">Editorial</span>
                             </Link>
                         </div>
                         <button
