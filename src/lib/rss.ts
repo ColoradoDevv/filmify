@@ -25,36 +25,25 @@ export interface RssSource {
 
 /** Cinema/streaming news RSS sources — all publicly available feeds */
 export const RSS_SOURCES: RssSource[] = [
-    {
-        name: 'Screen Rant',
-        url: 'https://screenrant.com',
-        feedUrl: 'https://screenrant.com/feed/movies/',
-        category: 'noticias',
-    },
-    {
-        name: 'Screen Rant TV',
-        url: 'https://screenrant.com',
-        feedUrl: 'https://screenrant.com/feed/tv/',
-        category: 'series',
-    },
-    {
-        name: 'CinemaBlend',
-        url: 'https://www.cinemablend.com',
-        feedUrl: 'https://www.cinemablend.com/rss/topic/news',
-        category: 'noticias',
-    },
-    {
-        name: 'MovieWeb',
-        url: 'https://movieweb.com',
-        feedUrl: 'https://movieweb.com/feed/',
-        category: 'noticias',
-    },
-    {
-        name: 'FirstShowing',
-        url: 'https://www.firstshowing.net',
-        feedUrl: 'https://www.firstshowing.net/feed/',
-        category: 'noticias',
-    },
+    // NOTICIAS generales de cine
+    { name: 'Screen Rant', url: 'https://screenrant.com', feedUrl: 'https://screenrant.com/feed/movies/', category: 'noticias' },
+    { name: 'MovieWeb', url: 'https://movieweb.com', feedUrl: 'https://movieweb.com/feed/', category: 'noticias' },
+    { name: 'FirstShowing', url: 'https://www.firstshowing.net', feedUrl: 'https://www.firstshowing.net/feed/', category: 'noticias' },
+    { name: 'The Playlist', url: 'https://theplaylist.net', feedUrl: 'https://theplaylist.net/feed/', category: 'noticias' },
+    { name: 'Film School Rejects', url: 'https://filmschoolrejects.com', feedUrl: 'https://filmschoolrejects.com/feed/', category: 'noticias' },
+    // SERIES
+    { name: 'Screen Rant TV', url: 'https://screenrant.com', feedUrl: 'https://screenrant.com/feed/tv/', category: 'series' },
+    { name: 'TV Line', url: 'https://tvline.com', feedUrl: 'https://tvline.com/feed/', category: 'series' },
+    { name: 'Den of Geek TV', url: 'https://www.denofgeek.com', feedUrl: 'https://www.denofgeek.com/tv/feed/', category: 'series' },
+    // STREAMING
+    { name: 'What\'s on Netflix', url: 'https://www.whats-on-netflix.com', feedUrl: 'https://www.whats-on-netflix.com/feed/', category: 'streaming' },
+    { name: 'Decider', url: 'https://decider.com', feedUrl: 'https://decider.com/feed/', category: 'streaming' },
+    // RESEÑAS / PELÍCULAS
+    { name: 'Roger Ebert', url: 'https://www.rogerebert.com', feedUrl: 'https://www.rogerebert.com/feed', category: 'peliculas' },
+    { name: 'Den of Geek', url: 'https://www.denofgeek.com', feedUrl: 'https://www.denofgeek.com/movies/feed/', category: 'peliculas' },
+    // PREMIOS
+    { name: 'Gold Derby', url: 'https://www.goldderby.com', feedUrl: 'https://www.goldderby.com/feed/', category: 'premios' },
+    { name: 'Awards Watch', url: 'https://awardswatch.com', feedUrl: 'https://awardswatch.com/feed/', category: 'premios' },
 ];
 
 /** Strip HTML tags from a string */

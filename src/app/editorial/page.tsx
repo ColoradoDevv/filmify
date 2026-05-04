@@ -110,9 +110,9 @@ function MedCard({ article }: { article: any }) {
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-surface-container/70 to-transparent" />
-                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white/70 rounded text-[9px] font-bold uppercase tracking-wider border border-white/10">
+                    <Link href={`/editorial/categoria/${article.category}`} onClick={e => e.stopPropagation()} className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white/70 hover:text-primary rounded text-[9px] font-bold uppercase tracking-wider border border-white/10 transition-colors z-10">
                         {CATEGORIES[article.category] ?? article.category}
-                    </span>
+                    </Link>
                 </div>
                 <div className="flex-1 flex flex-col p-4 min-w-0">
                     <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-3 leading-snug text-sm mb-2 break-words">
@@ -142,9 +142,9 @@ function ListCard({ article, index }: { article: any; index: number }) {
                 {String(index + 1).padStart(2, '0')}
             </span>
             <div className="flex-1 min-w-0">
-                <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
+                <Link href={`/editorial/categoria/${article.category}`} onClick={e => e.stopPropagation()} className="text-[9px] font-bold text-primary uppercase tracking-wider hover:underline">
                     {CATEGORIES[article.category] ?? article.category}
-                </span>
+                </Link>
                 <h4 className="text-sm font-semibold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug mt-0.5">
                     {article.title}
                 </h4>

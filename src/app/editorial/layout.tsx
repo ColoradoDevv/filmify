@@ -12,12 +12,12 @@ export const metadata: Metadata = {
 };
 
 const SECTIONS = [
-    { label: 'Noticias',   href: '/editorial?cat=noticias' },
-    { label: 'Streaming',  href: '/editorial?cat=streaming' },
-    { label: 'Películas',  href: '/editorial?cat=peliculas' },
-    { label: 'Series',     href: '/editorial?cat=series' },
-    { label: 'Premios',    href: '/editorial?cat=premios' },
-    { label: 'Guías',      href: '/editorial?cat=guias' },
+    { label: 'Noticias',   href: '/editorial/categoria/noticias' },
+    { label: 'Streaming',  href: '/editorial/categoria/streaming' },
+    { label: 'Películas',  href: '/editorial/categoria/peliculas' },
+    { label: 'Series',     href: '/editorial/categoria/series' },
+    { label: 'Premios',    href: '/editorial/categoria/premios' },
+    { label: 'Guías',      href: '/editorial/categoria/guias' },
 ];
 
 export default function EditorialLayout({ children }: { children: React.ReactNode }) {

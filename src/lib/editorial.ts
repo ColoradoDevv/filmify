@@ -139,3 +139,25 @@ export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
         .limit(limit);
     return (data ?? []) as NewsItem[];
 }
+
+export async function getNewsByCategory(category: string, limit = 20): Promise<NewsItem[]> {
+    const supabase = await createClient();
+    const { data } = await supabase
+        .from('news_feed')
+        .select('*')
+        .eq('category', category)
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .limit(limit);
+    return (data ?? []) as NewsItem[];
+}
+
+export async function getArticlesAndNewsByCategory(category: string): Promise<{
+    articles: Article[];
+    news: NewsItem[];
+}> {
+    const [articles, news] = await Promise.all([
+        getArticlesByCategory(category, 12),
+        getNewsByCategory(category, 20),
+    ]);
+    return { articles, news };
+}

@@ -122,9 +122,9 @@ export default async function ArticlePage({ params }: Props) {
                     <article className="lg:col-span-2">
                         {/* Category + meta */}
                         <div className="flex flex-wrap items-center gap-3 mb-5">
-                            <span className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-medium">
+                            <Link href={`/editorial/categoria/${article.category}`} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-medium hover:bg-primary/20 transition-colors">
                                 {CATEGORIES[article.category] ?? article.category}
-                            </span>
+                            </Link>
                             <span className="flex items-center gap-1 text-xs text-on-surface-variant">
                                 <Clock className="w-3 h-3" />
                                 {article.read_time} min de lectura
