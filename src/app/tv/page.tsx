@@ -29,6 +29,7 @@ export default function TVActivationPage() {
     const enableTV = async () => {
         setStatus('loading');
         await fetch('/api/tv-mode', { method: 'POST' });
+        document.body.classList.add('tv-mode');
         setIsActive(true);
         setStatus('enabled');
         // Redirect to browse after 1.5s
@@ -38,8 +39,13 @@ export default function TVActivationPage() {
     const disableTV = async () => {
         setStatus('loading');
         await fetch('/api/tv-mode', { method: 'DELETE' });
+        // Remove tv-mode class immediately so cursor reappears
+        document.body.classList.remove('tv-mode');
+        document.body.style.cursor = '';
         setIsActive(false);
         setStatus('disabled');
+        // Redirect to home after 1.5s
+        setTimeout(() => router.push('/'), 1500);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -82,7 +88,7 @@ export default function TVActivationPage() {
                 {status === 'disabled' && (
                     <div className="flex items-center justify-center gap-3 mb-6 text-white/50 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
                         <XCircle className="w-5 h-5 flex-shrink-0" />
-                        <span className="font-medium">Modo TV desactivado</span>
+                        <span className="font-medium">Modo TV desactivado — redirigiendo...</span>
                     </div>
                 )}
 
