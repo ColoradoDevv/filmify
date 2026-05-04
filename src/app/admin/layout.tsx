@@ -8,7 +8,8 @@ import {
     Settings,
     LogOut,
     FileText,
-    Terminal
+    Terminal,
+    BookOpen,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
@@ -76,6 +77,7 @@ export default async function AdminLayout({
 
                     <div className="px-3 py-2 mt-6 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-mono">System</div>
                     <NavLink href="/admin/settings" icon={<Settings size={18} />} label="Configuration" />
+                    <NavLink href="/admin/editorial" icon={<BookOpen size={18} />} label="Editorial" />
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/20">

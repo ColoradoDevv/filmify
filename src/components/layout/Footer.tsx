@@ -104,6 +104,7 @@ export default function Footer() {
                             <li><Link href={gatedHref('/browse?category=tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Series</Link></li>
                             <li><Link href={gatedHref('/live-tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">TV en Vivo</Link></li>
                             <li><Link href={gatedHref('/favorites', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Favoritos</Link></li>
+                            <li><Link href="/editorial" className="text-text-secondary hover:text-primary transition-colors">Editorial</Link></li>
                         </ul>
                     </div>
 
