@@ -94,7 +94,7 @@ function OwnArticleCard({ article }: { article: any }) {
         <Link href={`/editorial/${article.slug}`} className="group block h-full">
             <article className="h-full flex flex-col rounded-2xl overflow-hidden bg-surface-container border border-outline-variant hover:border-primary/40 transition-all duration-200 hover:shadow-[var(--shadow-3)] hover:-translate-y-0.5">
                 {/* Image */}
-                <div className="relative h-44 flex-shrink-0 bg-gradient-to-br from-primary/15 to-accent/10">
+                <div className="relative h-44 flex-shrink-0 bg-gradient-to-br from-primary/15 to-accent/10 overflow-hidden">
                     {article.cover_url ? (
                         <Image
                             src={article.cover_url}
@@ -109,25 +109,25 @@ function OwnArticleCard({ article }: { article: any }) {
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-surface-container/80 to-transparent" />
-                    <span className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm text-white/70 rounded-full text-[10px] font-medium border border-white/10">
+                    <span className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm text-white/70 rounded-full text-[10px] font-medium border border-white/10 truncate max-w-[120px]">
                         {CATEGORIES[article.category] ?? article.category}
                     </span>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 flex flex-col p-4">
-                    <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2 text-sm">
+                <div className="flex-1 flex flex-col p-4 min-w-0">
+                    <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2 text-sm break-words">
                         {article.title}
                     </h3>
                     <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed flex-1">
                         {article.excerpt}
                     </p>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-outline-variant">
-                        <span className="text-[10px] text-on-surface-variant flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" />{article.read_time} min
-                            {date && <><span className="mx-1">·</span>{date}</>}
+                        <span className="text-[10px] text-on-surface-variant flex items-center gap-1 min-w-0">
+                            <Clock className="w-2.5 h-2.5 flex-shrink-0" />{article.read_time} min
+                            {date && <><span className="mx-1">·</span><span className="truncate">{date}</span></>}
                         </span>
-                        <span className="text-primary text-[10px] font-semibold flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                        <span className="text-primary text-[10px] font-semibold flex items-center gap-1 group-hover:gap-1.5 transition-all flex-shrink-0 ml-2">
                             Leer <ArrowRight className="w-3 h-3" />
                         </span>
                     </div>
