@@ -63,9 +63,9 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
                         <Image
                             src="/logo-full-editorial.svg"
                             alt="FilmiFy Editorial"
-                            width={220}
-                            height={48}
-                            className="h-10 w-auto group-hover:opacity-90 transition-opacity"
+                            width={260}
+                            height={56}
+                            className="h-12 w-auto group-hover:opacity-90 transition-opacity"
                             priority
                         />
                     </Link>
