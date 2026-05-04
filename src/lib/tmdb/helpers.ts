@@ -9,13 +9,13 @@ export const getImageUrl = (
 };
 
 export const getPosterUrl = (path: string | null): string => {
-    return getImageUrl(path, 'original');
+    return getImageUrl(path, 'w500');
 };
 
 export const getBackdropUrl = (path: string | null): string => {
-    return getImageUrl(path, 'original');
+    return getImageUrl(path, 'w1280' as any); // w1280 is supported by TMDB backdrops
 };
 
 export const getProfileUrl = (path: string | null): string => {
-    return getImageUrl(path, 'original');
+    return getImageUrl(path, 'w185');
 };

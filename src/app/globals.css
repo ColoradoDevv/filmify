@@ -175,14 +175,35 @@
 }
 
 @keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
 
-  0%,
-  100% {
-    transform: translateY(0px);
+@keyframes scale-slow {
+  0%, 100% { transform: scale(1.1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes bounce-custom {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -10px); }
+}
+
+@layer utilities {
+  .animate-bounce-custom {
+    animation: bounce-custom 2s infinite;
+    will-change: transform;
   }
-
-  50% {
-    transform: translateY(-20px);
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+    will-change: transform;
+  }
+  .animate-scale-slow {
+    animation: scale-slow 20s ease-in-out infinite;
+    will-change: transform;
+  }
+  .will-change-transform {
+    will-change: transform;
   }
 }
 

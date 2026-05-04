@@ -108,8 +108,7 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
                     {items.map((item, index) => (
                         <div
                             key={item.id}
-                            /* MD3 card widths: smaller than before */
-                            className="flex-shrink-0 w-[130px] sm:w-[155px] lg:w-[175px] tv-row-item"
+                            className="flex-shrink-0 w-[140px] sm:w-[155px] lg:w-[175px] tv-row-item"
                             role="listitem"
                             onKeyDown={(e) => handleKeyDown(e, index)}
                         >

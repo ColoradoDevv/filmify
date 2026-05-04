@@ -42,25 +42,25 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
             <div className="absolute inset-0 bg-gradient-to-b from-background via-surface/10 to-background" />
 
             {/* Section Header */}
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-                <div className="flex items-center justify-between">
-                    <div>
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 md:mb-12">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="text-left">
                         <div className="inline-flex items-center gap-2 mb-3">
-                            <TrendingUp className="w-5 h-5 text-primary" />
-                            <span className="text-sm font-semibold text-primary uppercase tracking-wider">
+                            <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                            <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider">
                                 Tendencias
                             </span>
                         </div>
-                        <h2 className="text-5xl font-bold mb-2 text-white">
+                        <h2 className="text-3xl md:text-5xl font-bold mb-2 text-white">
                             Lo Más <span className="text-gradient-premium">Popular</span>
                         </h2>
-                        <p className="text-gray-300 text-lg">
+                        <p className="text-gray-400 md:text-gray-300 text-base md:text-lg">
                             Las películas que todos están viendo ahora
                         </p>
                     </div>
                     <Link
                         href="/login?next=/browse"
-                        className="hidden md:flex items-center gap-2 px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white"
+                        className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white text-sm md:text-base"
                     >
                         Explorar Todo
                         <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -69,13 +69,13 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
             </div>
 
             {/* Scrolling Movies Container */}
-            <div className="relative">
+            <div className="relative overflow-hidden group/scroller">
                 {/* Gradient fade edges */}
                 <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
                 <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 
                 {/* Movie cards scroll */}
-                <div className="flex gap-6 animate-scroll hover:pause">
+                <div className="flex gap-4 md:gap-6 animate-scroll py-4 group-hover/scroller:[animation-play-state:paused] will-change-transform">
                     {duplicatedMovies.map((movie, index) => {
                         const posterUrl = getPosterUrl(movie.poster_path);
                         const rating = movie.vote_average.toFixed(1);
@@ -99,6 +99,7 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                             className="object-cover"
                                             sizes="208px"
                                             quality={95}
+                                            priority={index < 5}
                                         />
                                     ) : (
                                         <div className="w-full h-full bg-gradient-to-br from-surface to-surface-light flex items-center justify-center">

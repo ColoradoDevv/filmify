@@ -63,7 +63,7 @@ export default function Footer() {
                                 <Mail className="w-4 h-4 text-primary" />
                                 Newsletter Semanal
                             </h3>
-                            <form onSubmit={handleSubscribe} className="max-w-sm relative">
+                            <form onSubmit={handleSubscribe} className="max-w-full sm:max-w-sm relative">
                                 <div className="relative group">
                                     <input
                                         type="email"
@@ -71,12 +71,12 @@ export default function Footer() {
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="tu@email.com"
                                         disabled={status === 'loading' || status === 'success'}
-                                        className="w-full bg-surface/50 border border-surface-light rounded-xl pl-4 pr-12 py-3 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all disabled:opacity-50"
+                                        className="w-full bg-surface/50 border border-surface-light rounded-xl pl-4 pr-12 py-3.5 text-base sm:text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all disabled:opacity-50"
                                     />
                                     <button
                                         type="submit"
                                         disabled={status === 'loading' || status === 'success' || !email}
-                                        className="absolute right-1.5 top-1.5 p-1.5 bg-surface-light/50 hover:bg-primary text-text-secondary hover:text-white rounded-lg transition-all disabled:opacity-0 disabled:cursor-not-allowed"
+                                        className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-surface-light/50 hover:bg-primary text-text-secondary hover:text-white rounded-lg transition-all disabled:opacity-0 disabled:cursor-not-allowed flex items-center justify-center"
                                     >
                                         {status === 'loading' ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -100,10 +100,12 @@ export default function Footer() {
                     <div className="lg:col-span-2 md:col-span-1">
                         <h4 className="font-semibold text-white mb-6">Explorar</h4>
                         <ul className="space-y-4 text-sm">
+                            <li><Link href="/about" className="text-text-secondary hover:text-primary transition-colors">Nosotros</Link></li>
                             <li><Link href={gatedHref('/browse', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Películas</Link></li>
                             <li><Link href={gatedHref('/browse?category=tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Series</Link></li>
                             <li><Link href={gatedHref('/live-tv', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">TV en Vivo</Link></li>
                             <li><Link href={gatedHref('/favorites', isLoggedIn)} className="text-text-secondary hover:text-primary transition-colors">Favoritos</Link></li>
+                            <li><Link href="/editorial" className="text-text-secondary hover:text-primary transition-colors">Editorial</Link></li>
                         </ul>
                     </div>
 
@@ -134,9 +136,8 @@ export default function Footer() {
                         </ul>
 
                         <div className="flex gap-4">
-                            <SocialLink href="https://github.com" icon={<Github className="w-5 h-5" />} />
-                            <SocialLink href="https://twitter.com" icon={<Twitter className="w-5 h-5" />} />
-                            <SocialLink href="https://instagram.com" icon={<Instagram className="w-5 h-5" />} />
+                            <SocialLink href="https://x.com/filmify" icon={<Twitter className="w-5 h-5" />} />
+                            <SocialLink href="https://instagram.com/filmify" icon={<Instagram className="w-5 h-5" />} />
                         </div>
                     </div>
                 </div>

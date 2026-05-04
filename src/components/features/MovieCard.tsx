@@ -13,9 +13,10 @@ import { useTVDetection } from '@/hooks/useTVDetection';
 interface MovieCardProps {
     movie: Movie | TVShow;
     mediaType?: 'movie' | 'tv';
+    priority?: boolean;
 }
 
-export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps) {
+export default function MovieCard({ movie, mediaType = 'movie', priority = false }: MovieCardProps) {
     const router   = useRouter();
     const { isTV } = useTVDetection();
     const cardRef  = useRef<HTMLDivElement>(null);
@@ -84,7 +85,8 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
                         alt={title}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
+                        sizes="(max-width: 480px) 45vw, (max-width: 768px) 33vw, (max-width: 1200px) 25vw, 16vw"
+                        priority={priority}
                     />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-surface-container-high text-on-surface-variant">
@@ -102,17 +104,17 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
                     <span className="md3-label-small text-white">{movie.vote_average.toFixed(1)}</span>
                 </div>
 
-                {/* Favorite button — MD3 icon button */}
+                {/* Favorite button — siempre visible en móvil, hover en desktop */}
                 <button
                     onClick={handleToggleFavorite}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleToggleFavorite(e); }}
                     className={[
-                        'absolute top-2 right-2 z-20 w-7 h-7 rounded-full flex items-center justify-center',
-                        'opacity-0 group-hover:opacity-100 transition-all duration-200',
-                        'focus:outline-none focus-visible:opacity-100',
+                        'absolute top-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center',
+                        // Mobile: always visible if liked, otherwise subtle. Desktop: show on hover
                         isLiked
-                            ? 'bg-primary/90 text-on-primary'
-                            : 'bg-black/50 backdrop-blur-sm text-white hover:bg-primary/80',
+                            ? 'opacity-100 bg-primary/90 text-on-primary'
+                            : 'opacity-60 sm:opacity-0 group-hover:opacity-100 bg-black/50 backdrop-blur-sm text-white hover:bg-primary/80',
+                        'transition-all duration-200 focus:outline-none focus-visible:opacity-100',
                     ].join(' ')}
                     aria-label={isLiked ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                     aria-pressed={isLiked}
@@ -127,12 +129,12 @@ export default function MovieCard({ movie, mediaType = 'movie' }: MovieCardProps
                     </div>
                 </div>
 
-                {/* Title overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-2.5 z-20 translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
-                    <h3 className="md3-label-large text-white line-clamp-2 leading-tight">
+                {/* Title overlay — always visible on mobile */}
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 z-20 sm:translate-y-1 sm:group-hover:translate-y-0 transition-transform duration-300">
+                    <p className="md3-label-large text-white line-clamp-2 leading-tight font-bold">
                         {title}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
                         <span className="md3-label-small text-white/70">{year}</span>
                         <span className="w-0.5 h-0.5 rounded-full bg-white/30" />
                         <span className="md3-label-small text-white/70">{mediaType === 'tv' ? 'Serie' : 'Película'}</span>

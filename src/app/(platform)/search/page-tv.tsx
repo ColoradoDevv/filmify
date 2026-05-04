@@ -68,28 +68,33 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                 </div>
 
                 {/* Search bar — acts as keyboard toggle */}
-                <button
-                    onClick={() => setShowKeyboard(true)}
-                    className={[
-                        'w-full max-w-2xl flex items-center gap-4 px-6 py-4 rounded-2xl border-2 transition-all text-left',
-                        'tv-focusable focus:outline-none',
-                        showKeyboard
-                            ? 'border-primary bg-primary/10 shadow-[0_0_0_4px_rgba(0,194,255,0.15)]'
-                            : 'border-outline-variant bg-surface-container hover:border-primary/50 focus:border-primary focus:bg-primary/5',
-                    ].join(' ')}
-                    tabIndex={0}
-                    data-focusable="true"
-                    aria-label="Abrir teclado de búsqueda"
-                    aria-expanded={showKeyboard}
-                >
-                    <Search className="w-5 h-5 text-white/40 flex-shrink-0" />
-                    <span className={`text-xl flex-1 ${query ? 'text-white' : 'text-white/30'}`}>
-                        {query || 'Toca para buscar...'}
-                    </span>
+                <div className="relative w-full max-w-2xl">
+                    <div
+                        onClick={() => setShowKeyboard(true)}
+                        role="button"
+                        tabIndex={0}
+                        data-focusable="true"
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowKeyboard(true); } }}
+                        className={[
+                            'w-full flex items-center gap-4 px-6 py-4 rounded-2xl border-2 transition-all text-left cursor-pointer',
+                            'tv-focusable focus:outline-none',
+                            showKeyboard
+                                ? 'border-primary bg-primary/10 shadow-[0_0_0_4px_rgba(0,194,255,0.15)]'
+                                : 'border-outline-variant bg-surface-container hover:border-primary/50 focus:border-primary focus:bg-primary/5',
+                        ].join(' ')}
+                        aria-label="Abrir teclado de búsqueda"
+                        aria-expanded={showKeyboard}
+                    >
+                        <Search className="w-5 h-5 text-white/40 flex-shrink-0" />
+                        <span className={`text-xl flex-1 pr-8 ${query ? 'text-white' : 'text-white/30'}`}>
+                            {query || 'Toca para buscar...'}
+                        </span>
+                    </div>
+                    {/* Clear button — outside the div[role=button] to avoid nesting */}
                     {query && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setQuery(''); setResults([]); }}
-                            className="p-1 rounded-full hover:bg-white/10 transition-colors tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 transition-colors tv-focusable focus:outline-none focus:ring-2 focus:ring-primary"
                             aria-label="Limpiar búsqueda"
                             tabIndex={0}
                             data-focusable="true"
@@ -97,7 +102,7 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                             <X className="w-5 h-5 text-white/50" />
                         </button>
                     )}
-                </button>
+                </div>
             </div>
 
             {/* Virtual keyboard */}

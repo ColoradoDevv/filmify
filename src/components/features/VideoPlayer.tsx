@@ -19,7 +19,7 @@ const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const LOAD_TIMEOUT_MS = 15_000;
 
 // Vimeus player customization params
-const VIMEUS_STYLE = 'title=Filmify&theme=blue&font=v3&overlay=v5&epanel=v3&splash=v3';
+const VIMEUS_STYLE = 'title=Filmify&theme=blue&font=v3&overlay=v5&epanel=v3&splash=v3&fs=1&autoplay=1';
 
 function buildVimeusUrl(mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
     const base = 'https://vimeus.com/e';
@@ -41,13 +41,68 @@ export default function VideoPlayer({
     const [isLoading, setIsLoading]       = useState(true);
     const [error, setError]               = useState(false);
     const [hasSavedWatched, setHasSaved]  = useState(false);
+    const [controlsVisible, setControlsVisible] = useState(true);
 
     const isWatched  = useStore((s) => s.isWatched(mediaId));
     const addWatched = useStore((s) => s.addWatched);
     const supabase   = createClient();
 
-    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isMounted      = useRef(true);
+    const loadTimeoutRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMounted         = useRef(true);
+    const containerRef      = useRef<HTMLDivElement>(null);
+    const iframeRef         = useRef<HTMLIFrameElement>(null);
+
+    // ── Request fullscreen on mount (suppresses "VER EN PANTALLA GRANDE") ──
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const req =
+            el.requestFullscreen?.bind(el) ||
+            (el as any).webkitRequestFullscreen?.bind(el) ||
+            (el as any).mozRequestFullScreen?.bind(el) ||
+            (el as any).msRequestFullscreen?.bind(el);
+        req?.().catch(() => {
+            // Fullscreen may be blocked by browser policy — silently ignore.
+            // The player still works; the Vimeus overlay may appear but is
+            // dismissible by the user.
+        });
+        return () => {
+            const exit =
+                document.exitFullscreen?.bind(document) ||
+                (document as any).webkitExitFullscreen?.bind(document) ||
+                (document as any).mozCancelFullScreen?.bind(document) ||
+                (document as any).msExitFullscreen?.bind(document);
+            if (document.fullscreenElement) exit?.().catch(() => {});
+        };
+    }, []);
+
+    // ── Show controls briefly then auto-hide ────────────────────────────────
+    const showControls = useCallback(() => {
+        setControlsVisible(true);
+        if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+        // Hide after 3s of inactivity (only once loading is done)
+        hideControlsTimer.current = setTimeout(() => {
+            setControlsVisible(false);
+        }, 3000);
+    }, []);
+
+    // Start the hide timer once loading finishes
+    useEffect(() => {
+        if (!isLoading && !error) {
+            showControls();
+        }
+        return () => {
+            if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+        };
+    }, [isLoading, error, showControls]);
+
+    // Show controls on any user interaction
+    useEffect(() => {
+        const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointermove'];
+        events.forEach(e => window.addEventListener(e, showControls, { passive: true }));
+        return () => events.forEach(e => window.removeEventListener(e, showControls));
+    }, [showControls]);
 
     const embedUrl = buildVimeusUrl(mediaId, mediaType, season, episode);
 
@@ -114,10 +169,10 @@ export default function VideoPlayer({
     };
 
     return (
-        <div className="fixed inset-0 z-[200] bg-black flex flex-col">
+        <div ref={containerRef} className="fixed inset-0 z-[200] bg-black flex flex-col">
 
-            {/* Top bar */}
-            <div className="absolute top-0 inset-x-0 z-30 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3">
+            {/* Top bar — auto-hides during playback, reappears on any interaction */}
+            <div className={`absolute top-0 inset-x-0 z-30 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-500 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <button
                     onClick={onClose}
                     aria-label="Cerrar reproductor"
@@ -176,13 +231,15 @@ export default function VideoPlayer({
 
                 {/* Iframe */}
                 <iframe
+                    ref={iframeRef}
                     key={embedUrl}
                     src={embedUrl}
                     title={`Reproductor: ${title}`}
                     className="w-full h-full border-0"
                     onLoad={handleLoad}
                     referrerPolicy="origin"
-                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"
+                    allowFullScreen
                 />
             </div>
         </div>

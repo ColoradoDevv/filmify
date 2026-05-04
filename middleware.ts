@@ -15,9 +15,11 @@ function generateNonce(): string {
 /** Publicly accessible — no auth required */
 const PUBLIC_ROUTES = [
     '/',                    // landing / call-to-action
+    '/about',
     '/contact',
     '/legal',
     '/security',
+    '/tv',                  // TV mode activation page
 ];
 
 /** Auth pages — redirect to /browse if already logged in */
@@ -92,9 +94,14 @@ const TV_UA_KEYWORDS = [
     'formuler', 'crkey', 'chromecast',
 ];
 
-function isTVUserAgent(ua: string): boolean {
-    const lower = ua.toLowerCase();
-    return TV_UA_KEYWORDS.some(kw => lower.includes(kw));
+const TV_MODE_COOKIE = 'filmify_tv_mode';
+
+function isTVRequest(request: NextRequest): boolean {
+    // 1. Manual cookie override (set via /tv activation page)
+    if (request.cookies.get(TV_MODE_COOKIE)?.value === '1') return true;
+    // 2. User-Agent keyword matching
+    const ua = request.headers.get('user-agent')?.toLowerCase() || '';
+    return TV_UA_KEYWORDS.some(kw => ua.includes(kw));
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -196,9 +203,8 @@ export default async function middleware(request: NextRequest) {
     //    TV devices get a pass on content routes — they can't easily log in.
     //    Preserve the intended destination so we can redirect back after login.
     if (!user && (isProtected || isAdmin)) {
-        const ua = request.headers.get('user-agent') || '';
-        if (isTVUserAgent(ua) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
-            // TV device accessing a content route — allow without auth.
+        if (isTVRequest(request) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
+            // TV device (by UA or cookie) accessing a content route — allow without auth.
             return response;
         }
         const loginUrl = new URL('/login', request.url);

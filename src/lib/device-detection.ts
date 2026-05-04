@@ -1,10 +1,18 @@
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+
+/** Cookie name used to manually enable TV mode on any device */
+export const TV_MODE_COOKIE = 'filmify_tv_mode';
 
 /**
- * Checks if the current request is from a TV device based on the User-Agent header.
- * This is a server-side utility.
+ * Checks if the current request is from a TV device.
+ * Detection order:
+ *  1. Manual override cookie (filmify_tv_mode=1) — set via /tv activation page
+ *  2. User-Agent keyword matching
  */
 export async function isTVDevice(): Promise<boolean> {
+    const cookieStore = await cookies();
+    if (cookieStore.get(TV_MODE_COOKIE)?.value === '1') return true;
+
     const headersList = await headers();
     const userAgent = headersList.get('user-agent')?.toLowerCase() || '';
 
@@ -37,3 +45,4 @@ export async function isTVDevice(): Promise<boolean> {
 
     return tvUserAgents.some(tv => userAgent.includes(tv));
 }
+

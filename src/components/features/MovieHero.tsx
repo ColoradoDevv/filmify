@@ -54,6 +54,19 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
 
+    // Use smaller backdrop on mobile for better LCP
+    const [mobileBackdrop, setMobileBackdrop] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setMobileBackdrop(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const optimizedBackdropUrl = mobileBackdrop 
+        ? backdropUrl.replace('original', 'w780').replace('w1280', 'w780')
+        : backdropUrl;
+
     // Format runtime
     const totalMinutes = movie.runtime || 0;
     const hours = Math.floor(totalMinutes / 60);
@@ -116,11 +129,12 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                         <>
                             {backdropUrl ? (
                                 <Image
-                                    src={backdropUrl}
+                                    src={optimizedBackdropUrl}
                                     alt={movie.title}
                                     fill
-                                    className="object-cover scale-105"
+                                    className={`object-cover transition-all duration-700 ${showVideo ? 'scale-105 opacity-0' : 'scale-100 opacity-100'}`}
                                     priority
+                                    quality={90}
                                     sizes="100vw"
                                 />
                             ) : (

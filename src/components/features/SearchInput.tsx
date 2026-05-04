@@ -177,14 +177,22 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
 
             {/* Suggestions Dropdown */}
             {showSuggestions && (query.length >= 2 || history.length > 0) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div
+                    className="absolute top-full left-0 right-0 mt-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
+                    role="listbox"
+                    aria-label="Sugerencias de búsqueda"
+                >
                     <div className="py-2">
                         {/* History Section */}
                         {query.length < 2 && history.length > 0 && (
                             <div className="mb-2">
                                 <div className="px-4 py-2 flex items-center justify-between text-xs text-text-muted uppercase font-semibold tracking-wider">
                                     <span>Recientes</span>
-                                    <button onClick={handleClearHistory} className="hover:text-red-400 transition-colors">
+                                    <button
+                                        onClick={handleClearHistory}
+                                        className="hover:text-red-400 transition-colors"
+                                        aria-label="Borrar historial"
+                                    >
                                         Borrar
                                     </button>
                                 </div>
@@ -193,6 +201,8 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                         key={item.id}
                                         onClick={() => handleHistoryClick(item.query)}
                                         className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item tv-focusable focus:bg-surface-light/80 focus:outline-none"
+                                        role="option"
+                                        aria-selected="false"
                                     >
                                         <Clock className="w-4 h-4 text-text-secondary" />
                                         <span className="text-sm text-text-primary group-hover/item:text-primary transition-colors">
@@ -200,64 +210,61 @@ export default function SearchInput({ className = '', placeholder = 'Buscar...' 
                                         </span>
                                     </button>
                                 ))}
-                                <div className="h-px bg-surface-light/50 my-2" />
                             </div>
                         )}
 
-                        {/* Search Results */}
-                        {suggestions.length > 0 && (
-                            <>
-                                {query.length >= 2 && (
-                                    <div className="px-4 py-2 text-xs text-text-muted uppercase font-semibold tracking-wider">
-                                        Sugerencias
-                                    </div>
-                                )}
+                        {/* Suggestions Section */}
+                        {query.length >= 2 && suggestions.length > 0 && (
+                            <div>
+                                <div className="px-4 py-2 text-xs text-text-muted uppercase font-semibold tracking-wider">
+                                    Sugerencias
+                                </div>
                                 {suggestions.map((item) => (
                                     <button
                                         key={`${item.media_type}-${item.id}`}
                                         onClick={() => handleSuggestionClick(item)}
                                         className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left group/item tv-focusable focus:bg-surface-light/80 focus:outline-none"
+                                        role="option"
+                                        aria-selected="false"
                                     >
-                                        <div className="relative w-8 h-12 flex-shrink-0 rounded overflow-hidden bg-surface-light">
+                                        <div className="relative w-10 h-14 flex-shrink-0 rounded bg-surface-light overflow-hidden shadow-md">
                                             {getImage(item) ? (
                                                 <Image
                                                     src={getImage(item)!}
                                                     alt={getTitle(item)}
                                                     fill
                                                     className="object-cover"
-                                                    sizes="32px"
+                                                    sizes="40px"
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-text-muted">
+                                                <div className="w-full h-full flex items-center justify-center">
                                                     {getIcon(item.media_type)}
                                                 </div>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-white truncate group-hover/item:text-primary transition-colors">
-                                                {getTitle(item)}
-                                            </p>
-                                            <div className="flex items-center gap-2 text-xs text-text-secondary">
-                                                <span className="capitalize flex items-center gap-1">
-                                                    {getIcon(item.media_type)}
-                                                    {item.media_type === 'movie' ? 'Película' : item.media_type === 'tv' ? 'Serie' : 'Persona'}
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-text-primary group-hover/item:text-primary transition-colors font-medium truncate">
+                                                    {getTitle(item)}
                                                 </span>
-                                                {getYear(item) && (
-                                                    <>
-                                                        <span>•</span>
-                                                        <span>{getYear(item)}</span>
-                                                    </>
-                                                )}
+                                                <span className="text-xs text-text-muted flex-shrink-0">
+                                                    {getYear(item)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5">
+                                                {getIcon(item.media_type)}
+                                                <span className="capitalize">{item.media_type === 'tv' ? 'Serie' : item.media_type === 'movie' ? 'Película' : 'Persona'}</span>
                                             </div>
                                         </div>
                                     </button>
                                 ))}
-                            </>
+                            </div>
                         )}
 
                         {query.length >= 2 && suggestions.length === 0 && !loading && (
-                            <div className="px-4 py-3 text-center text-text-muted text-sm">
-                                No se encontraron resultados
+                            <div className="px-4 py-8 text-center text-text-muted">
+                                <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                <p className="text-sm">No se encontraron resultados</p>
                             </div>
                         )}
                     </div>

@@ -116,8 +116,8 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
         <div className="space-y-12">
             <div
                 ref={gridRef}
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 md:gap-8 tv-grid tv-grid-movies"
-                role="grid"
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 tv-grid tv-grid-movies"
+                role="list"
                 aria-label={`${mediaType === 'tv' ? 'Series' : 'Películas'} grid`}
             >
                 {movies.map((movie, index) => (
@@ -125,9 +125,13 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieG
                         key={`${movie.id}-${index}`}
                         className="animate-fade-in-up"
                         style={{ animationDelay: `${(index % 20) * 50}ms` }}
-                        role="gridcell"
+                        role="listitem"
                     >
-                        <MovieCard movie={movie} mediaType={mediaType} />
+                        <MovieCard
+                            movie={movie}
+                            mediaType={mediaType}
+                            priority={index < 10}
+                        />
                     </div>
                 ))}
 
