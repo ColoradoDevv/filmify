@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Clock, ArrowRight, ExternalLink, Rss } from 'lucide-react';
 import { getArticlesAndNewsByCategory, CATEGORIES } from '@/lib/editorial';
 import type { Article, NewsItem } from '@/lib/editorial';
 import NewsCard from '@/components/editorial/NewsCard';
+import ArticleImage from '@/components/editorial/ArticleImage';
 
 interface Props { params: Promise<{ cat: string }> }
 
@@ -26,6 +26,8 @@ function fmt(d: string | null) {
     return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+export const CATEGORIES_ORDER = ['noticias', 'streaming', 'peliculas', 'series', 'premios', 'guias'];
+
 export default async function CategoryPage({ params }: Props) {
     const { cat } = await params;
     const label = CATEGORIES[cat];
@@ -34,23 +36,30 @@ export default async function CategoryPage({ params }: Props) {
     const { articles, news } = await getArticlesAndNewsByCategory(cat);
 
     return (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-            {/* Header */}
-            <div className="mb-8">
-                <Link href="/editorial" className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-primary transition-colors mb-4">
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    Volver a portada
-                </Link>
-                <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-primary rounded-full" />
-                    <h1 className="text-3xl sm:text-4xl font-black text-on-surface">{label}</h1>
-                </div>
-                <p className="text-on-surface-variant text-sm mt-2 ml-4">
-                    {articles.length + news.length} artículos disponibles
-                </p>
-            </div>
+        <>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                {/* Header */}
+                <div className="mb-8">
+                    <Link href="/editorial" className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-primary transition-colors mb-6">
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        Volver a portada
+                    </Link>
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-10 bg-primary rounded-full shadow-[0_0_12px_rgba(var(--color-primary-rgb),0.4)]" />
+                        <div>
+                            <h1 className="text-3xl sm:text-5xl font-black text-on-surface tracking-tight uppercase">
+                                {label}
+                            </h1>
+                            <p className="text-on-surface-variant text-sm mt-1 font-medium flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                {articles.length + news.length} piezas de contenido actualizado hoy
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                 <div className="xl:col-span-3 space-y-10">
                     {/* Own articles */}
                     {articles.length > 0 && (
@@ -64,11 +73,14 @@ export default async function CategoryPage({ params }: Props) {
                                     <Link key={article.id} href={`/editorial/${article.slug}`} className="group block h-full">
                                         <article className="h-full flex flex-col rounded-xl overflow-hidden bg-surface-container border border-outline-variant hover:border-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-3)]">
                                             <div className="relative h-36 overflow-hidden bg-surface-container-high">
-                                                {article.cover_url ? (
-                                                    <Image src={article.cover_url} alt={article.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="350px" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-on-surface-variant/20 text-4xl">🎬</div>
-                                                )}
+                                                <ArticleImage
+                                                    src={article.cover_url}
+                                                    alt={article.title}
+                                                    category={article.category}
+                                                    fill
+                                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    sizes="350px"
+                                                />
                                             </div>
                                             <div className="flex-1 flex flex-col p-4">
                                                 <h3 className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors line-clamp-3 leading-snug mb-2">{article.title}</h3>
@@ -142,6 +154,7 @@ export default async function CategoryPage({ params }: Props) {
                     </div>
                 </aside>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

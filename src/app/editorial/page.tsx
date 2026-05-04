@@ -1,21 +1,40 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
-    BookOpen, Clock, ArrowRight, ExternalLink, Newspaper, Rss, Film, Flame,
+    Clock, ArrowRight, ExternalLink, Rss, Film, Flame,
 } from 'lucide-react';
 import { getPublishedArticles, getFeaturedArticle, getLatestNews, CATEGORIES } from '@/lib/editorial';
 import NewsCard from '@/components/editorial/NewsCard';
+import ArticleImage from '@/components/editorial/ArticleImage';
 
 export const metadata: Metadata = {
-    title: 'FilmiFy Editorial — Noticias, guías y reseñas de cine',
-    description: 'Las últimas noticias de cine y streaming: Mandalorian, Avengers Doomsday, Toy Story 5, mejores series de mayo 2026 y más.',
-    keywords: ['noticias cine 2026', 'Mandalorian Grogu', 'Avengers Doomsday', 'streaming mayo 2026', 'Toy Story 5'],
+    title: 'FilmiFy Editorial — Noticias, guías y reseñas de cine 2026',
+    description: 'Tu fuente definitiva de noticias de cine y streaming. Análisis profundos, guías de visualización y las últimas tendencias del séptimo arte actualizadas diariamente.',
+    keywords: [
+        'noticias cine 2026',
+        'estrenos streaming mayo 2026',
+        'reseñas de películas',
+        'guías de series',
+        'noticias de hollywood',
+        'plataformas de streaming',
+        'cine y televisión'
+    ],
     openGraph: {
-        title: 'FilmiFy Editorial',
-        description: 'Noticias, guías y reseñas de cine y streaming.',
+        title: 'FilmiFy Editorial — Noticias y Análisis de Cine',
+        description: 'Análisis profundos, guías de visualización y las últimas tendencias del cine y streaming.',
         type: 'website',
+        url: 'https://filmify.me/editorial',
+        siteName: 'FilmiFy',
+        locale: 'es_ES',
     },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'FilmiFy Editorial',
+        description: 'Las mejores noticias y guías de cine en un solo lugar.',
+    },
+    alternates: {
+        canonical: 'https://filmify.me/editorial'
+    }
 };
 
 export const revalidate = 1800;
@@ -38,48 +57,43 @@ function HeroCard({ article }: { article: any }) {
     return (
         <Link href={`/editorial/${article.slug}`} className="group block">
             <article className="relative rounded-2xl overflow-hidden bg-surface-container border border-outline-variant hover:border-primary/40 transition-all duration-300">
-                <div className="relative h-[340px] sm:h-[460px]">
-                    {article.cover_url ? (
-                        <Image
-                            src={article.cover_url}
-                            alt={article.title}
-                            fill
-                            className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-                            sizes="(max-width: 768px) 100vw, 900px"
-                            priority
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
-                            <Film className="w-20 h-20 text-primary/20" />
-                        </div>
-                    )}
+                <div className="relative h-[400px] sm:h-[460px]">
+                    <ArticleImage
+                        src={article.cover_url}
+                        alt={article.title}
+                        category={article.category}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                        sizes="(max-width: 768px) 100vw, 900px"
+                        priority
+                    />
                     {/* Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
                     {/* Content */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
+                    <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
                         <div className="flex items-center gap-2 mb-3">
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-on-primary rounded text-[10px] font-bold uppercase tracking-wider">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-on-primary rounded text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                                 <Flame className="w-2.5 h-2.5" />
                                 Destacado
                             </span>
-                            <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm text-white/80 rounded text-[10px] font-medium uppercase tracking-wider border border-white/10">
+                            <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm text-white/80 rounded text-[9px] sm:text-[10px] font-medium uppercase tracking-wider border border-white/10">
                                 {CATEGORIES[article.category] ?? article.category}
                             </span>
                         </div>
-                        <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-3 group-hover:text-primary/90 transition-colors max-w-3xl">
+                        <h1 className="text-xl sm:text-4xl font-black text-white leading-tight mb-3 group-hover:text-primary/90 transition-colors max-w-3xl line-clamp-3">
                             {article.title}
                         </h1>
-                        <p className="text-white/60 text-sm sm:text-base line-clamp-2 mb-4 max-w-2xl">
+                        <p className="text-white/70 text-xs sm:text-base line-clamp-2 mb-4 max-w-2xl hidden sm:block">
                             {article.excerpt}
                         </p>
-                        <div className="flex items-center gap-3 text-xs text-white/40">
-                            <span className="font-medium text-white/60">{article.author_name}</span>
-                            <span>·</span>
+                        <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-xs text-white/50">
+                            <span className="font-medium text-white/70">{article.author_name}</span>
+                            <span className="hidden sm:inline">·</span>
                             <span>{fmt(article.published_at, 'long')}</span>
-                            <span>·</span>
+                            <span className="hidden sm:inline">·</span>
                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{article.read_time} min</span>
-                            <span className="ml-auto flex items-center gap-1.5 text-primary font-semibold group-hover:gap-2.5 transition-all">
+                            <span className="ml-auto hidden sm:flex items-center gap-1.5 text-primary font-semibold group-hover:gap-2.5 transition-all">
                                 Leer artículo <ArrowRight className="w-4 h-4" />
                             </span>
                         </div>
@@ -98,19 +112,14 @@ function MedCard({ article }: { article: any }) {
             <Link href={`/editorial/${article.slug}`} className="absolute inset-0 z-0" aria-label={article.title} />
 
             <div className="relative h-40 flex-shrink-0 overflow-hidden bg-surface-container-high">
-                    {article.cover_url ? (
-                        <Image
-                            src={article.cover_url}
-                            alt={article.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                            sizes="(max-width: 768px) 100vw, 350px"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                            <BookOpen className="w-8 h-8 text-primary/20" />
-                        </div>
-                    )}
+                    <ArticleImage
+                        src={article.cover_url}
+                        alt={article.title}
+                        category={article.category}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, 350px"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-surface-container/70 to-transparent" />
                     {/* Category badge — z-10 so it sits above the full-card link */}
                     <Link href={`/editorial/categoria/${article.category}`} className="relative z-10 absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white/70 hover:text-primary rounded text-[9px] font-bold uppercase tracking-wider border border-white/10 transition-colors">
@@ -155,11 +164,17 @@ function ListCard({ article, index }: { article: any; index: number }) {
                     {fmt(article.published_at, 'long')}
                 </span>
             </div>
-            {article.cover_url && (
-                <div className="relative z-0 w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden">
-                    <Image src={article.cover_url} alt={article.title} width={56} height={56} className="object-cover w-full h-full" />
-                </div>
-            )}
+            {/* Thumbnail siempre visible con fallback */}
+            <div className="relative z-0 w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden">
+                <ArticleImage
+                    src={article.cover_url}
+                    alt={article.title}
+                    category={article.category}
+                    width={56}
+                    height={56}
+                    className="object-cover w-full h-full"
+                />
+            </div>
         </article>
     );
 }
@@ -186,8 +201,43 @@ export default async function EditorialPage() {
     }
     const sources = Object.keys(newsBySource);
 
+    // JSON-LD Structured Data for Editorial Index
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "FilmiFy Editorial",
+        "description": "Noticias, guías y reseñas de cine y streaming",
+        "url": "https://filmify.me/editorial",
+        "publisher": {
+            "@type": "Organization",
+            "name": "FilmiFy",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://filmify.me/logo-icon.svg"
+            }
+        },
+        "blogPost": articles.slice(0, 10).map(a => ({
+            "@type": "BlogPosting",
+            "headline": a.title,
+            "description": a.excerpt,
+            "image": a.cover_url,
+            "datePublished": a.published_at,
+            "author": {
+                "@type": "Person",
+                "name": a.author_name
+            },
+            "url": `https://filmify.me/editorial/${a.slug}`
+        }))
+    };
+
     return (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                {/* JSON-LD */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
 
                 {/* ── Main column (3/4) ──────────────────────────────────── */}
@@ -359,6 +409,7 @@ export default async function EditorialPage() {
                     )}
                 </aside>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

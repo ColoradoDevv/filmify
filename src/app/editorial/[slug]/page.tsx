@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Clock, Tag, Calendar, ArrowRight, BookOpen } from 'lucide-react';
 import { getArticleBySlug, getPublishedArticles, CATEGORIES } from '@/lib/editorial';
+import ArticleImage from '@/components/editorial/ArticleImage';
 
 interface Props {
     params: Promise<{ slug: string }>;
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!article) return { title: 'Artículo no encontrado' };
 
     return {
-        title: article.title,
+        title: `${article.title} — FilmiFy Editorial`,
         description: article.excerpt,
         keywords: article.tags,
         openGraph: {
@@ -25,12 +25,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             publishedTime: article.published_at ?? undefined,
             authors: [article.author_name],
             images: article.cover_url ? [{ url: article.cover_url }] : [],
+            siteName: 'FilmiFy',
+            url: `https://filmify.me/editorial/${slug}`,
         },
         twitter: {
             card: 'summary_large_image',
             title: article.title,
             description: article.excerpt,
         },
+        alternates: {
+            canonical: `https://filmify.me/editorial/${slug}`
+        }
     };
 }
 
@@ -95,15 +100,28 @@ export default async function ArticlePage({ params }: Props) {
 
     const jsonLd = {
         '@context': 'https://schema.org',
-        '@type': 'Article',
+        '@type': 'NewsArticle',
         headline: article.title,
         description: article.excerpt,
-        author: { '@type': 'Organization', name: article.author_name },
-        publisher: { '@type': 'Organization', name: 'FilmiFy', logo: { '@type': 'ImageObject', url: '/logo-icon.svg' } },
+        image: article.cover_url,
         datePublished: article.published_at,
-        dateModified: article.updated_at,
-        image: article.cover_url ?? undefined,
-        keywords: article.tags.join(', '),
+        dateModified: article.published_at,
+        author: {
+            '@type': 'Person',
+            name: article.author_name,
+        },
+        publisher: {
+            '@type': 'Organization',
+            name: 'FilmiFy',
+            logo: {
+                '@type': 'ImageObject',
+                url: 'https://filmify.me/logo-icon.svg',
+            },
+        },
+        mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': `https://filmify.me/editorial/${slug}`,
+        },
     };
 
     return (
@@ -117,7 +135,7 @@ export default async function ArticlePage({ params }: Props) {
                     Volver al editorial
                 </Link>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
                     {/* Article */}
                     <article className="lg:col-span-2">
                         {/* Category + meta */}
@@ -158,12 +176,17 @@ export default async function ArticlePage({ params }: Props) {
                             </div>
                         </div>
 
-                        {/* Cover image */}
-                        {article.cover_url && (
-                            <div className="relative h-64 sm:h-80 rounded-2xl overflow-hidden mb-8">
-                                <Image src={article.cover_url} alt={article.title} fill className="object-cover" />
-                            </div>
-                        )}
+                        {/* Cover image — siempre visible con fallback por categoría */}
+                        <div className="relative h-64 sm:h-80 rounded-2xl overflow-hidden mb-8">
+                            <ArticleImage
+                                src={article.cover_url}
+                                alt={article.title}
+                                category={article.category}
+                                fill
+                                className="object-cover"
+                                priority
+                            />
+                        </div>
 
                         {/* Content */}
                         <div className="prose-editorial">
@@ -184,9 +207,9 @@ export default async function ArticlePage({ params }: Props) {
                     </article>
 
                     {/* Sidebar */}
-                    <aside className="space-y-6">
+                    <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
                         {/* CTA */}
-                        <div className="bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/20 rounded-2xl p-5 sticky top-24">
+                        <div className="bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/20 rounded-2xl p-5">
                             <h3 className="font-bold text-on-surface mb-2">¿Buscas dónde ver una película?</h3>
                             <p className="text-sm text-on-surface-variant mb-4">
                                 FilmiFy te muestra en qué plataformas está disponible cualquier película o serie en tu región.

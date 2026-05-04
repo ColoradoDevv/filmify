@@ -1,6 +1,16 @@
 'use client';
 
-import { ExternalLink, Newspaper } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
+
+// Fallbacks por fuente de noticias y genérico
+const SOURCE_FALLBACKS: Record<string, string> = {
+    'Variety':                  'https://images.unsplash.com/photo-1585951237318-9ea5e175b891?q=80&w=400&auto=format&fit=crop',
+    'The Hollywood Reporter':   'https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=400&auto=format&fit=crop',
+    'Deadline':                 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=400&auto=format&fit=crop',
+    'IndieWire':                'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&auto=format&fit=crop',
+    'Screen Rant':              'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=400&auto=format&fit=crop',
+};
+const NEWS_FALLBACK = 'https://images.unsplash.com/photo-1585951237318-9ea5e175b891?q=80&w=400&auto=format&fit=crop';
 
 interface NewsItem {
     id: string;
@@ -21,6 +31,9 @@ export default function NewsCard({ item }: { item: NewsItem }) {
           })
         : '';
 
+    const fallback = SOURCE_FALLBACKS[item.source_name] ?? NEWS_FALLBACK;
+    const imgSrc = item.image_url || fallback;
+
     return (
         <a
             href={item.original_url}
@@ -30,21 +43,16 @@ export default function NewsCard({ item }: { item: NewsItem }) {
         >
             {/* Thumbnail */}
             <div className="w-20 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-surface-container-high">
-                {item.image_url ? (
-                    <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = 'none';
-                        }}
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <Newspaper className="w-5 h-5 text-on-surface-variant/30" />
-                    </div>
-                )}
+                <img
+                    src={imgSrc}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                        const img = e.currentTarget as HTMLImageElement;
+                        if (img.src !== fallback) img.src = fallback;
+                    }}
+                />
             </div>
 
             {/* Text */}

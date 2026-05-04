@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Film, Rss, Search } from 'lucide-react';
+import { Film, Search } from 'lucide-react';
+import EditorialNav from '@/components/editorial/EditorialNav';
 
 export const metadata: Metadata = {
     title: {
@@ -10,15 +11,6 @@ export const metadata: Metadata = {
     },
     description: 'Las últimas noticias de cine, guías de streaming, reseñas y análisis. Todo sobre películas y series en un solo lugar.',
 };
-
-const SECTIONS = [
-    { label: 'Noticias',   href: '/editorial/categoria/noticias' },
-    { label: 'Streaming',  href: '/editorial/categoria/streaming' },
-    { label: 'Películas',  href: '/editorial/categoria/peliculas' },
-    { label: 'Series',     href: '/editorial/categoria/series' },
-    { label: 'Premios',    href: '/editorial/categoria/premios' },
-    { label: 'Guías',      href: '/editorial/categoria/guias' },
-];
 
 export default function EditorialLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -81,29 +73,7 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
                 </div>
 
                 {/* Section nav */}
-                <nav className="max-w-6xl mx-auto px-4 sm:px-6 pb-0">
-                    <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide border-t border-outline-variant/50">
-                        <Link
-                            href="/editorial"
-                            className="flex-shrink-0 px-4 py-3 text-xs font-bold text-primary border-b-2 border-primary uppercase tracking-wider"
-                        >
-                            Portada
-                        </Link>
-                        {SECTIONS.map(s => (
-                            <Link
-                                key={s.href}
-                                href={s.href}
-                                className="flex-shrink-0 px-4 py-3 text-xs font-medium text-on-surface-variant hover:text-on-surface border-b-2 border-transparent hover:border-outline-variant transition-all uppercase tracking-wider"
-                            >
-                                {s.label}
-                            </Link>
-                        ))}
-                        <div className="ml-auto flex-shrink-0 flex items-center gap-1 px-4 py-3 text-xs text-on-surface-variant">
-                            <Rss className="w-3 h-3 text-primary" />
-                            <span className="hidden sm:block">RSS</span>
-                        </div>
-                    </div>
-                </nav>
+                <EditorialNav />
             </header>
 
             {/* Content */}
@@ -124,7 +94,14 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
                         <div>
                             <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider mb-3">Secciones</h4>
                             <div className="grid grid-cols-2 gap-1">
-                                {SECTIONS.map(s => (
+                                {[
+                                    { label: 'Noticias',  href: '/editorial/categoria/noticias' },
+                                    { label: 'Streaming', href: '/editorial/categoria/streaming' },
+                                    { label: 'Películas', href: '/editorial/categoria/peliculas' },
+                                    { label: 'Series',    href: '/editorial/categoria/series' },
+                                    { label: 'Premios',   href: '/editorial/categoria/premios' },
+                                    { label: 'Guías',     href: '/editorial/categoria/guias' },
+                                ].map(s => (
                                     <Link key={s.href} href={s.href} className="text-xs text-on-surface-variant hover:text-primary transition-colors py-0.5">
                                         {s.label}
                                     </Link>
