@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, LogOut, Settings } from 'lucide-react';
@@ -10,26 +10,32 @@ import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
 
+// Singleton client — created once per module, not per render.
+// Re-creating the client on every render breaks onAuthStateChange subscriptions
+// and causes the user state to flicker to null on rapid re-renders/reloads.
+const supabase = createClient();
+
 export default function PlatformHeader() {
     const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const supabase = createClient();
 
     useFavoritesSync();
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+        // Get the current session immediately — avoids a flash of logged-out UI.
+        supabase.auth.getUser().then(({ data: { user } }) => {
             setUser(user);
-        };
-        getUser();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+        });
+
+        // Keep in sync with auth state changes (login, logout, token refresh).
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
         });
+
         return () => subscription.unsubscribe();
-    }, [supabase]);
+    }, []); // empty deps — supabase is a stable module-level singleton
 
     const handleLogoutClick = () => { setShowLogoutConfirm(true); setProfileMenuOpen(false); };
     const confirmLogout = async () => {
