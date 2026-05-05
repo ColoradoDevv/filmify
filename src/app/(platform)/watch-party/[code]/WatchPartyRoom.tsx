@@ -286,6 +286,24 @@ export default function WatchPartyRoom({ code }: Props) {
         };
     }, [party?.id]);
 
+    // ── Heartbeat — update online_at every 30s so cleanup can detect stale members ──
+    useEffect(() => {
+        if (!party?.id || !me) return;
+
+        const ping = () => {
+            supabase
+                .from('party_members')
+                .update({ online_at: new Date().toISOString() })
+                .eq('party_id', party.id)
+                .eq('user_id', me)
+                .then(() => {});
+        };
+
+        ping(); // immediate ping on join
+        const interval = setInterval(ping, 30_000);
+        return () => clearInterval(interval);
+    }, [party?.id, me]);
+
     // ── Auto-scroll ───────────────────────────────────────────────────────────
     useEffect(() => {
         chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' });

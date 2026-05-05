@@ -6,6 +6,7 @@ import {
     Users, Plus, Lock, Globe, Search, Loader2, Film,
     ArrowRight, ArrowLeft, Check, Copy, X,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import type { Party } from '@/types/watch-party';
 
 interface MovieResult {
@@ -396,7 +397,10 @@ function JoinWithCode() {
 
 // ── Party card ────────────────────────────────────────────────────────────────
 function PartyCard({ party, onJoin, loading }: { party: Party; onJoin: () => void; loading: boolean }) {
-    const count = (party.party_members as any)?.[0]?.count ?? 0;
+    // party_members comes from Supabase as [{count: N}] when using select('party_members(count)')
+    const count = Array.isArray(party.party_members)
+        ? (party.party_members as any)[0]?.count ?? party.party_members.length
+        : 0;
     return (
         <div className="flex items-center gap-3 p-3 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant hover:border-primary/30 transition-colors">
             {party.poster_path ? (
@@ -429,6 +433,8 @@ function PartyCard({ party, onJoin, loading }: { party: Party; onJoin: () => voi
 }
 
 // ── Main Lobby ────────────────────────────────────────────────────────────────
+const supabase = createClient();
+
 export default function WatchPartyLobby() {
     const router = useRouter();
     const [tab,       setTab]       = useState<'public' | 'join'>('public');
@@ -437,11 +443,29 @@ export default function WatchPartyLobby() {
     const [joining,   setJoining]   = useState(false);
     const [showModal, setShowModal] = useState(false);
 
+    const loadParties = async () => {
+        const r = await fetch('/api/watch-party');
+        const d = await r.json();
+        setParties(d.parties ?? []);
+        setLoading(false);
+    };
+
     useEffect(() => {
-        fetch('/api/watch-party')
-            .then(r => r.json())
-            .then(d => setParties(d.parties ?? []))
-            .finally(() => setLoading(false));
+        loadParties();
+
+        // Subscribe to real-time changes on parties and party_members so the
+        // lobby list and member counts stay accurate without manual refresh.
+        const channel = supabase
+            .channel('lobby-parties')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'parties' }, () => {
+                loadParties();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'party_members' }, () => {
+                loadParties();
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
     const handleJoin = async (code: string, password?: string) => {
