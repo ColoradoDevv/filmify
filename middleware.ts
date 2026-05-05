@@ -193,7 +193,26 @@ export default async function middleware(request: NextRequest) {
     } catch { /* table may not exist yet */ }
 
     // ── Get current user ──────────────────────────────────────────────────────
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    // If the refresh token is invalid/expired, clear the stale session cookies
+    // and redirect to login. Without this, the user stays in a broken state
+    // where they appear logged-out in the UI but still have session cookies.
+    if (authError && (
+        authError.message?.includes('Refresh Token Not Found') ||
+        authError.message?.includes('Invalid Refresh Token') ||
+        authError.code === 'refresh_token_not_found'
+    )) {
+        const loginUrl = new URL('/login', request.url);
+        const redirectResponse = NextResponse.redirect(loginUrl);
+        // Clear Supabase session cookies so the client starts fresh
+        request.cookies.getAll().forEach(({ name }) => {
+            if (name.startsWith('sb-')) {
+                redirectResponse.cookies.delete(name);
+            }
+        });
+        return redirectResponse;
+    }
 
     const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
     const isAdmin     = pathname.startsWith(ADMIN_PREFIX);

@@ -30,8 +30,14 @@ export default function PlatformHeader() {
         });
 
         // Keep in sync with auth state changes (login, logout, token refresh).
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setUser(session?.user ?? null);
+
+            // When the refresh token is invalid, Supabase fires SIGNED_OUT.
+            // Redirect to login so the user can re-authenticate cleanly.
+            if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+                router.push('/login');
+            }
         });
 
         return () => subscription.unsubscribe();
