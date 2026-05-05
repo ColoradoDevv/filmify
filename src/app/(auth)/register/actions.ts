@@ -180,33 +180,56 @@ export async function registerAction(
         return { error: signUpError.message || 'No se pudo crear la cuenta' };
     }
 
-    const newUserId = signUpData.user?.id;
+    // Supabase returns action="user_repeated_signup" (200 OK, no error) when
+    // the email already exists. In that case signUpData.user holds the
+    // existing user — we must NOT treat this as a new registration.
+    // Detect it by checking whether the user was just created (within the
+    // last 10 seconds) vs an older account.
+    const newUser = signUpData.user;
+    if (!newUser) {
+        console.error('[register] signUp returned no user and no error');
+        return { error: 'No se pudo crear la cuenta. Intenta de nuevo.' };
+    }
 
-    // --- Explicit profile creation as a safety net. If the project has a
-    //     DB trigger that auto-creates profiles on auth.users insert, this
-    //     upsert is a no-op. If it doesn't, the user still gets a profile
-    //     row, which keeps the app from breaking on first login. ---
-    if (newUserId) {
-        const { error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .upsert(
-                {
-                    id: newUserId,
-                    username,
-                    full_name: fullName || username,
-                    // SEC-026: do NOT store email in the public profiles table.
-                    // Email already lives in auth.users; duplicating it here
-                    // exposes it to anyone who can read the profiles table via RLS.
-                    updated_at: new Date().toISOString(),
-                },
-                { onConflict: 'id' }
-            );
+    const createdAt = newUser.created_at ? new Date(newUser.created_at).getTime() : 0;
+    const isNewAccount = Date.now() - createdAt < 10_000; // created within last 10s
 
-        if (profileError) {
-            console.error('[register] Profile creation failed:', profileError);
-            // Don't block signup — the trigger may have created it, or an
-            // admin can repair it later. The user exists in auth either way.
-        }
+    if (!isNewAccount) {
+        // Existing account — surface the error instead of silently succeeding.
+        return {
+            error: 'Este email ya está registrado',
+            fieldErrors: { email: 'Este email ya está registrado' },
+        };
+    }
+
+    const newUserId = newUser.id;
+
+    // --- Explicit profile creation as a safety net. The DB trigger
+    //     handle_new_user() should have already created the profile row,
+    //     but we upsert here in case the trigger failed or was absent.
+    //     Uses the admin client so RLS is bypassed. ---
+    const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .upsert(
+            {
+                id: newUserId,
+                username,
+                full_name: fullName || username,
+                // SEC-026: do NOT store email in the public profiles table.
+                updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+        );
+
+    if (profileError) {
+        // Profile creation failed — this is a hard error. The user exists in
+        // auth.users but without a profile the app will break on first login.
+        // Roll back by deleting the auth user so they can retry cleanly.
+        console.error('[register] Profile creation failed, rolling back auth user:', profileError);
+        await supabaseAdmin.auth.admin.deleteUser(newUserId);
+        return {
+            error: 'No se pudo completar el registro. Por favor intenta de nuevo.',
+        };
     }
 
     // If the response has no session, Supabase is requiring email
