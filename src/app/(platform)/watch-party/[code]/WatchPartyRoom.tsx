@@ -216,14 +216,6 @@ export default function WatchPartyRoom({ code }: Props) {
     const chatRef    = useRef<HTMLDivElement>(null);
     const inputRef   = useRef<HTMLInputElement>(null);
     const emojiRef   = useRef<HTMLButtonElement>(null);
-    // Stable ref to party.id so effects don't need party in deps
-    const partyIdRef = useRef<string | null>(null);
-
-    // Reload members from DB and update state — used by Realtime callbacks
-    const reloadMembers = useCallback(async (partyId: string, hostId: string) => {
-        const mems = await getPartyMembers(partyId);
-        setMembers(mems.map(m => ({ ...m, is_host: m.user_id === hostId })));
-    }, []);
 
     // ── Load ──────────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -235,8 +227,6 @@ export default function WatchPartyRoom({ code }: Props) {
 
             const p = await getPartyByCode(code);
             if (!p) { setError('Sala no encontrada'); setLoading(false); return; }
-
-            partyIdRef.current = p.id;
 
             // Join the party (inserts party_member row if not already present)
             await fetch(`/api/watch-party/${code}`, {
@@ -269,25 +259,28 @@ export default function WatchPartyRoom({ code }: Props) {
         });
 
         // For members: reload the full list from DB on every INSERT/DELETE.
-        // This is more reliable than trying to merge individual events because:
-        // 1. The INSERT event fires before the profile join is available
-        // 2. DELETE events may arrive out of order
-        const ch2 = subscribeToMembers(
-            party.id,
-            () => reloadMembers(party.id, party.host_id),
-            () => reloadMembers(party.id, party.host_id),
-        );
+        // Capture party.id and party.host_id in the closure so the callback
+        // always has the current values.
+        const reloadMembers = async () => {
+            const mems = await getPartyMembers(party.id);
+            setMembers(mems.map(m => ({ ...m, is_host: m.user_id === party.host_id })));
+        };
 
+        const ch2 = subscribeToMembers(party.id, reloadMembers, reloadMembers);
         const ch3 = subscribeToMessages(party.id, (msg) => {
             setMessages(prev => [...prev, msg]);
         });
+
+        // Do a fresh reload once subscriptions are active to catch any members
+        // that joined between the initial fetch and the subscription setup.
+        reloadMembers();
 
         return () => {
             supabase.removeChannel(ch1);
             supabase.removeChannel(ch2);
             supabase.removeChannel(ch3);
         };
-    }, [party?.id]);
+    }, [party?.id, party?.host_id]);
 
     // ── Heartbeat — update online_at every 30s so cleanup can detect stale members ──
     useEffect(() => {
