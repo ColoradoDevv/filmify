@@ -1,35 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, LogOut, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
+
+// Singleton client — created once per module, not per render.
+// Re-creating the client on every render breaks onAuthStateChange subscriptions
+// and causes the user state to flicker to null on rapid re-renders/reloads.
+const supabase = createClient();
 
 export default function PlatformHeader() {
     const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const supabase = createClient();
 
     useFavoritesSync();
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+        // Get the current session immediately — avoids a flash of logged-out UI.
+        const fetchUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            setUser(data.user);
         };
-        getUser();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+        void fetchUser();
+
+        // Keep in sync with auth state changes (login, logout, token refresh).
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
+
+            // When the refresh token is invalid, Supabase fires SIGNED_OUT.
+            // Redirect to login so the user can re-authenticate cleanly.
+            if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+                router.push('/login');
+            }
         });
+
         return () => subscription.unsubscribe();
-    }, [supabase]);
+    }, []); // empty deps — supabase is a stable module-level singleton
 
     const handleLogoutClick = () => { setShowLogoutConfirm(true); setProfileMenuOpen(false); };
     const confirmLogout = async () => {

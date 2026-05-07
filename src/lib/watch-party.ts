@@ -1,6 +1,9 @@
 /**
  * Watch Party — client-side helpers and Realtime subscriptions.
  * All DB mutations go through API routes to keep service-role key server-side.
+ *
+ * IMPORTANT: All functions share the same supabase singleton so Realtime
+ * channels don't get orphaned across different client instances.
  */
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -8,20 +11,21 @@ import type { Party, PartyMember, ChatMessage } from '@/types/watch-party';
 
 export type { Party, PartyMember, ChatMessage };
 
+// Single shared client — prevents multiple GoTrue/Realtime connections.
+const supabase = createClient();
+
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
 export async function getPartyByCode(code: string): Promise<Party | null> {
-    const supabase = createClient();
     const { data } = await supabase
         .from('parties')
-        .select('*, party_members(count)')
+        .select('*')
         .eq('room_code', code.toUpperCase())
         .single();
     return data as Party | null;
 }
 
 export async function getPublicParties(): Promise<Party[]> {
-    const supabase = createClient();
     const { data } = await supabase
         .from('parties')
         .select('*, party_members(count)')
@@ -33,7 +37,6 @@ export async function getPublicParties(): Promise<Party[]> {
 }
 
 export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> {
-    const supabase = createClient();
     const { data } = await supabase
         .from('party_messages')
         .select('id, user_id, text, type, created_at, reply_to_id, reply_preview, reply_username, profiles:user_id(username, avatar_url)')
@@ -42,13 +45,13 @@ export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> 
         .limit(200);
 
     return (data ?? []).map((m: any) => ({
-        id:            m.id,
-        user_id:       m.user_id,
-        username:      m.profiles?.username ?? 'Usuario',
-        avatar_url:    m.profiles?.avatar_url ?? null,
-        text:          m.text,
-        timestamp:     m.created_at,
-        type:          m.type ?? 'user',
+        id:             m.id,
+        user_id:        m.user_id,
+        username:       m.profiles?.username ?? 'Usuario',
+        avatar_url:     m.profiles?.avatar_url ?? null,
+        text:           m.text,
+        timestamp:      m.created_at,
+        type:           m.type ?? 'user',
         reply_to_id:    m.reply_to_id    ?? null,
         reply_preview:  m.reply_preview  ?? null,
         reply_username: m.reply_username ?? null,
@@ -56,7 +59,6 @@ export async function getPartyMessages(partyId: string): Promise<ChatMessage[]> 
 }
 
 export async function getPartyMembers(partyId: string): Promise<PartyMember[]> {
-    const supabase = createClient();
     const { data } = await supabase
         .from('party_members')
         .select('user_id, is_ready, online_at, profiles:user_id(username, avatar_url)')
@@ -78,7 +80,6 @@ export function subscribeToParty(
     partyId: string,
     onPartyChange: (party: Partial<Party>) => void,
 ): RealtimeChannel {
-    const supabase = createClient();
     return supabase
         .channel(`party:${partyId}`)
         .on('postgres_changes', {
@@ -93,7 +94,6 @@ export function subscribeToMembers(
     onInsert: (row: any) => void,
     onDelete: (row: any) => void,
 ): RealtimeChannel {
-    const supabase = createClient();
     return supabase
         .channel(`members:${partyId}`)
         .on('postgres_changes', {
@@ -111,7 +111,6 @@ export function subscribeToMessages(
     partyId: string,
     onMessage: (msg: ChatMessage) => void,
 ): RealtimeChannel {
-    const supabase = createClient();
     return supabase
         .channel(`messages:${partyId}`)
         .on('postgres_changes', {
@@ -126,13 +125,13 @@ export function subscribeToMessages(
                 .eq('id', row.user_id)
                 .single();
             onMessage({
-                id:            row.id,
-                user_id:       row.user_id,
-                username:      profile?.username ?? 'Usuario',
-                avatar_url:    profile?.avatar_url ?? null,
-                text:          row.text,
-                timestamp:     row.created_at,
-                type:          row.type ?? 'user',
+                id:             row.id,
+                user_id:        row.user_id,
+                username:       profile?.username ?? 'Usuario',
+                avatar_url:     profile?.avatar_url ?? null,
+                text:           row.text,
+                timestamp:      row.created_at,
+                type:           row.type ?? 'user',
                 reply_to_id:    row.reply_to_id    ?? null,
                 reply_preview:  row.reply_preview  ?? null,
                 reply_username: row.reply_username ?? null,
@@ -140,3 +139,5 @@ export function subscribeToMessages(
         })
         .subscribe();
 }
+
+export { supabase as watchPartyClient };

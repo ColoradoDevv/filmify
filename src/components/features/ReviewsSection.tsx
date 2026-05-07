@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { Star, MessageSquare, User, Trash2, Loader2, Send, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -81,7 +81,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
             setAuthLoading(false);
         };
 
-        const { data: authSubscription } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+        const { data: authSubscription } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             if (!active) return;
             setUser(session?.user ?? null);
             setAuthLoading(false);

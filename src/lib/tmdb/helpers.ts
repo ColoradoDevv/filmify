@@ -8,8 +8,9 @@ export const getImageUrl = (
     return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
-export const getPosterUrl = (path: string | null): string => {
-    return getImageUrl(path, 'w500');
+export const getPosterUrl = (path: string | null | undefined): string | null => {
+    if (!path) return null;
+    return `${IMAGE_BASE_URL}/w500${path}`;
 };
 
 export const getBackdropUrl = (path: string | null): string => {

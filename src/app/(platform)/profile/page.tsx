@@ -792,7 +792,7 @@ export default function ProfilePage() {
                                                 <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-3xl bg-surface-light">
                                                     {media?.poster_path ? (
                                                         <Image
-                                                            src={getPosterUrl(media.poster_path)}
+                                                            src={getPosterUrl(media.poster_path) ?? ''}
                                                             alt={media.title}
                                                             fill
                                                             className="object-cover"

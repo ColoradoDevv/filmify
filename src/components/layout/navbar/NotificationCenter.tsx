@@ -13,6 +13,9 @@ import {
     subscribeToNotifications,
 } from '@/lib/notifications';
 
+// Stable singleton — avoids creating a new client on every render/cleanup cycle.
+const supabase = createClient();
+
 interface NotificationCenterProps {
     user: SupabaseUser | null;
     /** kept for API compatibility with Navbar — no longer used */
@@ -52,7 +55,7 @@ export default function NotificationCenter({ user }: NotificationCenterProps) {
 
         return () => {
             cancelled = true;
-            createClient().removeChannel(channel);
+            supabase.removeChannel(channel);
         };
     }, [user?.id]);
 

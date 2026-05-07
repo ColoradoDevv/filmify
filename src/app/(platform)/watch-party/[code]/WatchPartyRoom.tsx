@@ -6,10 +6,10 @@ import {
     Users, Send, LogOut, Crown, Loader2, MessageSquare,
     Play, Clock, Copy, Check, Lock, Globe, X, Reply, Smile,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import {
     getPartyByCode, getPartyMessages, getPartyMembers,
     subscribeToParty, subscribeToMembers, subscribeToMessages,
+    watchPartyClient,
 } from '@/lib/watch-party';
 import type { Party, PartyMember, ChatMessage } from '@/types/watch-party';
 import VideoPlayer from '@/components/features/VideoPlayer';
@@ -197,7 +197,8 @@ function MessageBubble({
 // ── Main Room ─────────────────────────────────────────────────────────────────
 export default function WatchPartyRoom({ code }: Props) {
     const router   = useRouter();
-    const supabase = createClient();
+    // Use the shared singleton from watch-party lib — same instance as subscriptions
+    const supabase = watchPartyClient;
 
     const [party,      setParty]      = useState<Party | null>(null);
     const [members,    setMembers]    = useState<PartyMember[]>([]);
@@ -227,11 +228,13 @@ export default function WatchPartyRoom({ code }: Props) {
             const p = await getPartyByCode(code);
             if (!p) { setError('Sala no encontrada'); setLoading(false); return; }
 
+            // Join the party (inserts party_member row if not already present)
             await fetch(`/api/watch-party/${code}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({}),
             });
 
+            // Load initial data AFTER joining so our own row is included
             const [msgs, mems] = await Promise.all([
                 getPartyMessages(p.id),
                 getPartyMembers(p.id),
@@ -255,36 +258,47 @@ export default function WatchPartyRoom({ code }: Props) {
             if (updated.status === 'playing') setShowPlayer(true);
         });
 
-        const ch2 = subscribeToMembers(
-            party.id,
-            async (row) => {
-                const { data: profile } = await supabase
-                    .from('profiles').select('username, avatar_url').eq('id', row.user_id).single();
-                setMembers(prev => {
-                    if (prev.some(m => m.user_id === row.user_id)) return prev;
-                    return [...prev, {
-                        user_id:    row.user_id,
-                        username:   profile?.username ?? 'Usuario',
-                        avatar_url: profile?.avatar_url ?? null,
-                        is_host:    row.user_id === party.host_id,
-                        is_ready:   false,
-                        online_at:  row.joined_at,
-                    }];
-                });
-            },
-            (row) => setMembers(prev => prev.filter(m => m.user_id !== row.user_id)),
-        );
+        // For members: reload the full list from DB on every INSERT/DELETE.
+        // Capture party.id and party.host_id in the closure so the callback
+        // always has the current values.
+        const reloadMembers = async () => {
+            const mems = await getPartyMembers(party.id);
+            setMembers(mems.map(m => ({ ...m, is_host: m.user_id === party.host_id })));
+        };
 
+        const ch2 = subscribeToMembers(party.id, reloadMembers, reloadMembers);
         const ch3 = subscribeToMessages(party.id, (msg) => {
             setMessages(prev => [...prev, msg]);
         });
+
+        // Do a fresh reload once subscriptions are active to catch any members
+        // that joined between the initial fetch and the subscription setup.
+        reloadMembers();
 
         return () => {
             supabase.removeChannel(ch1);
             supabase.removeChannel(ch2);
             supabase.removeChannel(ch3);
         };
-    }, [party?.id]);
+    }, [party?.id, party?.host_id]);
+
+    // ── Heartbeat — update online_at every 30s so cleanup can detect stale members ──
+    useEffect(() => {
+        if (!party?.id || !me) return;
+
+        const ping = () => {
+            supabase
+                .from('party_members')
+                .update({ online_at: new Date().toISOString() })
+                .eq('party_id', party.id)
+                .eq('user_id', me)
+                .then(() => {});
+        };
+
+        ping();
+        const interval = setInterval(ping, 30_000);
+        return () => clearInterval(interval);
+    }, [party?.id, me]);
 
     // ── Auto-scroll ───────────────────────────────────────────────────────────
     useEffect(() => {
