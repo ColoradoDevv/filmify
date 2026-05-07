@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser, SupabaseClient, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
 import dynamic from 'next/dynamic';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
@@ -92,7 +92,7 @@ export default function Navbar() {
 
         if (!supabase) return;
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
             if (session?.user && supabase) {
                 try {

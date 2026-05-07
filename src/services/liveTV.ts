@@ -183,7 +183,7 @@ export async function fetchAllChannels(): Promise<LiveChannel[]> {
         createServiceRoleClient()
             .from('cached_channels')
             .upsert({ id: 1, channels, updated_at: new Date().toISOString() })
-            .then(({ error }) => {
+            .then(({ error }: { error: { message: string } | null }) => {
                 if (error) console.error('[liveTV] cache write failed:', error);
             });
     }
