@@ -25,8 +25,8 @@ export default function PlatformHeader() {
 
     useEffect(() => {
         // Get the current session immediately — avoids a flash of logged-out UI.
-        supabase.auth.getUser().then(({ data }) => {
-            setUser(data.user);
+        void supabase.auth.getUser().then((response) => {
+            setUser(response.data.user);
         });
 
         // Keep in sync with auth state changes (login, logout, token refresh).
