@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart, Share2, Check, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store/useStore';
 import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import type { Movie, TVShow } from '@/types/tmdb';
 
 interface MovieActionsProps {
@@ -11,6 +14,7 @@ interface MovieActionsProps {
 }
 
 export default function MovieActions({ movie }: MovieActionsProps) {
+    const router = useRouter();
     const currentFavorites = useStore((state) => state.user.favorites);
     const isFavorite = currentFavorites.some((fav) => fav.id === movie.id);
     const addFavorite = useStore((state) => state.addFavorite);
@@ -21,6 +25,15 @@ export default function MovieActions({ movie }: MovieActionsProps) {
 
     const toggleFavorite = useCallback(async () => {
         if (favLoading) return; // evitar múltiples clics
+
+        // Favoritos es una función solo para usuarios registrados.
+        const { data: { user } } = await createClient().auth.getUser();
+        if (!user) {
+            toast.info('Inicia sesión para guardar favoritos');
+            router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+            return;
+        }
+
         setFavLoading(true);
 
         const nextFavorites = isFavorite

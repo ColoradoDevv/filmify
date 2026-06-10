@@ -11,6 +11,8 @@ import { useRouter } from 'next/navigation';
 import { getBackdropUrl } from '@/lib/tmdb/helpers';
 import { useStore } from '@/lib/store/useStore';
 import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import type { MovieDetails, Video, Season, Movie } from '@/types/tmdb';
 import VideoPlayer from './VideoPlayer';
 
@@ -63,6 +65,7 @@ export default function MovieHero({
     const [showVideo, setShowVideo] = useState(false);
     const [showPlayer, setShowPlayer] = useState(false);
     const [favLoading, setFavLoading] = useState(false);
+    const router = useRouter();
     const playerRef = useRef<any>(null);
     const playerContainerId = useRef(`yt-player-${movie.id}`).current;
 
@@ -114,6 +117,15 @@ export default function MovieHero({
 
     const toggleFavorite = useCallback(async () => {
         if (favLoading) return;
+
+        // Favoritos es una función solo para usuarios registrados.
+        const { data: { user } } = await createClient().auth.getUser();
+        if (!user) {
+            toast.info('Inicia sesión para guardar favoritos');
+            router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+            return;
+        }
+
         setFavLoading(true);
         const currentFavorites = useStore.getState().user.favorites;
         const isCurrentlyFav = currentFavorites.some((fav) => fav.id === movie.id);

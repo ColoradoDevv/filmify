@@ -280,14 +280,13 @@ export default function SearchInput({
                 <ul
                     id="search-suggestions"
                     ref={listRef}
-                    className="absolute top-full left-0 right-0 mt-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
+                    className="absolute top-full left-0 right-0 mt-2 py-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
                     role="listbox"
                     aria-label="Sugerencias de búsqueda"
                 >
-                    <div className="py-2">
                         {/* Sección de historial */}
                         {query.trim().length < 2 && history.length > 0 && (
-                            <li className="mb-2" role="none">
+                            <li role="presentation">
                                 <div className="px-4 py-2 flex items-center justify-between">
                                     <span className="text-xs text-text-muted uppercase font-semibold tracking-wider">
                                         Recientes
@@ -303,32 +302,36 @@ export default function SearchInput({
                                         Borrar
                                     </button>
                                 </div>
-                                {history.map((item, idx) => (
-                                    <li
-                                        key={item.id}
-                                        role="option"
-                                        aria-selected={activeIndex === idx}
-                                        onClick={() => goToSearch(item.query)}
-                                        className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
-                                            activeIndex === idx ? 'bg-surface-light/80 ring-1 ring-primary/30' : ''
-                                        }`}
-                                    >
-                                        <Clock className="w-4 h-4 text-text-secondary" />
-                                        <span className="text-sm text-text-primary">
-                                            {item.query}
-                                        </span>
-                                    </li>
-                                ))}
                             </li>
                         )}
+                        {query.trim().length < 2 && history.length > 0 &&
+                            history.map((item, idx) => (
+                                <li
+                                    key={item.id}
+                                    role="option"
+                                    aria-selected={activeIndex === idx}
+                                    onClick={() => goToSearch(item.query)}
+                                    className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
+                                        activeIndex === idx ? 'bg-surface-light/80 ring-1 ring-primary/30' : ''
+                                    }`}
+                                >
+                                    <Clock className="w-4 h-4 text-text-secondary" />
+                                    <span className="text-sm text-text-primary">
+                                        {item.query}
+                                    </span>
+                                </li>
+                            ))}
 
                         {/* Sección de sugerencias */}
                         {query.trim().length >= 2 && suggestions.length > 0 && (
-                            <li role="none">
+                            <li role="presentation">
                                 <div className="px-4 py-2 text-xs text-text-muted uppercase font-semibold tracking-wider">
                                     Sugerencias
                                 </div>
-                                {suggestions.map((item, idx) => {
+                            </li>
+                        )}
+                        {query.trim().length >= 2 && suggestions.length > 0 &&
+                            suggestions.map((item, idx) => {
                                     const globalIdx = history.length + idx;
                                     return (
                                         <li
@@ -374,17 +377,14 @@ export default function SearchInput({
                                         </li>
                                     );
                                 })}
-                            </li>
-                        )}
 
                         {/* Sin resultados */}
                         {query.trim().length >= 2 && suggestions.length === 0 && !loading && (
-                            <li className="px-4 py-8 text-center text-text-muted" role="none">
+                            <li className="px-4 py-8 text-center text-text-muted" role="presentation">
                                 <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
                                 <p className="text-sm">No se encontraron resultados</p>
                             </li>
                         )}
-                    </div>
                 </ul>
             )}
         </div>

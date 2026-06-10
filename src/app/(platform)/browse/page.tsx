@@ -6,6 +6,7 @@ import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
+import AdBanner2 from '@/components/ads/AdBanner2';
 import { TrendingUp, Tv, Film } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -195,6 +196,11 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             {/* Filtros y contenido */}
             <FilterBar genres={genres} />
             <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
+
+            {/* Publicidad — al final del grid, nunca interrumpe la exploración */}
+            <div className="hidden md:block">
+                <AdBanner2 />
+            </div>
         </div>
     );
 }

@@ -12,11 +12,14 @@ import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 interface MovieGridProps {
     initialMovies: (Movie | TVShow)[];
     mediaType?: 'movie' | 'tv';
+    /** Fija el género para "Cargar más" (p. ej. en /genero/[slug], donde no
+     *  viene como query param). Tiene prioridad sobre ?genre=. */
+    fixedGenre?: number;
 }
 
-export default function MovieGrid({ initialMovies, mediaType = 'movie' }: MovieGridProps) {
+export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGenre }: MovieGridProps) {
     const searchParams = useSearchParams();
-    const genre = searchParams.get('genre');
+    const genre = fixedGenre != null ? String(fixedGenre) : searchParams.get('genre');
     const year = searchParams.get('year');
     const sortBy = searchParams.get('sort_by');
 

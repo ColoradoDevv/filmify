@@ -107,6 +107,11 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
+        {/* Player embeds — connect early so playback starts faster */}
+        <link rel="preconnect" href="https://vimeus.com" />
+        {/* Ad networks load lazily; a DNS prefetch is enough (cheap, non-blocking) */}
+        <link rel="dns-prefetch" href="https://pl29700108.effectivecpmnetwork.com" />
+        <link rel="dns-prefetch" href="https://www.highperformanceformat.com" />
         {/* Site-wide structured data: WebSite (enables Google sitelinks search
             box) + Organization (brand knowledge panel). */}
         <script

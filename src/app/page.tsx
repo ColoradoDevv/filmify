@@ -10,10 +10,18 @@ import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import MovieGrid from '@/components/features/MovieGrid';
 import HorizontalRow from '@/components/features/HorizontalRow';
-import { headers } from 'next/headers';
+import AdBanner1 from '@/components/ads/AdBanner1';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
+import { GENRE_PAGES } from '@/lib/genres';
 import { filterAvailableMovies, filterAvailableSeries, getRecentlyAddedMovies } from '@/server/services/vimeus';
 import { getOptionalApiKeys } from '@/lib/env';
+
+/**
+ * ISR: the homepage is statically generated and revalidated every 30 min.
+ * No per-request work (headers/cookies) → instant TTFB, great Core Web
+ * Vitals, and crawlers always get fully-rendered HTML.
+ */
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: 'FilmiFy - Ver películas y series online gratis | Cine en streaming',
@@ -53,9 +61,6 @@ export const metadata: Metadata = {
  * in the header — never a blocker.
  */
 export default async function HomePage() {
-  const userAgent = (await headers()).get('user-agent') || '';
-  const isMobile = /mobile/i.test(userAgent);
-
   // Fetch trending movies (day for hero/scroller, week for the main grid),
   // trending series, and the latest titles synced to the streaming provider.
   const [trendingDay, trendingWeek, trendingTV, recentlyAdded] = await Promise.all([
@@ -79,7 +84,7 @@ export default async function HomePage() {
   const tvShows = availableTV.slice(0, 15);
 
   const backdropUrl = heroMovie
-    ? getImageUrl(heroMovie.backdrop_path, isMobile ? 'w780' : 'original')
+    ? getImageUrl(heroMovie.backdrop_path, 'original')
     : null;
 
   // JSON-LD Structured Data for SEO.
@@ -109,13 +114,27 @@ export default async function HomePage() {
     inLanguage: "es-ES"
   };
 
+  // ItemList: tells Google exactly which titles this page showcases —
+  // strengthens internal linking signals toward the movie pages.
+  const itemListData = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Películas en tendencia en FilmiFy',
+    itemListElement: gridMovies.slice(0, 10).map((m, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: m.title,
+      url: `${appUrl}/movie/${m.id}`,
+    })),
+  };
+
   return (
     <>
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c')
+          __html: JSON.stringify([structuredData, itemListData]).replace(/</g, '\\u003c')
         }}
       />
 
@@ -243,6 +262,9 @@ export default async function HomePage() {
               </section>
             )}
 
+            {/* ── Publicidad ────────────────────────────────────────────── */}
+            <AdBanner1 />
+
             {/* ── Series populares (solo disponibles) ──────────────────── */}
             {tvShows.length > 0 && (
               <section aria-label="Series populares">
@@ -279,6 +301,22 @@ export default async function HomePage() {
               </div>
               <MovieGrid initialMovies={gridMovies} mediaType="movie" />
             </section>
+
+            {/* ── Géneros: enlazado interno crawlable hacia las landing pages ── */}
+            <nav aria-label="Géneros de películas" className="pt-2">
+              <h2 className="text-lg font-bold text-white mb-3">Películas por género</h2>
+              <div className="flex flex-wrap gap-2">
+                {GENRE_PAGES.map((g) => (
+                  <Link
+                    key={g.slug}
+                    href={`/genero/${g.slug}`}
+                    className="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant text-sm font-medium text-text-secondary hover:text-white hover:border-primary/40 transition-colors"
+                  >
+                    {g.name}
+                  </Link>
+                ))}
+              </div>
+            </nav>
           </main>
 
           <Footer />

@@ -4,6 +4,8 @@ const nextConfig = {
   // Turbopack is the default bundler in Next.js 16.
   // An empty config silences the "webpack config without turbopack config" warning.
   turbopack: {},
+  // SEO/security hygiene: don't advertise the framework in response headers.
+  poweredByHeader: false,
   // SEC-025: re-enable ESLint during builds so security-relevant rules
   // (no-eval, no-implied-eval, etc.) can catch issues before deployment.
   // Remove this block entirely once all pre-existing lint warnings are resolved.

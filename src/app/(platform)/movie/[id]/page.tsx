@@ -4,12 +4,14 @@ import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/servic
 import MoviePlayer from '@/components/features/MoviePlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
+import AdBanner2 from '@/components/ads/AdBanner2';
 import Image from 'next/image';
 import { Star, Clock, Calendar, ArrowLeft, Film, User } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
+import AdBanner1 from '@/components/ads/AdBanner1';
 import { isTVDevice } from '@/lib/device-detection';
 import MovieDetailsPageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -24,7 +26,11 @@ interface PageProps {
 
 function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>): Metadata {
     const canonical = `/movie/${movie.id}`;
-    const title = `Ver ${movie.title} online | FilmiFy`;
+    // El año hace el título único y mejora el CTR en resultados de búsqueda.
+    const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
+    const title = year
+        ? `Ver ${movie.title} (${year}) online gratis | FilmiFy`
+        : `Ver ${movie.title} online gratis | FilmiFy`;
     const description = movie.overview
         ? `${movie.overview.slice(0, 200)}... Mira ${movie.title} online gratis en FilmiFy, sin registro.`
         : `Mira ${movie.title} online en FilmiFy, con elenco, tráiler y reproducción gratuita.`;
@@ -218,6 +224,25 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                   uploadDate: trailer.published_at,
               }
             : undefined,
+        // WatchAction: tells Google this page is where the movie can be
+        // watched — eligible for "Watch now" rich results.
+        potentialAction: {
+            '@type': 'WatchAction',
+            target: {
+                '@type': 'EntryPoint',
+                urlTemplate: `${appUrl}/movie/${movie.id}`,
+                actionPlatform: [
+                    'https://schema.org/DesktopWebPlatform',
+                    'https://schema.org/MobileWebPlatform',
+                ],
+            },
+            expectsAcceptanceOf: {
+                '@type': 'Offer',
+                price: 0,
+                priceCurrency: 'USD',
+                availabilityStarts: movie.release_date || undefined,
+            },
+        },
     };
 
     const breadcrumbJsonLd = {
@@ -340,6 +365,7 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                             {certification}
                         </span>
                     </div>
+                    <AdBanner1 />
 
                     {/* ── Title + actions ────────────────────────── */}
                     <div className="flex flex-wrap items-start justify-between gap-4 mt-6">
@@ -456,6 +482,13 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                             </dl>
                         </div>
                     </section>
+
+                    {/* ── Publicidad: banner 728×90 (AdBanner1 ya está arriba;
+                         dos unidades nativas en la misma página no funcionan
+                         porque comparten el id de contenedor) ── */}
+                    <div className="hidden md:block mt-10">
+                        <AdBanner2 />
+                    </div>
 
                     {/* ── Cast ───────────────────────────────────── */}
                     {cast.length > 0 && (

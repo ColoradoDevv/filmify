@@ -1,9 +1,11 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
     Home, Film, Tv, Radio, BookOpen,
     Heart, Settings, ChevronLeft, ChevronRight, Users,
@@ -17,6 +19,8 @@ interface NavItem {
     href: string;
     icon: LucideIcon;
     isActive: (pathname: string, category: string | null) => boolean;
+    /** Only visible for logged-in users. */
+    requiresAuth?: boolean;
 }
 
 interface NavSection {
@@ -87,10 +91,14 @@ const SECTIONS: NavSection[] = [
                 href: '/settings',
                 icon: Settings,
                 isActive: (p) => p.startsWith('/settings'),
+                requiresAuth: true,
             },
         ],
     },
 ];
+
+// Singleton — re-creating the client per render breaks onAuthStateChange.
+const supabase = createClient();
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -98,6 +106,18 @@ export default function Sidebar() {
     const isCollapsed = useIsSidebarCollapsed();
     const toggleSidebar = useToggleSidebar();
     const navRef = useRef<HTMLElement>(null);
+    const [user, setUser] = useState<SupabaseUser | null>(null);
+
+    // Track session so auth-only items (Ajustes) appear/disappear live.
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }: { data: { user: SupabaseUser | null } }) => setUser(data.user));
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event: AuthChangeEvent, session: Session | null) => {
+                setUser(session?.user ?? null);
+            },
+        );
+        return () => subscription.unsubscribe();
+    }, []);
 
     const category = searchParams.get('category');
 
@@ -191,7 +211,9 @@ export default function Sidebar() {
                                 )
                             )}
 
-                            {section.items.map((item) => {
+                            {section.items
+                                .filter((item) => !item.requiresAuth || user)
+                                .map((item) => {
                                 const active = item.isActive(
                                     pathname ?? '',
                                     category
