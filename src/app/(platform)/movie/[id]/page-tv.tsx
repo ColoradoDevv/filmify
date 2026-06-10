@@ -67,7 +67,7 @@ export default function MovieDetailsPageTV({ movie, trailer, cast, certification
                 </Link>
 
                 <div className="flex gap-12 items-start">
-                    {/* Poster */}
+                    Poster
                     <div className="w-[300px] flex-shrink-0 rounded-xl overflow-hidden shadow-2xl border border-white/10 hidden lg:block">
                         {posterUrl && (
                             <Image

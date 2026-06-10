@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
@@ -24,8 +25,11 @@ export default async function PlatformLayout({
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Sidebar - Fixed on desktop, hidden on mobile */}
-            <Sidebar />
+            {/* Sidebar - Fixed on desktop, hidden on mobile.
+                Suspense: Sidebar uses useSearchParams (active-state detection). */}
+            <Suspense fallback={null}>
+                <Sidebar />
+            </Suspense>
 
             {/* Main Content Area */}
             <PlatformContent>

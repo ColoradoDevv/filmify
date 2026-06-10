@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
     Users, Plus, Lock, Globe, Search, Loader2, Film,
     ArrowRight, ArrowLeft, Check, Copy, X,
@@ -95,7 +96,13 @@ function StepSearchMovie({ selected, onSelect }: { selected: MovieResult | null;
                                 className={`relative rounded-[var(--radius-md)] overflow-hidden border-2 transition-all ${isSelected ? 'border-primary' : 'border-transparent hover:border-primary/40'}`}
                             >
                                 {m.poster_path ? (
-                                    <img src={`https://image.tmdb.org/t/p/w185${m.poster_path}`} alt={label} className="w-full aspect-[2/3] object-cover" />
+                                    <Image
+                                        src={`https://image.tmdb.org/t/p/w185${m.poster_path}`}
+                                        alt={label}
+                                        width={185}
+                                        height={278}
+                                        className="w-full aspect-[2/3] object-cover"
+                                    />
                                 ) : (
                                     <div className="w-full aspect-[2/3] bg-surface-container-high flex items-center justify-center">
                                         <Film className="w-6 h-6 text-on-surface-variant/40" />
@@ -237,6 +244,7 @@ function CreatePartyModal({ onClose, onCreated }: { onClose: () => void; onCreat
     const createParty = async () => {
         if (!state.movie) return;
         setCreating(true);
+        setError('');
         try {
             const res = await fetch('/api/watch-party', {
                 method: 'POST',
@@ -256,7 +264,11 @@ function CreatePartyModal({ onClose, onCreated }: { onClose: () => void; onCreat
             setState(prev => ({ ...prev, roomCode: data.party.room_code }));
             setStep(4);
             onCreated(data.party.room_code);
-        } finally { setCreating(false); }
+        } catch (err) {
+            setError('Error de conexión al crear la sala');
+        } finally {
+            setCreating(false);
+        }
     };
 
     const advance = async () => {
@@ -358,13 +370,19 @@ function JoinWithCode() {
     const join = async () => {
         if (!code.trim()) return;
         setJoining(true); setError('');
-        const res  = await fetch(`/api/watch-party/${code.toUpperCase()}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pass || undefined }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(data.error ?? 'Error al unirse'); setJoining(false); return; }
-        router.push('/watch-party/' + data.party.room_code);
+        try {
+            const res  = await fetch(`/api/watch-party/${code.toUpperCase()}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass || undefined }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setError(data.error ?? 'Error al unirse'); return; }
+            router.push('/watch-party/' + data.party.room_code);
+        } catch (err) {
+            setError('Error de conexión');
+        } finally {
+            setJoining(false);
+        }
     };
 
     return (
@@ -397,35 +415,42 @@ function JoinWithCode() {
 
 // ── Party card ────────────────────────────────────────────────────────────────
 function PartyCard({ party, onJoin, loading }: { party: Party; onJoin: () => void; loading: boolean }) {
-    // party_members comes from Supabase as [{count: N}] when using select('party_members(count)')
-    const count = Array.isArray(party.party_members)
-        ? (party.party_members as any)[0]?.count ?? party.party_members.length
+    const memberCount = Array.isArray(party.party_members)
+        ? party.party_members[0]?.count ?? 0
         : 0;
+
     return (
-        <div className="flex items-center gap-3 p-3 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant hover:border-primary/30 transition-colors">
+        <div className="flex items-center gap-4 p-4 bg-surface-container rounded-xl border border-outline-variant hover:border-primary/40 transition">
             {party.poster_path ? (
-                <img src={`https://image.tmdb.org/t/p/w92${party.poster_path}`} alt={party.title}
-                    className="w-10 h-14 rounded-[var(--radius-md)] object-cover shrink-0" />
+                <Image
+                    src={`https://image.tmdb.org/t/p/w92${party.poster_path}`}
+                    alt={party.title}
+                    width={64}
+                    height={96}
+                    className="rounded-lg object-cover"
+                />
             ) : (
-                <div className="w-10 h-14 rounded-[var(--radius-md)] bg-surface-container-high flex items-center justify-center shrink-0">
-                    <Film className="w-4 h-4 text-on-surface-variant" />
+                <div className="w-16 h-24 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
+                    <Film className="w-6 h-6 text-on-surface-variant/40" />
                 </div>
             )}
             <div className="flex-1 min-w-0">
-                <p className="md3-label-large text-on-surface truncate">{party.name}</p>
-                <p className="md3-body-small text-on-surface-variant truncate">{party.title}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`md3-label-small px-2 h-5 rounded-full flex items-center ${party.status === 'playing' ? 'bg-[#10b981]/15 text-[#10b981]' : 'bg-secondary-container text-on-secondary-container'}`}>
-                        {party.status === 'playing' ? '● En vivo' : 'Esperando'}
+                <p className="font-medium text-on-surface truncate">{party.name}</p>
+                <p className="text-sm text-on-surface-variant truncate">{party.title}</p>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        party.status === 'playing' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-secondary-container text-on-secondary-container'
+                    }`}>
+                        {party.status === 'playing' ? 'En vivo' : 'Esperando'}
                     </span>
-                    <span className="md3-label-small text-on-surface-variant flex items-center gap-1">
-                        <Users className="w-3 h-3" /> {count}
+                    <span className="text-xs text-on-surface-variant flex items-center gap-1">
+                        <Users className="w-3 h-3" /> {memberCount}
                     </span>
-                    {party.is_private && <Lock className="w-3 h-3 text-on-surface-variant" />}
+                    {party.is_private && <Lock className="w-3 h-3 text-yellow-500" />}
                 </div>
             </div>
             <button onClick={onJoin} disabled={loading}
-                className="h-8 px-4 rounded-full bg-secondary-container text-on-secondary-container md3-label-large hover:shadow-[var(--shadow-1)] transition-shadow disabled:opacity-40 shrink-0">
+                className="px-4 py-2 rounded-full bg-primary text-on-primary font-medium hover:shadow-md disabled:opacity-50 transition">
                 Unirse
             </button>
         </div>
@@ -442,19 +467,23 @@ export default function WatchPartyLobby() {
     const [loading,   setLoading]   = useState(true);
     const [joining,   setJoining]   = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [search,    setSearch]    = useState('');
 
     const loadParties = async () => {
-        const r = await fetch('/api/watch-party');
-        const d = await r.json();
-        setParties(d.parties ?? []);
-        setLoading(false);
+        try {
+            const r = await fetch('/api/watch-party');
+            const d = await r.json();
+            setParties(d.parties ?? []);
+        } catch (err) {
+            console.error('Error cargando salas:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         loadParties();
 
-        // Subscribe to real-time changes on parties and party_members so the
-        // lobby list and member counts stay accurate without manual refresh.
         const channel = supabase
             .channel('lobby-parties')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'parties' }, () => {
@@ -470,14 +499,25 @@ export default function WatchPartyLobby() {
 
     const handleJoin = async (code: string, password?: string) => {
         setJoining(true);
-        const res  = await fetch(`/api/watch-party/${code}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setJoining(false); return; }
-        router.push('/watch-party/' + data.party.room_code);
+        try {
+            const res  = await fetch(`/api/watch-party/${code}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json();
+            if (!res.ok) { alert(data.error ?? 'Error al unirse'); return; }
+            router.push('/watch-party/' + data.party.room_code);
+        } catch (err) {
+            alert('Error de conexión');
+        } finally {
+            setJoining(false);
+        }
     };
+
+    const filtered = parties.filter(p =>
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.title.toLowerCase().includes(search.toLowerCase())
+    );
 
     const tabCls = (t: typeof tab) =>
         `px-4 h-9 rounded-full md3-label-large transition-colors ${tab === t ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-on-surface/8'}`;
@@ -502,15 +542,28 @@ export default function WatchPartyLobby() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 bg-surface-container rounded-full p-1 w-fit">
-                <button className={tabCls('public')} onClick={() => setTab('public')}>Salas públicas</button>
-                <button className={tabCls('join')}   onClick={() => setTab('join')}>Unirse con código</button>
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+                <div className="flex gap-1 bg-surface-container rounded-full p-1">
+                    <button className={tabCls('public')} onClick={() => setTab('public')}>Salas públicas</button>
+                    <button className={tabCls('join')}   onClick={() => setTab('join')}>Unirse con código</button>
+                </div>
+                {tab === 'public' && parties.length > 0 && (
+                    <div className="relative flex-1 max-w-xs ml-auto">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                        <input
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Filtrar salas..."
+                            className="w-full h-9 pl-9 pr-4 rounded-full bg-surface-container border border-outline-variant text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary"
+                        />
+                    </div>
+                )}
             </div>
 
             {tab === 'public' && (
                 loading ? (
                     <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-                ) : parties.length === 0 ? (
+                ) : filtered.length === 0 ? (
                     <div className="text-center py-16 bg-surface-container rounded-[var(--radius-xl)] border border-outline-variant">
                         <Users className="w-10 h-10 text-on-surface-variant/30 mx-auto mb-3" />
                         <p className="md3-title-small text-on-surface mb-1">No hay salas públicas</p>
@@ -521,8 +574,8 @@ export default function WatchPartyLobby() {
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-2">
-                        {parties.map(p => (
+                    <div className="space-y-3">
+                        {filtered.map(p => (
                             <PartyCard key={p.id} party={p} onJoin={() => handleJoin(p.room_code)} loading={joining} />
                         ))}
                     </div>

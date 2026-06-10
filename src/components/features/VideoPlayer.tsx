@@ -18,8 +18,8 @@ interface VideoPlayerProps {
 const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const LOAD_TIMEOUT_MS = 15_000;
 
-// Vimeus player customization params
-const VIMEUS_STYLE = 'title=Filmify&theme=blue&font=v3&overlay=v5&epanel=v3&splash=v3&fs=1&autoplay=1';
+// Player customization (per Vimeus docs): theme + brand color (FilmiFy cyan).
+const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autoplay=1';
 
 function buildVimeusUrl(mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
     const base = 'https://vimeus.com/e';
@@ -30,6 +30,9 @@ function buildVimeusUrl(mediaId: number, mediaType: 'movie' | 'tv', season: numb
     return `${base}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}&${VIMEUS_STYLE}`;
 }
 
+// Lista de eventos usada para mostrar los controles, fuera del componente para evitar recrearla
+const INTERACTION_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointermove'];
+
 export default function VideoPlayer({
     mediaId,
     mediaType,
@@ -38,22 +41,24 @@ export default function VideoPlayer({
     onClose,
     title,
 }: VideoPlayerProps) {
-    const [isLoading, setIsLoading]       = useState(true);
-    const [error, setError]               = useState(false);
-    const [hasSavedWatched, setHasSaved]  = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [hasSavedWatched, setHasSaved] = useState(false);
     const [controlsVisible, setControlsVisible] = useState(true);
-    // Bumped on retry to force the iframe to remount and actually re-fetch.
-    const [reloadKey, setReloadKey]       = useState(0);
+    const [reloadKey, setReloadKey] = useState(0); // fuerza remontaje del iframe en reintentos
 
-    const isWatched  = useStore((s) => s.isWatched(mediaId));
+    const isWatched = useStore((s) => s.isWatched(mediaId));
     const addWatched = useStore((s) => s.addWatched);
-    const supabase   = createClient();
+    const supabase = createClient();
 
-    const loadTimeoutRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Referencias para timers y estado de montaje
+    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isMounted         = useRef(true);
-    const containerRef      = useRef<HTMLDivElement>(null);
-    const iframeRef         = useRef<HTMLIFrameElement>(null);
+    const isMounted = useRef(true);
+    const timeoutFired = useRef(false); // evita que onLoad sobrescriba el estado de error después del timeout
+    const containerRef = useRef<HTMLDivElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
 
     // -- Request fullscreen on mount (suppresses "VER EN PANTALLA GRANDE") --
     useEffect(() => {
@@ -77,30 +82,37 @@ export default function VideoPlayer({
         };
     }, []);
 
-    // -- Show controls briefly then auto-hide --
+    // -- Mover foco al botón de cerrar al montar (accesibilidad) --
+    useEffect(() => {
+        closeButtonRef.current?.focus();
+    }, []);
+
+    // -- Mostrar controles brevemente y luego auto-ocultar --
     const showControls = useCallback(() => {
         setControlsVisible(true);
         if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
         hideControlsTimer.current = setTimeout(() => {
-            setControlsVisible(false);
+            if (isMounted.current) setControlsVisible(false);
         }, 3000);
     }, []);
 
-    // Start the hide timer once loading finishes
+    // Al terminar la carga (sin error), mostrar controles inicialmente
     useEffect(() => {
         if (!isLoading && !error) {
             showControls();
         }
+        // Limpiar timer de ocultación al desmontar
         return () => {
             if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
         };
     }, [isLoading, error, showControls]);
 
-    // Show controls on any user interaction
+    // Mostrar controles con cualquier interacción del usuario
     useEffect(() => {
-        const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointermove'];
-        events.forEach(e => window.addEventListener(e, showControls, { passive: true }));
-        return () => events.forEach(e => window.removeEventListener(e, showControls));
+        INTERACTION_EVENTS.forEach(e => window.addEventListener(e, showControls, { passive: true }));
+        return () => {
+            INTERACTION_EVENTS.forEach(e => window.removeEventListener(e, showControls));
+        };
     }, [showControls]);
 
     const embedUrl = buildVimeusUrl(mediaId, mediaType, season, episode);
@@ -112,21 +124,25 @@ export default function VideoPlayer({
         return () => { document.body.style.overflow = prev; };
     }, []);
 
-    // -- Escape key --
+    // -- Escape key (dependencia correcta: onClose) --
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    // -- Load timeout --
+    // -- Load timeout con bandera para evitar que onLoad la pise --
     useEffect(() => {
         isMounted.current = true;
+        timeoutFired.current = false; // reiniciar al montar / cambiar de fuente
         setIsLoading(true);
         setError(false);
 
         loadTimeoutRef.current = setTimeout(() => {
             if (isMounted.current) {
+                timeoutFired.current = true; // marcar que el timeout se disparó
                 setIsLoading(false);
                 setError(true);
             }
@@ -138,41 +154,55 @@ export default function VideoPlayer({
         };
     }, [embedUrl, reloadKey]);
 
-    // -- Mark as watched after 5s --
+    // -- Marcar como visto después de 5s --
     useEffect(() => {
         if (isLoading || error || isWatched || hasSavedWatched) return;
         const t = window.setTimeout(() => {
             const item = mediaType === 'movie'
-                ? ({ id: mediaId, title, poster_path: null, backdrop_path: null, vote_average: 0, vote_count: 0, release_date: '', overview: '', genre_ids: [], adult: false, original_language: 'es', original_title: title, popularity: 0, video: false } as Movie)
-                : ({ id: mediaId, name: title, original_name: title, poster_path: null, backdrop_path: null, vote_average: 0, vote_count: 0, first_air_date: '', overview: '', genre_ids: [], adult: false, original_language: 'es', popularity: 0, origin_country: [] } as TVShow);
+                ? ({
+                    id: mediaId, title, poster_path: null, backdrop_path: null,
+                    vote_average: 0, vote_count: 0, release_date: '', overview: '',
+                    genre_ids: [], adult: false, original_language: 'es',
+                    original_title: title, popularity: 0, video: false,
+                } as Movie)
+                : ({
+                    id: mediaId, name: title, original_name: title, poster_path: null,
+                    backdrop_path: null, vote_average: 0, vote_count: 0, first_air_date: '',
+                    overview: '', genre_ids: [], adult: false, original_language: 'es',
+                    popularity: 0, origin_country: [],
+                } as TVShow);
             addWatched(item);
             setHasSaved(true);
         }, 5000);
         return () => window.clearTimeout(t);
     }, [isLoading, error, isWatched, hasSavedWatched, mediaId, mediaType, title, addWatched]);
 
+    // Solo procesamos onLoad si el timeout no se disparó antes
     const handleLoad = useCallback(() => {
+        if (timeoutFired.current) return; // ignorar carga tardía si ya mostramos error
         if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
         setIsLoading(false);
         setError(false);
     }, []);
 
     const handleRetry = () => {
+        // Reiniciamos todo para el nuevo intento
+        timeoutFired.current = false;
         setIsLoading(true);
         setError(false);
-        // Bumping reloadKey changes the iframe's key, forcing React to remount
-        // it so the embed is actually re-fetched. The load-timeout effect re-arms
-        // off [embedUrl, reloadKey]. Without this the iframe kept its previous
-        // (dead) state and onLoad never fired again.
         setReloadKey((k) => k + 1);
     };
 
     return (
         <div ref={containerRef} className="fixed inset-0 z-[200] bg-black flex flex-col">
-
             {/* Top bar -- auto-hides during playback, reappears on any interaction */}
-            <div className={`absolute top-0 inset-x-0 z-30 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-500 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div
+                className={`absolute top-0 inset-x-0 z-30 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-500 ${
+                    controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+            >
                 <button
+                    ref={closeButtonRef}
                     onClick={onClose}
                     aria-label="Cerrar reproductor"
                     className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors shrink-0"
@@ -189,7 +219,6 @@ export default function VideoPlayer({
 
             {/* Player area */}
             <div className="flex-1 relative flex items-center justify-center bg-black">
-
                 {/* Loading */}
                 {isLoading && !error && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black">
@@ -228,7 +257,7 @@ export default function VideoPlayer({
                     </div>
                 )}
 
-                {/* Iframe */}
+                {/* Iframe (key incluye reloadKey para forzar remontaje en retry) */}
                 <iframe
                     ref={iframeRef}
                     key={`${embedUrl}#${reloadKey}`}

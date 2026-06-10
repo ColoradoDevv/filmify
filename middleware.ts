@@ -12,14 +12,26 @@ function generateNonce(): string {
 
 // ── Route classification ──────────────────────────────────────────────────────
 
-/** Publicly accessible — no auth required */
+/**
+ * Publicly accessible — no auth required.
+ * Filmify is a PUBLIC platform: all content routes (catalog, detail pages,
+ * search, playback) are open to anonymous visitors. Authentication is an
+ * optional enhancement (favorites, comments, lists), never a blocker.
+ * Listed here for documentation; anything not in PROTECTED_PREFIXES or
+ * ADMIN_PREFIX is public by default.
+ */
 const PUBLIC_ROUTES = [
-    '/',                    // landing / call-to-action
+    '/',                    // public catalog homepage
+    '/browse',
+    '/movie',
+    '/tv',
+    '/search',
+    '/live-tv',
+    '/editorial',
     '/about',
     '/contact',
     '/legal',
     '/security',
-    '/tv',                  // TV mode activation page
 ];
 
 /** Auth pages — redirect to /browse if already logged in */
@@ -31,30 +43,16 @@ const AUTH_ROUTES = [
     '/confirm-email',
 ];
 
-/** Platform routes that require authentication */
+/**
+ * Personal routes that require authentication — everything that depends on
+ * a user record in the database. Content routes are intentionally NOT here.
+ */
 const PROTECTED_PREFIXES = [
-    '/browse',
     '/favorites',
     '/lists',
-    '/live-tv',
-    '/movie',
-    '/tv',
-    '/search',
     '/settings',
     '/profile',
     '/watch-party',
-];
-
-/**
- * Content routes that TV devices can access without authentication.
- * Personal routes (favorites, lists, settings, profile, watch-party) still require login.
- */
-const TV_PUBLIC_PREFIXES = [
-    '/browse',
-    '/movie',
-    '/tv',
-    '/search',
-    '/live-tv',
 ];
 
 /** Admin routes — require admin/super_admin role */
@@ -85,48 +83,9 @@ const SECURITY_HEADERS: Record<string, string> = {
     'Cross-Origin-Resource-Policy':    'same-origin',
 };
 
-/** TV device User-Agent keywords — must stay in sync with src/lib/device-detection.ts */
-const TV_UA_KEYWORDS = [
-    'tizen', 'webos', 'web0s', 'vidaa', 'android tv', 'google tv', 'googletv',
-    'fire tv', 'firetv', 'appletv', 'roku', 'smarttv', 'smart-tv', 'hbbtv',
-    'mag200', 'mag250', 'mag254', 'mag256', 'mag322', 'mag349', 'mag351',
-    'mag410', 'mag420', 'mag520', 'stbapp', 'qtembedded',
-    'formuler', 'crkey', 'chromecast',
-];
-
-const TV_MODE_COOKIE = 'filmify_tv_mode';
-
-function isTVRequest(request: NextRequest): boolean {
-    // 1. Manual cookie override (set via /tv activation page)
-    if (request.cookies.get(TV_MODE_COOKIE)?.value === '1') return true;
-    // 2. User-Agent keyword matching
-    const ua = request.headers.get('user-agent')?.toLowerCase() || '';
-    return TV_UA_KEYWORDS.some(kw => ua.includes(kw));
-}
-
-/**
- * Search-engine and social-preview crawlers. These must be able to render
- * public content routes (movie/tv/browse/search) or:
- *   - Google/Bing can never index the hundreds of URLs the sitemap announces
- *     (they get 307 → /login, i.e. soft-404s), and
- *   - shared links on WhatsApp/Facebook/Twitter show the login page instead
- *     of the movie's Open Graph card.
- * They see exactly the same server-rendered content as a logged-in user —
- * playback itself stays behind auth (the embed proxies require a session).
- */
-const CRAWLER_UA_KEYWORDS = [
-    // Search engines
-    'googlebot', 'google-inspectiontool', 'bingbot', 'duckduckbot',
-    'yandexbot', 'baiduspider', 'applebot', 'slurp', 'seznambot', 'petalbot',
-    // Social / messaging link-preview bots (need OG tags)
-    'facebookexternalhit', 'facebookcatalog', 'twitterbot', 'linkedinbot',
-    'whatsapp', 'telegrambot', 'discordbot', 'slackbot', 'pinterestbot',
-];
-
-function isCrawlerRequest(request: NextRequest): boolean {
-    const ua = request.headers.get('user-agent')?.toLowerCase() || '';
-    return CRAWLER_UA_KEYWORDS.some(kw => ua.includes(kw));
-}
+// NOTE: TV-device and crawler User-Agent bypasses were removed — content
+// routes are now public for everyone, so no special-casing is needed.
+// Crawlers and TV devices see the same public pages as any anonymous visitor.
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -219,16 +178,22 @@ export default async function middleware(request: NextRequest) {
     // ── Get current user ──────────────────────────────────────────────────────
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    // If the refresh token is invalid/expired, clear the stale session cookies
-    // and redirect to login. Without this, the user stays in a broken state
-    // where they appear logged-out in the UI but still have session cookies.
+    const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
+    const isAdmin     = pathname.startsWith(ADMIN_PREFIX);
+    const isAuthPage  = isMatch(pathname, AUTH_ROUTES);
+
+    // If the refresh token is invalid/expired, clear the stale session cookies.
+    // On protected routes, redirect to login; on public routes, just clear the
+    // cookies and let the visitor continue anonymously — auth is optional.
     if (authError && (
         authError.message?.includes('Refresh Token Not Found') ||
         authError.message?.includes('Invalid Refresh Token') ||
         authError.code === 'refresh_token_not_found'
     )) {
-        const loginUrl = new URL('/login', request.url);
-        const redirectResponse = NextResponse.redirect(loginUrl);
+        const target = (isProtected || isAdmin)
+            ? new URL('/login', request.url)
+            : request.nextUrl;
+        const redirectResponse = NextResponse.redirect(target);
         // Clear Supabase session cookies so the client starts fresh
         request.cookies.getAll().forEach(({ name }) => {
             if (name.startsWith('sb-')) {
@@ -238,19 +203,10 @@ export default async function middleware(request: NextRequest) {
         return redirectResponse;
     }
 
-    const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
-    const isAdmin     = pathname.startsWith(ADMIN_PREFIX);
-    const isAuthPage  = isMatch(pathname, AUTH_ROUTES);
-
-    // 1. Unauthenticated user → protected/admin route: redirect to login
-    //    TV devices get a pass on content routes — they can't easily log in.
+    // 1. Unauthenticated user → personal/admin route: redirect to login.
+    //    Content routes never reach this branch — they are public.
     //    Preserve the intended destination so we can redirect back after login.
     if (!user && (isProtected || isAdmin)) {
-        if ((isTVRequest(request) || isCrawlerRequest(request)) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
-            // TV device or search/social crawler accessing a content route —
-            // allow without auth so pages can be indexed and previewed.
-            return response;
-        }
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('next', pathname);
         return NextResponse.redirect(loginUrl);

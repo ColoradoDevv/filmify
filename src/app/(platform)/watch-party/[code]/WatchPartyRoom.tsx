@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
     Users, Send, LogOut, Crown, Loader2, MessageSquare,
     Play, Clock, Copy, Check, Lock, Globe, X, Reply, Smile,
@@ -37,17 +38,25 @@ function EmojiPicker({
     const pickerRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ bottom: 0, left: 0 });
 
-    // Calculate position relative to viewport on mount
+    // Actualizar posición dinámicamente (responsive)
     useEffect(() => {
-        if (!anchorRef.current) return;
-        const rect = anchorRef.current.getBoundingClientRect();
-        setPos({
-            bottom: window.innerHeight - rect.top + 8,
-            left:   Math.max(8, rect.left - 8),
-        });
+        const updatePos = () => {
+            if (!anchorRef.current) return;
+            const rect = anchorRef.current.getBoundingClientRect();
+            setPos({
+                bottom: window.innerHeight - rect.top + 8,
+                left: Math.max(8, rect.left - 8),
+            });
+        };
+        updatePos();
+        window.addEventListener('scroll', updatePos, true);
+        window.addEventListener('resize', updatePos);
+        return () => {
+            window.removeEventListener('scroll', updatePos, true);
+            window.removeEventListener('resize', updatePos);
+        };
     }, [anchorRef]);
 
-    // Close on outside click
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (
@@ -65,7 +74,6 @@ function EmojiPicker({
             style={{ position: 'fixed', bottom: pos.bottom, left: pos.left, zIndex: 9999 }}
             className="w-72 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant shadow-[var(--shadow-5)] overflow-hidden"
         >
-            {/* Tabs */}
             <div className="flex border-b border-outline-variant overflow-x-auto scrollbar-hide">
                 {EMOJI_GROUPS.map((g, i) => (
                     <button
@@ -77,7 +85,6 @@ function EmojiPicker({
                     </button>
                 ))}
             </div>
-            {/* Grid */}
             <div className="grid grid-cols-8 gap-0.5 p-2 max-h-44 overflow-y-auto scrollbar-hide">
                 {EMOJI_GROUPS[tab].emojis.map(e => (
                     <button
@@ -136,18 +143,16 @@ function MessageBubble({
             {/* Avatar */}
             <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center shrink-0 overflow-hidden mt-auto mb-0.5">
                 {msg.avatar_url
-                    ? <img src={msg.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <Image src={msg.avatar_url} alt="" width={24} height={24} className="object-cover" />
                     : <span className="text-[9px] font-bold text-on-primary-container">{msg.username[0]?.toUpperCase()}</span>
                 }
             </div>
 
-            {/* Bubble + actions */}
             <div className={`flex flex-col max-w-[78%] ${isMe ? 'items-end' : 'items-start'}`}>
                 {!isMe && (
                     <span className="md3-label-small text-on-surface-variant mb-0.5 ml-1">{msg.username}</span>
                 )}
 
-                {/* Reply preview */}
                 {msg.reply_preview && (
                     <div className={`flex items-start gap-1.5 px-2.5 py-1 mb-0.5 rounded-xl border-l-2 border-primary/60 bg-primary/8 max-w-full ${isMe ? 'self-end' : 'self-start'}`}>
                         <Reply className="w-3 h-3 text-primary/60 shrink-0 mt-0.5" />
@@ -159,7 +164,6 @@ function MessageBubble({
                 )}
 
                 <div className="flex items-end gap-1.5">
-                    {/* Reply button — left side for own messages */}
                     {isMe && (
                         <button
                             onClick={() => onReply(msg)}
@@ -178,7 +182,6 @@ function MessageBubble({
                         {msg.text}
                     </div>
 
-                    {/* Reply button — right side for others' messages */}
                     {!isMe && (
                         <button
                             onClick={() => onReply(msg)}
@@ -197,7 +200,6 @@ function MessageBubble({
 // ── Main Room ─────────────────────────────────────────────────────────────────
 export default function WatchPartyRoom({ code }: Props) {
     const router   = useRouter();
-    // Use the shared singleton from watch-party lib — same instance as subscriptions
     const supabase = watchPartyClient;
 
     const [party,      setParty]      = useState<Party | null>(null);
@@ -208,6 +210,7 @@ export default function WatchPartyRoom({ code }: Props) {
     const [error,      setError]      = useState('');
     const [msgText,    setMsgText]    = useState('');
     const [sending,    setSending]    = useState(false);
+    const [sendError,  setSendError]  = useState('');
     const [copied,     setCopied]     = useState(false);
     const [showPlayer, setShowPlayer] = useState(false);
     const [replyTo,    setReplyTo]    = useState<ChatMessage | null>(null);
@@ -216,6 +219,12 @@ export default function WatchPartyRoom({ code }: Props) {
     const chatRef    = useRef<HTMLDivElement>(null);
     const inputRef   = useRef<HTMLInputElement>(null);
     const emojiRef   = useRef<HTMLButtonElement>(null);
+
+    // Referencias para valores que no deben disparar re-suscripciones
+    const partyRef = useRef(party);
+    partyRef.current = party;
+    const meRef = useRef(me);
+    meRef.current = me;
 
     // ── Load ──────────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -228,13 +237,11 @@ export default function WatchPartyRoom({ code }: Props) {
             const p = await getPartyByCode(code);
             if (!p) { setError('Sala no encontrada'); setLoading(false); return; }
 
-            // Join the party (inserts party_member row if not already present)
             await fetch(`/api/watch-party/${code}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({}),
             });
 
-            // Load initial data AFTER joining so our own row is included
             const [msgs, mems] = await Promise.all([
                 getPartyMessages(p.id),
                 getPartyMembers(p.id),
@@ -249,30 +256,26 @@ export default function WatchPartyRoom({ code }: Props) {
         return () => { cancelled = true; };
     }, [code]);
 
-    // ── Realtime ──────────────────────────────────────────────────────────────
+    // ── Realtime (suscripciones estables, sin dependencia de host_id) ─────────
     useEffect(() => {
         if (!party) return;
+        const currentParty = party; // captura al montar
 
-        const ch1 = subscribeToParty(party.id, (updated) => {
+        const ch1 = subscribeToParty(currentParty.id, (updated) => {
             setParty(prev => prev ? { ...prev, ...updated } : prev);
             if (updated.status === 'playing') setShowPlayer(true);
         });
 
-        // For members: reload the full list from DB on every INSERT/DELETE.
-        // Capture party.id and party.host_id in the closure so the callback
-        // always has the current values.
         const reloadMembers = async () => {
-            const mems = await getPartyMembers(party.id);
-            setMembers(mems.map(m => ({ ...m, is_host: m.user_id === party.host_id })));
+            const mems = await getPartyMembers(currentParty.id);
+            setMembers(mems.map(m => ({ ...m, is_host: m.user_id === currentParty.host_id })));
         };
 
-        const ch2 = subscribeToMembers(party.id, reloadMembers, reloadMembers);
-        const ch3 = subscribeToMessages(party.id, (msg) => {
+        const ch2 = subscribeToMembers(currentParty.id, reloadMembers, reloadMembers);
+        const ch3 = subscribeToMessages(currentParty.id, (msg) => {
             setMessages(prev => [...prev, msg]);
         });
 
-        // Do a fresh reload once subscriptions are active to catch any members
-        // that joined between the initial fetch and the subscription setup.
         reloadMembers();
 
         return () => {
@@ -280,21 +283,18 @@ export default function WatchPartyRoom({ code }: Props) {
             supabase.removeChannel(ch2);
             supabase.removeChannel(ch3);
         };
-    }, [party?.id, party?.host_id]);
+    }, [party?.id]); // solo cambia si el ID de la sala cambia
 
-    // ── Heartbeat — update online_at every 30s so cleanup can detect stale members ──
+    // ── Heartbeat ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!party?.id || !me) return;
-
         const ping = () => {
             supabase
                 .from('party_members')
                 .update({ online_at: new Date().toISOString() })
                 .eq('party_id', party.id)
-                .eq('user_id', me)
-                .then(() => {});
+                .eq('user_id', meRef.current);
         };
-
         ping();
         const interval = setInterval(ping, 30_000);
         return () => clearInterval(interval);
@@ -309,20 +309,28 @@ export default function WatchPartyRoom({ code }: Props) {
     const sendMessage = useCallback(async () => {
         if (!msgText.trim() || sending) return;
         setSending(true);
-        // SEC-010: only send text and reply_to_id — the server resolves
-        // reply_preview and reply_username from the DB to prevent spoofing.
-        const body: Record<string, unknown> = { text: msgText.trim() };
-        if (replyTo) {
-            body.reply_to_id = replyTo.id;
+        setSendError('');
+        try {
+            const body: Record<string, unknown> = { text: msgText.trim() };
+            if (replyTo) {
+                body.reply_to_id = replyTo.id;
+            }
+            const res = await fetch(`/api/watch-party/${code}/message`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Error al enviar mensaje');
+            }
+            setMsgText('');
+            setReplyTo(null);
+        } catch (err: any) {
+            setSendError(err.message || 'No se pudo enviar. Intenta de nuevo.');
+        } finally {
+            setSending(false);
+            inputRef.current?.focus();
         }
-        await fetch(`/api/watch-party/${code}/message`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        setMsgText('');
-        setReplyTo(null);
-        setSending(false);
-        inputRef.current?.focus();
     }, [msgText, sending, replyTo, code]);
 
     const handleReply = useCallback((msg: ChatMessage) => {
@@ -385,8 +393,13 @@ export default function WatchPartyRoom({ code }: Props) {
                 {/* Header bar */}
                 <div className="flex items-center gap-3 bg-surface-container rounded-[var(--radius-lg)] border border-outline-variant px-4 py-3">
                     {party.poster_path && (
-                        <img src={`https://image.tmdb.org/t/p/w92${party.poster_path}`} alt={party.title}
-                            className="w-8 h-12 rounded object-cover shrink-0" />
+                        <Image
+                            src={`https://image.tmdb.org/t/p/w92${party.poster_path}`}
+                            alt={party.title}
+                            width={32}
+                            height={48}
+                            className="rounded object-cover shrink-0"
+                        />
                     )}
                     <div className="flex-1 min-w-0">
                         <p className="md3-label-large text-on-surface truncate">{party.name}</p>
@@ -419,8 +432,13 @@ export default function WatchPartyRoom({ code }: Props) {
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface-container-lowest">
                             {party.poster_path && (
-                                <img src={`https://image.tmdb.org/t/p/w342${party.poster_path}`} alt={party.title}
-                                    className="w-32 rounded-[var(--radius-lg)] opacity-40 mb-2" />
+                                <Image
+                                    src={`https://image.tmdb.org/t/p/w342${party.poster_path}`}
+                                    alt={party.title}
+                                    width={128}
+                                    height={192}
+                                    className="opacity-40 mb-2 rounded-[var(--radius-lg)]"
+                                />
                             )}
                             <p className="md3-title-medium text-on-surface">{party.title}</p>
                             <p className="md3-body-small text-on-surface-variant flex items-center gap-1.5">
@@ -451,7 +469,7 @@ export default function WatchPartyRoom({ code }: Props) {
                             <div key={m.user_id} className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center shrink-0 overflow-hidden">
                                     {m.avatar_url
-                                        ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        ? <Image src={m.avatar_url} alt="" width={24} height={24} className="object-cover" />
                                         : <span className="text-[9px] font-bold text-on-primary-container">{m.username[0]?.toUpperCase()}</span>
                                     }
                                 </div>
@@ -472,19 +490,22 @@ export default function WatchPartyRoom({ code }: Props) {
 
                     {/* Messages */}
                     <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide min-h-0">
-                        {messages.length === 0 && (
-                            <p className="md3-body-small text-on-surface-variant/50 text-center py-4">
-                                Sé el primero en escribir
-                            </p>
+                        {messages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant/40">
+                                <MessageSquare className="w-12 h-12 mb-2 opacity-20" />
+                                <p className="md3-body-medium">No hay mensajes aún</p>
+                                <p className="md3-body-small">¡Sé el primero en saludar!</p>
+                            </div>
+                        ) : (
+                            messages.map(msg => (
+                                <MessageBubble
+                                    key={msg.id}
+                                    msg={msg}
+                                    isMe={msg.user_id === me}
+                                    onReply={handleReply}
+                                />
+                            ))
                         )}
-                        {messages.map(msg => (
-                            <MessageBubble
-                                key={msg.id}
-                                msg={msg}
-                                isMe={msg.user_id === me}
-                                onReply={handleReply}
-                            />
-                        ))}
                     </div>
 
                     {/* Reply bar */}
@@ -494,7 +515,6 @@ export default function WatchPartyRoom({ code }: Props) {
 
                     {/* Input area */}
                     <div className="p-2 border-t border-outline-variant flex gap-1.5 items-center relative shrink-0">
-                        {/* Emoji button */}
                         <div className="relative">
                             <button
                                 ref={emojiRef}
@@ -532,6 +552,7 @@ export default function WatchPartyRoom({ code }: Props) {
                             {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         </button>
                     </div>
+                    {sendError && <p className="px-2 pb-2 text-xs text-error">{sendError}</p>}
                 </div>
             </div>
         </div>

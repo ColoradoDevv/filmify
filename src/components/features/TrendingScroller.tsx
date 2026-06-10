@@ -1,66 +1,44 @@
 'use client';
 
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import type { Movie } from '@/types/tmdb';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 import { Star, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
 
 interface TrendingScrollerProps {
     movies: Movie[];
 }
 
+/**
+ * PUBLIC: every card links straight to the movie page — no login required.
+ */
 export default function TrendingScroller({ movies }: TrendingScrollerProps) {
-    const router = useRouter();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    useEffect(() => {
-        const supabase = createClient();
-        supabase.auth.getUser().then(({ data }: { data: { user: any } }) => {
-            setIsLoggedIn(!!data.user);
-        });
-    }, []);
-
-    const handleMovieClick = (e: React.MouseEvent, movieId: number) => {
-        e.preventDefault();
-        if (isLoggedIn) {
-            router.push(`/movie/${movieId}`);
-        } else {
-            router.push(`/login?next=/movie/${movieId}`);
-        }
-    };
-
     // Duplicate movies array for seamless infinite scroll
     const duplicatedMovies = [...movies, ...movies];
 
     return (
-        <section className="py-20 relative overflow-hidden">
+        <section className="py-10 relative overflow-hidden">
             {/* Subtle background gradient */}
             <div className="absolute inset-0 bg-gradient-to-b from-background via-surface/10 to-background" />
 
             {/* Section Header */}
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 md:mb-12">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                <div className="flex items-center justify-between gap-6">
                     <div className="text-left">
-                        <div className="inline-flex items-center gap-2 mb-3">
-                            <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                            <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider">
+                        <div className="inline-flex items-center gap-2 mb-1">
+                            <TrendingUp className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">
                                 Tendencias
                             </span>
                         </div>
-                        <h2 className="text-3xl md:text-5xl font-bold mb-2 text-white">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white">
                             Lo Más <span className="text-gradient-premium">Popular</span>
                         </h2>
-                        <p className="text-gray-400 md:text-gray-300 text-base md:text-lg">
-                            Las películas que todos están viendo ahora
-                        </p>
                     </div>
                     <Link
-                        href="/login?next=/browse"
-                        className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white text-sm md:text-base"
+                        href="/browse"
+                        className="hidden md:flex items-center justify-center gap-2 px-5 py-2.5 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 group text-white text-sm"
                     >
                         Explorar Todo
                         <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -71,25 +49,24 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
             {/* Scrolling Movies Container */}
             <div className="relative overflow-hidden group/scroller">
                 {/* Gradient fade edges */}
-                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 
-                {/* Movie cards scroll */}
-                <div className="flex gap-4 md:gap-6 animate-scroll py-4 group-hover/scroller:[animation-play-state:paused] will-change-transform">
+                {/* Movie cards scroll — compact Cuevana-style cards */}
+                <div className="flex gap-3 animate-scroll py-3 group-hover/scroller:[animation-play-state:paused] will-change-transform">
                     {duplicatedMovies.map((movie, index) => {
                         const posterUrl = getPosterUrl(movie.poster_path);
                         const rating = movie.vote_average.toFixed(1);
                         const year = new Date(movie.release_date).getFullYear();
 
                         return (
-                            <a
+                            <Link
                                 key={`${movie.id}-${index}`}
-                                href={isLoggedIn ? `/movie/${movie.id}` : `/login?next=/movie/${movie.id}`}
-                                onClick={(e) => handleMovieClick(e, movie.id)}
+                                href={`/movie/${movie.id}`}
                                 className="flex-shrink-0 group relative cursor-pointer"
                             >
-                                {/* Movie Card */}
-                                <div className="relative w-52 h-80 rounded-2xl overflow-hidden bg-surface border border-surface-light/30 transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50 group-hover:shadow-2xl group-hover:shadow-primary/20">
+                                {/* Movie Card — compact */}
+                                <div className="relative w-36 h-56 rounded-xl overflow-hidden bg-surface border border-surface-light/30 transition-all duration-300 group-hover:scale-105 group-hover:border-primary/50 group-hover:shadow-xl group-hover:shadow-primary/20">
                                     {/* Poster Image */}
                                     {posterUrl ? (
                                         <Image
@@ -97,53 +74,44 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                                             alt={movie.title}
                                             fill
                                             className="object-cover"
-                                            sizes="208px"
-                                            quality={95}
-                                            priority={index < 5}
+                                            sizes="144px"
+                                            quality={85}
+                                            priority={index < 6}
                                         />
                                     ) : (
                                         <div className="w-full h-full bg-gradient-to-br from-surface to-surface-light flex items-center justify-center">
-                                            <span className="text-text-muted text-sm text-center px-4 font-medium">
+                                            <span className="text-text-muted text-xs text-center px-3 font-medium">
                                                 {movie.title}
                                             </span>
                                         </div>
                                     )}
 
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    {/* Rating chip */}
+                                    <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded-md border border-white/10">
+                                        <Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
+                                        <span className="text-[11px] font-bold text-white">{rating}</span>
+                                    </div>
 
-                                    {/* Movie Info */}
-                                    <div className="absolute inset-x-0 bottom-0 p-5 transition-transform duration-300">
-                                        <h3 className="text-base font-bold line-clamp-2 mb-3 text-white group-hover:text-primary transition-colors">
+                                    {/* Bottom overlay with title */}
+                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-8 pb-2 px-2">
+                                        <h3 className="text-xs font-bold line-clamp-2 text-white group-hover:text-primary transition-colors leading-tight">
                                             {movie.title}
                                         </h3>
-
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm text-text-secondary font-medium">
-                                                {year}
-                                            </span>
-                                            <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-surface-light/30">
-                                                <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                                                <span className="text-sm font-bold text-white">{rating}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Shine effect */}
-                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                                        <span className="text-[10px] text-text-secondary font-medium">
+                                            {Number.isNaN(year) ? '' : year}
+                                        </span>
                                     </div>
                                 </div>
-                            </a>
+                            </Link>
                         );
                     })}
                 </div>
             </div>
 
             {/* Mobile "Ver todo" button */}
-            <div className="md:hidden relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+            <div className="md:hidden relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
                 <Link
-                    href="/login?next=/browse"
+                    href="/browse"
                     className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-surface/50 hover:bg-surface border border-surface-light/50 hover:border-primary/50 rounded-xl font-semibold transition-all duration-300 text-white"
                 >
                     Explorar Todo

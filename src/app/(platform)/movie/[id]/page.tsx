@@ -1,14 +1,15 @@
 import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
-import { getProviderLink } from '@/lib/referrals';
-import { getOptionalApiKeys } from '@/lib/env';
-import MovieHero from '@/components/features/MovieHero';
+import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/services/vimeus';
+import MoviePlayer from '@/components/features/MoviePlayer';
+import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
-import { Globe, Facebook, Instagram, Twitter, Tag, Film } from 'lucide-react';
+import { Star, Clock, Calendar, ArrowLeft, Film, User } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import type { Movie } from '@/types/tmdb';
 import { isTVDevice } from '@/lib/device-detection';
 import MovieDetailsPageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -23,28 +24,26 @@ interface PageProps {
 
 function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>): Metadata {
     const canonical = `/movie/${movie.id}`;
-    const title = `Dónde ver ${movie.title} online | FilmiFy`;
+    const title = `Ver ${movie.title} online | FilmiFy`;
     const description = movie.overview
-        ? `${movie.overview} Descubre dónde ver ${movie.title} online, con proveedores de streaming, alquiler y compra.`
-        : `Encuentra dónde ver ${movie.title} online, con elenco, tráiler y opciones de streaming en FilmiFy.`;
+        ? `${movie.overview.slice(0, 200)}... Mira ${movie.title} online gratis en FilmiFy, sin registro.`
+        : `Mira ${movie.title} online en FilmiFy, con elenco, tráiler y reproducción gratuita.`;
+
     const keywordSet = new Set<string>([
         movie.title,
         `ver ${movie.title}`,
-        `dónde ver ${movie.title}`,
+        `ver ${movie.title} online`,
+        `${movie.title} online gratis`,
         'película online',
         'ver película',
         'streaming',
-        'alquilar película',
-        'comprar película',
     ]);
-
     movie.genres?.forEach((genre) => {
         if (genre.name) {
             keywordSet.add(genre.name);
             keywordSet.add(`películas de ${genre.name}`);
         }
     });
-
     const keywords = Array.from(keywordSet).slice(0, 24);
 
     return {
@@ -79,25 +78,46 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     try {
         const movie = await getMovieDetails(movieId);
-
-        if (!movie) {
-            return {
-                title: 'Película no encontrada - FilmiFy',
-            };
-        }
-
+        if (!movie) return { title: 'Película no encontrada - FilmiFy' };
         return buildMovieMetadata(movie);
     } catch (error) {
         if (error instanceof TMDBError && error.status === 404) {
-            return {
-                title: 'Película no encontrada - FilmiFy',
-            };
+            return { title: 'Película no encontrada - FilmiFy' };
         }
-
-        return {
-            title: 'Detalles de Película - FilmiFy',
-        };
+        return { title: 'Detalles de Película - FilmiFy' };
     }
+}
+
+function formatRuntime(minutes: number): string | null {
+    if (!minutes || minutes <= 0) return null;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
+async function fetchMovieData(movieId: number) {
+    const [movie, isAvailable] = await Promise.all([
+        getMovieDetails(movieId).catch((error) => {
+            if (error instanceof TMDBError && error.status === 404) return null;
+            throw error;
+        }),
+        isMovieAvailableOnVimeus(movieId).catch(() => false),
+    ]);
+
+    if (!movie || !isAvailable) return null;
+
+    let recommendations: Movie[] = [];
+    try {
+        recommendations = await filterAvailableMovies(
+            (movie.recommendations?.results ?? []).slice(0, 18)
+        );
+    } catch {
+        // Mostramos la página sin recomendaciones
+    }
+
+    return { movie, recommendations };
 }
 
 export default async function MovieDetailsPage({ params, searchParams }: PageProps) {
@@ -106,77 +126,63 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
     const movieId = parseInt(id);
     if (isNaN(movieId)) notFound();
 
-    let movie;
-    try {
-        movie = await getMovieDetails(movieId);
-        if (!movie) notFound();
-    } catch (error) {
-        console.error('Error fetching movie details:', error);
-        if (error instanceof TMDBError && error.status === 404) {
-            notFound();
-        }
-        throw error;
-    }
+    const data = await fetchMovieData(movieId);
+    if (!data) notFound();
+
+    const { movie, recommendations } = data;
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
     const posterUrl = getPosterUrl(movie.poster_path);
 
-    // Format runtime
-    const hours = Math.floor(movie.runtime / 60);
-    const minutes = movie.runtime % 60;
-    const runtime = `${hours}h ${minutes}m`;
+    const runtime = formatRuntime(movie.runtime);
+    const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
 
-    // Get trailer
+    // Tráiler
     let trailer = movie.videos?.results.find(
         (video) => video.type === 'Trailer' && video.site === 'YouTube'
     );
-
-    // AI Fallback for trailer
     if (!trailer) {
-        const aiTrailerId = await getYouTubeTrailerId(
-            movie.title,
-            movie.release_date ? new Date(movie.release_date).getFullYear().toString() : '',
-            'movie'
-        );
-
-        if (aiTrailerId) {
-            trailer = {
-                id: 'ai-generated',
-                key: aiTrailerId,
-                name: 'Official Trailer (AI Found)',
-                site: 'YouTube',
-                size: 1080,
-                type: 'Trailer',
-                official: false,
-                published_at: new Date().toISOString()
-            };
+        try {
+            const aiTrailerId = await getYouTubeTrailerId(
+                movie.title,
+                releaseYear?.toString() ?? '',
+                'movie'
+            );
+            if (aiTrailerId) {
+                trailer = {
+                    id: 'ai-generated',
+                    key: aiTrailerId,
+                    name: 'Tráiler oficial',
+                    site: 'YouTube',
+                    size: 1080,
+                    type: 'Trailer',
+                    official: false,
+                    published_at: new Date().toISOString(),
+                };
+            }
+        } catch {
+            // No se pudo obtener tráiler alternativo
         }
     }
 
-    // Get director
     const director = movie.credits?.crew.find((person) => person.job === 'Director');
-
-    // Get top cast (limit to 10)
-    const cast = movie.credits?.cast.slice(0, 10) || [];
-
-    // Get watch providers for MX (default) or generic
-    const providers = movie['watch/providers']?.results?.MX ||
-        movie['watch/providers']?.results?.US ||
-        Object.values(movie['watch/providers']?.results || {})[0];
-
-    // Get writers
-    const writers = movie.credits?.crew.filter((person) => ['Screenplay', 'Writer', 'Story'].includes(person.job)) || [];
-    // Deduplicate writers
+    const cast = movie.credits?.cast.slice(0, 12) || [];
+    const writers = movie.credits?.crew.filter((person) =>
+        ['Screenplay', 'Writer', 'Story'].includes(person.job)
+    ) || [];
     const uniqueWriters = Array.from(new Set(writers.map((a) => a.id)))
         .map((id) => writers.find((a) => a.id === id))
         .filter(Boolean);
 
-    // Get certification (MX or US)
-    const releaseDates = movie.release_dates?.results.find((r) => r.iso_3166_1 === 'MX') ||
+    const releaseDates =
+        movie.release_dates?.results.find((r) => r.iso_3166_1 === 'MX') ||
         movie.release_dates?.results.find((r) => r.iso_3166_1 === 'US');
-    const certification = releaseDates?.release_dates.find((r) => r.certification)?.certification || 'NR';
+    const certification =
+        releaseDates?.release_dates.find((r) => r.certification)?.certification || 'NR';
 
-    const appUrl = getOptionalApiKeys().appUrl;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+
+    // JSON-LD
     const movieJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'Movie',
@@ -190,24 +196,30 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
         creator: uniqueWriters.map((writer) => ({ '@type': 'Person', name: writer?.name })),
         genre: movie.genres?.map((genre) => genre.name).filter(Boolean),
         duration: movie.runtime ? `PT${movie.runtime}M` : undefined,
-        productionCompany: movie.production_companies?.map((company) => ({ '@type': 'Organization', name: company.name })),
+        productionCompany: movie.production_companies?.map((company) => ({
+            '@type': 'Organization',
+            name: company.name,
+        })),
         sameAs: movie.homepage ? [movie.homepage] : undefined,
-        aggregateRating: movie.vote_average ? {
-            '@type': 'AggregateRating',
-            ratingValue: movie.vote_average.toFixed(1),
-            ratingCount: movie.vote_count,
-        } : undefined,
-        trailer: trailer ? {
-            '@type': 'VideoObject',
-            name: trailer.name,
-            description: trailer.name,
-            embedUrl: `https://www.youtube.com/embed/${trailer.key}`,
-            thumbnailUrl: `https://img.youtube.com/vi/${trailer.key}/hqdefault.jpg`,
-            uploadDate: trailer.published_at,
-        } : undefined,
+        aggregateRating: movie.vote_average
+            ? {
+                  '@type': 'AggregateRating',
+                  ratingValue: movie.vote_average.toFixed(1),
+                  ratingCount: movie.vote_count,
+              }
+            : undefined,
+        trailer: trailer
+            ? {
+                  '@type': 'VideoObject',
+                  name: trailer.name,
+                  description: trailer.name,
+                  embedUrl: `https://www.youtube.com/embed/${trailer.key}`,
+                  thumbnailUrl: `https://img.youtube.com/vi/${trailer.key}/hqdefault.jpg`,
+                  uploadDate: trailer.published_at,
+              }
+            : undefined,
     };
 
-    // BreadcrumbList — enables breadcrumb rich results in Google SERPs.
     const breadcrumbJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
@@ -219,15 +231,6 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
     };
 
     const jsonLd = [movieJsonLd, breadcrumbJsonLd];
-
-    // Format currency
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            maximumFractionDigits: 0,
-        }).format(value);
-    };
 
     const isGlobalTV = await isTVDevice();
     const isManualTV = sp.tv === 'true';
@@ -272,390 +275,271 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                                 />
                             </main>
                         </div>
-                    }>
+                    }
+                >
                     <div />
                 </TVLayoutWrapper>
             </>
         );
     }
 
+    // ── Desktop / mobile layout ──────────────────────────────────
     return (
         <>
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
-            <div className="min-h-screen bg-background pb-20">
-                <MovieHero movie={movie} trailer={trailer} />
 
-                <div className="container mx-auto px-4 py-12 space-y-16">
-
-                    {/* Tagline */}
-                    {movie.tagline && (
-                        <div className="text-center max-w-4xl mx-auto">
-                            <h2 className="text-2xl md:text-3xl font-light italic text-gray-300">
-                                &ldquo;{movie.tagline}&rdquo;
-                            </h2>
-                        </div>
-                    )}
-
-                {/* Cast Section */}
-                {cast.length > 0 && (
-                    <section>
-                        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                            Reparto Principal
-                        </h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {cast.map((person) => (
-                                <div key={person.id} className="group relative bg-surface-light/30 rounded-xl overflow-hidden border border-white/5 hover:border-primary/50 transition-colors">
-                                    <div className="aspect-[2/3] relative">
-                                        {person.profile_path ? (
-                                            <Image
-                                                src={getProfileUrl(person.profile_path) || ''}
-                                                alt={person.name}
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full bg-surface-light flex items-center justify-center text-gray-500">
-                                                Sin Imagen
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-3">
-                                        <h3 className="font-bold text-white text-sm line-clamp-1">{person.name}</h3>
-                                        <p className="text-xs text-gray-400 line-clamp-1">{person.character}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+            <div className="relative min-h-screen pb-16">
+                {/* Ambient backdrop */}
+                {backdropUrl && (
+                    <div className="absolute inset-x-0 top-0 h-[480px] overflow-hidden pointer-events-none" aria-hidden>
+                        <Image
+                            src={backdropUrl}
+                            alt=""
+                            fill
+                            className="object-cover opacity-25 blur-sm scale-105"
+                            sizes="100vw"
+                            priority
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/85 to-background" />
+                    </div>
                 )}
 
-                {/* Info Grid */}
-                <section className="grid md:grid-cols-3 gap-8">
-                    {/* Details Sidebar */}
-                    <div className="space-y-8">
-                        {/* Key Specs */}
-                        <div className="bg-surface-light/10 rounded-xl p-6 border border-white/5 space-y-4">
-                            <h3 className="text-xl font-bold text-white mb-4">Información</h3>
+                <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* Back link */}
+                    <Link
+                        href="/browse"
+                        className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors mt-4 mb-6"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Volver al catálogo
+                    </Link>
 
-                            {director && (
-                                <div>
-                                    <span className="block text-gray-400 text-sm mb-1">Director</span>
-                                    <span className="text-white font-medium">{director.name}</span>
-                                </div>
+                    {/* ── Player (full width, sin grid) ── */}
+                    <MoviePlayer
+                        tmdbId={movie.id}
+                        title={movie.title}
+                        backdropUrl={backdropUrl}
+                        trailerKey={trailer?.key ?? null}
+                    />
+
+                    {/* Mobile quick facts */}
+                    <div className="lg:hidden flex items-center gap-3 mt-3 mb-4 text-sm flex-wrap">
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
+                            <Star className="w-3.5 h-3.5 fill-primary" />
+                            {movie.vote_average ? movie.vote_average.toFixed(1) : 'NR'}
+                        </span>
+                        {runtime && (
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                                {runtime}
+                            </span>
+                        )}
+                        <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary font-bold">
+                            {certification}
+                        </span>
+                    </div>
+
+                    {/* ── Title + actions ────────────────────────── */}
+                    <div className="flex flex-wrap items-start justify-between gap-4 mt-6">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+                                {movie.title}
+                                {releaseYear && !isNaN(releaseYear) && (
+                                    <span className="text-text-secondary font-normal">
+                                        {' '}
+                                        ({releaseYear})
+                                    </span>
+                                )}
+                            </h1>
+                            {movie.original_title !== movie.title && (
+                                <p className="text-sm text-text-secondary mt-0.5">
+                                    {movie.original_title}
+                                </p>
                             )}
 
-                            <div>
-                                <span className="block text-gray-400 text-sm mb-1">Estado</span>
-                                <span className="text-white font-medium">{movie.status}</span>
-                            </div>
-
-                            <div>
-                                <span className="block text-gray-400 text-sm mb-1">Duración</span>
-                                <span className="text-white font-medium">{runtime}</span>
-                            </div>
-
-                            <div>
-                                <span className="block text-gray-400 text-sm mb-1">Clasificación</span>
-                                <span className="inline-block px-2 py-1 rounded bg-white/10 text-white text-xs font-bold border border-white/10">
+                            {/* Meta chips (desktop) */}
+                            <div className="hidden lg:flex flex-wrap items-center gap-2 mt-3 text-sm">
+                                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
+                                    <Star className="w-3.5 h-3.5 fill-primary" />
+                                    {movie.vote_average ? movie.vote_average.toFixed(1) : 'NR'}
+                                </span>
+                                {runtime && (
+                                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {runtime}
+                                    </span>
+                                )}
+                                {releaseYear && !isNaN(releaseYear) && (
+                                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                                        <Calendar className="w-3.5 h-3.5" />
+                                        {releaseYear}
+                                    </span>
+                                )}
+                                <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary text-xs font-bold">
                                     {certification}
                                 </span>
                             </div>
-
-                            <div>
-                                <span className="block text-gray-400 text-sm mb-1">Título Original</span>
-                                <span className="text-white font-medium italic">{movie.original_title}</span>
-                            </div>
-
-                            <div>
-                                <span className="block text-gray-400 text-sm mb-1">Idioma Original</span>
-                                <span className="text-white font-medium uppercase">{movie.original_language}</span>
-                            </div>
-
-                            {movie.budget > 0 && (
-                                <div>
-                                    <span className="block text-gray-400 text-sm mb-1">Presupuesto</span>
-                                    <span className="text-white font-medium">{formatCurrency(movie.budget)}</span>
-                                </div>
-                            )}
-
-                            {movie.revenue > 0 && (
-                                <div>
-                                    <span className="block text-gray-400 text-sm mb-1">Ingresos</span>
-                                    <span className="text-white font-medium">{formatCurrency(movie.revenue)}</span>
-                                </div>
-                            )}
                         </div>
 
-                        {/* External Links & Socials */}
-                        <div className="flex flex-col gap-3">
-                            {movie.homepage && (
-                                <a
-                                    href={movie.homepage}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/10"
-                                >
-                                    <Globe className="w-4 h-4" />
-                                    Sitio Web Oficial
-                                </a>
-                            )}
-                            <div className="grid grid-cols-4 gap-2">
-                                {movie.external_ids?.imdb_id && (
-                                    <a
-                                        href={`https://www.imdb.com/title/${movie.external_ids.imdb_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center py-3 rounded-lg bg-[#f5c518]/10 hover:bg-[#f5c518]/20 text-[#f5c518] transition-colors border border-[#f5c518]/20"
-                                        title="IMDb"
-                                    >
-                                        <span className="font-bold">IMDb</span>
-                                    </a>
-                                )}
-                                {movie.external_ids?.facebook_id && (
-                                    <a
-                                        href={`https://facebook.com/${movie.external_ids.facebook_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center py-3 rounded-lg bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] transition-colors border border-[#1877F2]/20"
-                                        title="Facebook"
-                                    >
-                                        <Facebook className="w-5 h-5" />
-                                    </a>
-                                )}
-                                {movie.external_ids?.instagram_id && (
-                                    <a
-                                        href={`https://instagram.com/${movie.external_ids.instagram_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center py-3 rounded-lg bg-[#E4405F]/10 hover:bg-[#E4405F]/20 text-[#E4405F] transition-colors border border-[#E4405F]/20"
-                                        title="Instagram"
-                                    >
-                                        <Instagram className="w-5 h-5" />
-                                    </a>
-                                )}
-                                {movie.external_ids?.twitter_id && (
-                                    <a
-                                        href={`https://twitter.com/${movie.external_ids.twitter_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center py-3 rounded-lg bg-[#1DA1F2]/10 hover:bg-[#1DA1F2]/20 text-[#1DA1F2] transition-colors border border-[#1DA1F2]/20"
-                                        title="Twitter"
-                                    >
-                                        <Twitter className="w-5 h-5" />
-                                    </a>
-                                )}
-                            </div>
-                        </div>
+                        <MovieActions movie={movie as unknown as Movie} />
                     </div>
 
-                    {/* Main Content Area */}
-                    <div className="md:col-span-2 space-y-10">
-                        {/* Where to Watch */}
-                        <div id="where-to-watch" className="bg-surface-light/5 rounded-xl p-6 border border-white/5">
-                            <h2 className="text-2xl font-bold text-white mb-6">Dónde Ver</h2>
-                            {providers ? (
-                                <div className="space-y-6">
-                                    {providers.flatrate && (
-                                        <div>
-                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Streaming</h3>
-                                            <div className="flex flex-wrap gap-4">
-                                                {providers.flatrate.map((provider) => (
-                                                    <a
-                                                        key={provider.provider_id}
-                                                        href={getProviderLink(provider.provider_name, movie.title)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
-                                                        title={`Ver en ${provider.provider_name}`}
-                                                    >
-                                                        <Image
-                                                            src={getPosterUrl(provider.logo_path) || ''}
-                                                            alt={provider.provider_name}
-                                                            fill
-                                                            className="object-cover"
-                                                            sizes="56px"
-                                                        />
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {providers.rent && (
-                                        <div>
-                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Alquilar</h3>
-                                            <div className="flex flex-wrap gap-4">
-                                                {providers.rent.map((provider) => (
-                                                    <a
-                                                        key={provider.provider_id}
-                                                        href={getProviderLink(provider.provider_name, movie.title)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
-                                                        title={`Alquilar en ${provider.provider_name}`}
-                                                    >
-                                                        <Image
-                                                            src={getPosterUrl(provider.logo_path) || ''}
-                                                            alt={provider.provider_name}
-                                                            fill
-                                                            className="object-cover"
-                                                            sizes="56px"
-                                                        />
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {providers.buy && (
-                                        <div>
-                                            <h3 className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Comprar</h3>
-                                            <div className="flex flex-wrap gap-4">
-                                                {providers.buy.map((provider) => (
-                                                    <a
-                                                        key={provider.provider_id}
-                                                        href={getProviderLink(provider.provider_name, movie.title)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group relative w-14 h-14 rounded-xl overflow-hidden shadow-lg transition-transform hover:scale-110"
-                                                        title={`Comprar en ${provider.provider_name}`}
-                                                    >
-                                                        <Image
-                                                            src={getPosterUrl(provider.logo_path) || ''}
-                                                            alt={provider.provider_name}
-                                                            fill
-                                                            className="object-cover"
-                                                            sizes="56px"
-                                                        />
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!providers.flatrate && !providers.rent && !providers.buy && (
-                                        <p className="text-gray-400">No hay información de streaming disponible para esta región.</p>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-gray-400">No hay información de streaming disponible.</p>
-                            )}
+                    {/* Genres */}
+                    {movie.genres && movie.genres.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            {movie.genres.map((genre) => (
+                                <Link
+                                    key={genre.id}
+                                    href={`/browse?genre=${genre.id}`}
+                                    className="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant text-xs font-medium text-text-secondary hover:text-white hover:border-primary/50 hover:bg-primary/5 transition-all"
+                                >
+                                    {genre.name}
+                                </Link>
+                            ))}
                         </div>
+                    )}
 
-                        {/* Production Companies */}
-                        {movie.production_companies && movie.production_companies.length > 0 && (
+                    {/* ── Synopsis + details ─────────────────────── */}
+                    <section className="mt-8">
+                        <div className="space-y-4 min-w-0">
+                            {movie.tagline && (
+                                <p className="text-base italic text-text-secondary border-l-2 border-primary pl-4">
+                                    &ldquo;{movie.tagline}&rdquo;
+                                </p>
+                            )}
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-6">Producción</h2>
-                                <div className="flex flex-wrap gap-8 items-center bg-white/5 p-8 rounded-xl border border-white/5">
-                                    {movie.production_companies.map((company) => (
-                                        company.logo_path ? (
-                                            <div key={company.id} className="relative h-12 w-auto min-w-[100px] opacity-70 hover:opacity-100 transition-opacity">
+                                <h2 className="text-lg font-bold text-white mb-2">Sinopsis</h2>
+                                <p className="text-text-secondary leading-relaxed">
+                                    {movie.overview || 'Sin descripción disponible.'}
+                                </p>
+                            </div>
+
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm pt-2">
+                                {director && (
+                                    <>
+                                        <dt className="text-text-muted">Director</dt>
+                                        <dd className="text-white font-medium">{director.name}</dd>
+                                    </>
+                                )}
+                                {uniqueWriters.length > 0 && (
+                                    <>
+                                        <dt className="text-text-muted">Guion</dt>
+                                        <dd className="text-white font-medium truncate">
+                                            {uniqueWriters
+                                                .slice(0, 2)
+                                                .map((w) => w?.name)
+                                                .join(', ')}
+                                        </dd>
+                                    </>
+                                )}
+                                <dt className="text-text-muted">Idioma original</dt>
+                                <dd className="text-white font-medium uppercase">
+                                    {movie.original_language}
+                                </dd>
+                                {movie.external_ids?.imdb_id && (
+                                    <>
+                                        <dt className="text-text-muted">IMDb</dt>
+                                        <dd>
+                                            <a
+                                                href={`https://www.imdb.com/title/${movie.external_ids.imdb_id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[#f5c518] font-semibold hover:underline"
+                                            >
+                                                Ver ficha
+                                            </a>
+                                        </dd>
+                                    </>
+                                )}
+                            </dl>
+                        </div>
+                    </section>
+
+                    {/* ── Cast ───────────────────────────────────── */}
+                    {cast.length > 0 && (
+                        <section className="mt-10">
+                            <h2 className="text-lg font-bold text-white mb-4">Reparto</h2>
+                            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                                {cast.map((person) => (
+                                    <div
+                                        key={person.id}
+                                        className="flex-shrink-0 w-20 text-center"
+                                    >
+                                        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-surface-container border border-white/10 mx-auto">
+                                            {person.profile_path ? (
                                                 <Image
-                                                    src={getPosterUrl(company.logo_path) || ''}
-                                                    alt={company.name}
-                                                    width={200}
-                                                    height={100}
-                                                    className="object-contain h-full w-auto filter brightness-0 invert"
-                                                    style={{ maxHeight: '48px', width: 'auto' }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <span key={company.id} className="text-gray-400 font-medium text-lg">
-                                                {company.name}
-                                            </span>
-                                        )
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Collection Info */}
-                        {movie.belongs_to_collection && (
-                            <div className="relative rounded-2xl overflow-hidden border border-white/10 group">
-                                <div className="absolute inset-0">
-                                    {movie.belongs_to_collection.backdrop_path && (
-                                        <Image
-                                            src={getBackdropUrl(movie.belongs_to_collection.backdrop_path) || ''}
-                                            alt={movie.belongs_to_collection.name}
-                                            fill
-                                            className="object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-700"
-                                        />
-                                    )}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
-                                </div>
-                                <div className="relative p-8 md:p-12">
-                                    <h3 className="text-sm text-primary font-bold uppercase tracking-wider mb-2">Colección</h3>
-                                    <h2 className="text-3xl font-bold text-white mb-4">{movie.belongs_to_collection.name}</h2>
-                                    <button className="px-6 py-2 bg-white text-black rounded-full font-bold hover:bg-gray-200 transition-colors">
-                                        Ver Colección
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                        {/* Keywords */}
-                        {movie.keywords?.keywords && movie.keywords.keywords.length > 0 && (
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                                    <Tag className="w-5 h-5 text-primary" />
-                                    Palabras Clave
-                                </h2>
-                                <div className="flex flex-wrap gap-2">
-                                    {movie.keywords.keywords.map((keyword) => (
-                                        <Link
-                                            key={keyword.id}
-                                            href={`/search?q=${keyword.name}`}
-                                            className="px-3 py-1.5 rounded-lg bg-surface-light/30 border border-white/5 text-sm text-gray-300 hover:text-white hover:bg-surface-light hover:border-primary/30 transition-all"
-                                        >
-                                            {keyword.name}
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Recommendations */}
-                        {movie.recommendations?.results && movie.recommendations.results.length > 0 && (
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                                    <Film className="w-5 h-5 text-primary" />
-                                    Recomendaciones
-                                </h2>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                    {movie.recommendations.results.slice(0, 4).map((rec) => (
-                                        <Link
-                                            key={rec.id}
-                                            href={`/movie/${rec.id}`}
-                                            className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-surface-light/30 border border-white/5 hover:border-primary/50 transition-all"
-                                        >
-                                            {rec.poster_path ? (
-                                                <Image
-                                                    src={getPosterUrl(rec.poster_path) || ''}
-                                                    alt={rec.title}
+                                                    src={getProfileUrl(person.profile_path) || ''}
+                                                    alt={person.name}
                                                     fill
-                                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                                                    className="object-cover"
+                                                    sizes="80px"
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-500">
-                                                    Sin Imagen
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <User className="w-7 h-7 text-text-muted opacity-40" />
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                                                <p className="text-white font-bold text-sm line-clamp-2">{rec.title}</p>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
+                                        </div>
+                                        <p className="text-[11px] font-semibold text-white mt-2 line-clamp-2 leading-tight">
+                                            {person.name}
+                                        </p>
+                                        <p className="text-[10px] text-text-muted line-clamp-1">
+                                            {person.character}
+                                        </p>
+                                    </div>
+                                ))}
                             </div>
-                        )}
-                    </div>
-                </section>
+                        </section>
+                    )}
 
-                {/* Reviews Section */}
-                <ReviewsSection mediaId={movieId} mediaType="movie" />
-            </div >
-        </div >
+                    {/* ── Recommendations ────────────────────────── */}
+                    {recommendations.length > 0 && (
+                        <section className="mt-10">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Film className="w-5 h-5 text-primary" />
+                                <h2 className="text-lg font-bold text-white">
+                                    También te puede gustar
+                                </h2>
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                {recommendations.slice(0, 12).map((rec) => (
+                                    <Link
+                                        key={rec.id}
+                                        href={`/movie/${rec.id}`}
+                                        className="group relative aspect-[2/3] rounded-lg overflow-hidden bg-surface-container border border-white/5 hover:border-primary/50 transition-all"
+                                    >
+                                        {rec.poster_path ? (
+                                            <Image
+                                                src={getPosterUrl(rec.poster_path) || ''}
+                                                alt={rec.title}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 16vw"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-text-muted text-xs px-2 text-center">
+                                                {rec.title}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                            <p className="text-white font-semibold text-xs line-clamp-2">
+                                                {rec.title}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* ── Reviews ────────────────────────────────── */}
+                    <div className="mt-12">
+                        <ReviewsSection mediaId={movieId} mediaType="movie" />
+                    </div>
+                </div>
+            </div>
         </>
     );
 }

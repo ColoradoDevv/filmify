@@ -1,14 +1,9 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
-    // SEC-021: require authentication — unauthenticated users must not be able
-    // to use this proxy to access embed URLs without an account.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
+    // PUBLIC: playback is available without an account (auth is optional on
+    // Filmify). Abuse protection relies on the strict imdb_id input validation
+    // below and the IP-ban check in middleware.
 
     const { searchParams } = new URL(request.url);
     const imdbFull = searchParams.get('imdb_id'); // ej: tt0137523
