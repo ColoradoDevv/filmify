@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next';
 import { getPopular, getTrending, getBlacklist } from '@/server/services/tmdb';
 import {
-    filterAvailableMovies,
-    filterAvailableSeries,
+    filterByListing,
     getVimeusMovieCatalog,
     getVimeusSeriesCatalog,
 } from '@/server/services/vimeus';
@@ -104,8 +103,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     try {
-        const blacklistIds = await getBlacklist();
-        const blacklist = new Set(blacklistIds);
+        // La blacklist es opcional — si su consulta falla (p. ej. Supabase),
+        // no debe impedir generar el sitemap del catálogo.
+        let blacklist = new Set<number>();
+        try {
+            blacklist = new Set(await getBlacklist());
+        } catch (e) {
+            console.warn('[sitemap] blacklist fetch failed, continuing', e);
+        }
 
         // Fetch top popular movies (multiple pages for better coverage)
         const moviePages = await Promise.all([
@@ -139,8 +144,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             }
         });
 
-        const availableMovies = await filterAvailableMovies(
-            Array.from(movieCandidates.keys()).map(id => ({ id }))
+        // Filtro ligero (solo listing, sin sonda HTTP por título) — procesar
+        // cientos de títulos con sonda excedería el tiempo de la función.
+        const availableMovies = await filterByListing(
+            Array.from(movieCandidates.keys()).map(id => ({ id })),
+            'movies'
         );
 
         const movieUrls: MetadataRoute.Sitemap = availableMovies.map(({ id }) => ({
@@ -169,8 +177,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             }
         });
 
-        const availableShows = await filterAvailableSeries(
-            Array.from(seriesCandidates.keys()).map(id => ({ id }))
+        const availableShows = await filterByListing(
+            Array.from(seriesCandidates.keys()).map(id => ({ id })),
+            'series'
         );
 
         const tvUrls: MetadataRoute.Sitemap = availableShows.map(({ id }) => ({

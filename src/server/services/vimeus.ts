@@ -370,6 +370,22 @@ async function probeFilter<T extends { id: number }>(
     return items.filter((_, idx) => flags[idx]);
 }
 
+// ── Filtro ligero (solo listing, sin sonda) ──────────────────────────────────
+// Para superficies que procesan cientos de títulos (p. ej. el sitemap), donde
+// hacer una sonda HTTP por cada uno excedería el tiempo de la función. Confía
+// en el listing oficial: O(1) por título, cero fetches extra. Si no hay API
+// key disponible, devuelve la lista tal cual (fail open).
+
+export async function filterByListing<T extends { id: number }>(
+    items: T[],
+    kind: 'movies' | 'series',
+): Promise<T[]> {
+    if (items.length === 0) return items;
+    const ids = await getAvailableIds(kind);
+    if (!ids) return items;
+    return items.filter((item) => ids.has(item.id));
+}
+
 // ── Public API — movies ───────────────────────────────────────────────────────
 
 export async function isMovieAvailableOnVimeus(tmdbId: number): Promise<boolean> {
