@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Clock, Calendar, Heart, Share2, Volume2, VolumeX, X, ArrowLeft, Users } from 'lucide-react';
+import {
+    Play, Star, Clock, Calendar, Heart,
+    Volume2, VolumeX, X, ArrowLeft, Users, Loader2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getBackdropUrl } from '@/lib/tmdb/helpers';
 import { useStore } from '@/lib/store/useStore';
@@ -18,13 +21,52 @@ interface MovieHeroProps {
     seasons?: Season[];
 }
 
-export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons = [] }: MovieHeroProps) {
+// ── YouTube API helper ────────────────────────────────────────────────
+declare global {
+    interface Window {
+        onYouTubeIframeAPIReady?: () => void;
+        YT?: any;
+    }
+}
+
+const YOUTUBE_API_URL = 'https://www.youtube.com/iframe_api';
+
+function loadYouTubeAPI(): Promise<void> {
+    return new Promise((resolve) => {
+        if (window.YT?.Player) {
+            resolve();
+            return;
+        }
+        if (document.querySelector('script[src*="www.youtube.com/iframe_api"]')) {
+            const original = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = () => {
+                original?.();
+                resolve();
+            };
+            return;
+        }
+        const tag = document.createElement('script');
+        tag.src = YOUTUBE_API_URL;
+        const firstScript = document.getElementsByTagName('script')[0];
+        firstScript.parentNode?.insertBefore(tag, firstScript);
+        window.onYouTubeIframeAPIReady = () => resolve();
+    });
+}
+
+export default function MovieHero({
+    movie,
+    trailer,
+    mediaType = 'movie',
+    seasons = [],
+}: MovieHeroProps) {
     const [isMuted, setIsMuted] = useState(true);
     const [showVideo, setShowVideo] = useState(false);
     const [showPlayer, setShowPlayer] = useState(false);
+    const [favLoading, setFavLoading] = useState(false);
+    const playerRef = useRef<any>(null);
+    const playerContainerId = useRef(`yt-player-${movie.id}`).current;
 
-    // Hide "Specials" (season 0) — embed providers index against numbered
-    // seasons and the user expects S1 as the entry point.
+    // Seasons jugables (excluye especiales)
     const playableSeasons = useMemo(
         () => seasons.filter((s) => s.season_number > 0 && s.episode_count > 0),
         [seasons]
@@ -35,11 +77,9 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
     );
     const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
 
-    // If the seasons prop arrives async / changes, snap selection back to a
-    // valid value instead of leaving the user on a phantom season.
+    // Sincronizar temporada seleccionada si cambian los datos
     useEffect(() => {
-        if (mediaType !== 'tv') return;
-        if (playableSeasons.length === 0) return;
+        if (mediaType !== 'tv' || playableSeasons.length === 0) return;
         if (!playableSeasons.some((s) => s.season_number === selectedSeason)) {
             setSelectedSeason(playableSeasons[0].season_number);
             setSelectedEpisode(1);
@@ -54,148 +94,188 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
 
-    // Use smaller backdrop on mobile for better LCP
-    const [mobileBackdrop, setMobileBackdrop] = useState(false);
-    useEffect(() => {
-        const checkMobile = () => setMobileBackdrop(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    const optimizedBackdropUrl = mobileBackdrop 
-        ? backdropUrl.replace('original', 'w780').replace('w1280', 'w780')
-        : backdropUrl;
-
-    // Format runtime
+    // Formatear duración
     const totalMinutes = movie.runtime || 0;
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     const runtime = totalMinutes > 0 ? `${hours}h ${minutes}m` : '';
 
-    useEffect(() => {
-        // Check auto-play preference
-        const savedSettings = localStorage.getItem('filmify_preferences');
-        if (!savedSettings) return;
-        try {
-            const { autoplay } = JSON.parse(savedSettings);
-            if (autoplay && trailer) {
-                setShowVideo(true);
-                setIsMuted(false);
-            }
-        } catch {
-            // Corrupt prefs — ignore.
-        }
-    }, [trailer]);
-
-    const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
+    const releaseYear = movie.release_date
+        ? new Date(movie.release_date).getFullYear()
+        : null;
     const voteAverage = movie.vote_average ? movie.vote_average.toFixed(1) : 'NR';
-    const currentFavorites = useStore((state) => state.user.favorites);
-    const isFavorite = currentFavorites.some((fav) => fav.id === movie.id);
+
+    // Favoritos
+    const isFavorite = useStore((state) =>
+        state.user.favorites.some((fav) => fav.id === movie.id)
+    );
     const addFavorite = useStore((state) => state.addFavorite);
     const removeFavorite = useStore((state) => state.removeFavorite);
 
-    const toggleFavorite = async () => {
-        const nextFavorites = isFavorite
+    const toggleFavorite = useCallback(async () => {
+        if (favLoading) return;
+        setFavLoading(true);
+        const currentFavorites = useStore.getState().user.favorites;
+        const isCurrentlyFav = currentFavorites.some((fav) => fav.id === movie.id);
+        const nextFavorites = isCurrentlyFav
             ? currentFavorites.filter((fav) => fav.id !== movie.id)
             : [...currentFavorites, movie as Movie];
 
-        if (isFavorite) {
+        // Actualización optimista
+        if (isCurrentlyFav) {
             removeFavorite(movie.id);
         } else {
             addFavorite(movie);
         }
 
-        await saveFavoritesToSupabase(nextFavorites);
-    };
+        try {
+            await saveFavoritesToSupabase(nextFavorites);
+        } catch {
+            // Rollback
+            if (isCurrentlyFav) {
+                addFavorite(movie);
+            } else {
+                removeFavorite(movie.id);
+            }
+        } finally {
+            setFavLoading(false);
+        }
+    }, [movie, addFavorite, removeFavorite, favLoading]);
+
+    // Reproducción del tráiler con API de YouTube
+    const initPlayer = useCallback(async () => {
+        if (!trailer) return;
+        setShowVideo(true);
+        await loadYouTubeAPI();
+        if (playerRef.current) return; // ya inicializado
+
+        playerRef.current = new window.YT.Player(playerContainerId, {
+            videoId: trailer.key,
+            events: {
+                onReady: () => {
+                    playerRef.current.mute();
+                    playerRef.current.playVideo();
+                    setIsMuted(true);
+                },
+            },
+            playerVars: {
+                autoplay: 1,
+                controls: 0,
+                showinfo: 0,
+                rel: 0,
+                loop: 1,
+                playlist: trailer.key,
+                mute: 1,
+            },
+        });
+    }, [trailer, playerContainerId]);
+
+    const toggleMute = useCallback(() => {
+        if (playerRef.current) {
+            if (isMuted) {
+                playerRef.current.unMute();
+                setIsMuted(false);
+            } else {
+                playerRef.current.mute();
+                setIsMuted(true);
+            }
+        }
+    }, [isMuted]);
+
+    // Limpiar reproductor al desmontar
+    useEffect(() => {
+        return () => {
+            if (playerRef.current) {
+                playerRef.current.destroy();
+                playerRef.current = null;
+            }
+        };
+    }, []);
+
+    // Autoplay opcional
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('filmify_preferences');
+            if (!saved) return;
+            const { autoplay } = JSON.parse(saved);
+            if (autoplay && trailer && !showVideo) {
+                initPlayer();
+            }
+        } catch { /* ignore */ }
+    }, [trailer, showVideo, initPlayer]);
 
     return (
         <div className="relative w-full group overflow-visible">
-            <div className="relative min-h-[90vh] md:min-h-[80vh] w-full flex items-center">
-                {/* Background (Video or Image) */}
+            <div className="relative min-h-[70vh] md:min-h-[80vh] w-full flex items-center">
+                {/* Fondo */}
                 <div className="absolute inset-0 overflow-hidden">
                     {showVideo && trailer ? (
-                        <div className="relative w-full h-full">
-                            <iframe
-                                id="yt-player"
-                                title={trailer.name}
-                                src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${trailer.key}&mute=${isMuted ? 1 : 0}`}
-                                className="absolute top-1/2 left-1/2 w-[115%] h-[115%] -translate-x-1/2 -translate-y-1/2 object-cover pointer-events-none scale-110"
-                                allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        </div>
+                        <div
+                            id={playerContainerId}
+                            className="absolute top-1/2 left-1/2 w-[115%] h-[115%] -translate-x-1/2 -translate-y-1/2"
+                        />
+                    ) : backdropUrl ? (
+                        <Image
+                            src={backdropUrl}
+                            alt={`Fondo de ${movie.title}`}
+                            fill
+                            className="object-cover transition-all duration-700"
+                            priority
+                            sizes="100vw"
+                        />
                     ) : (
-                        <>
-                            {backdropUrl ? (
-                                <Image
-                                    src={optimizedBackdropUrl}
-                                    alt={movie.title}
-                                    fill
-                                    className={`object-cover transition-all duration-700 ${showVideo ? 'scale-105 opacity-0' : 'scale-100 opacity-100'}`}
-                                    priority
-                                    quality={90}
-                                    sizes="100vw"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-surface" />
-                            )}
-                        </>
+                        <div className="w-full h-full bg-surface" />
                     )}
 
-                    {/* Sophisticated Gradients */}
                     <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-r from-background via-background/20 to-transparent" />
                 </div>
 
-                {/* Content Container */}
-                <div className="container mx-auto px-4 md:px-8 relative z-10 pt-20">
+                {/* Contenido */}
+                <div className="container mx-auto px-4 md:px-8 relative z-10 pt-20 pb-12">
                     <div className="max-w-4xl space-y-6 md:space-y-8">
-                        {/* Title and Tagline */}
+                        {/* Título */}
                         <div className="space-y-3 animate-fade-in-up">
                             <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tight drop-shadow-2xl">
                                 {movie.title}
                             </h1>
                             {movie.tagline && (
-                                <p className="text-lg md:text-2xl text-text-secondary font-medium tracking-tight">
+                                <p className="text-lg md:text-2xl text-text-secondary font-medium">
                                     {movie.tagline}
                                 </p>
                             )}
                         </div>
 
-                        {/* Metadata Row */}
-                        <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm md:text-base font-semibold animate-fade-in-up delay-100">
-                            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                        {/* Metadatos */}
+                        <div className="flex flex-wrap items-center gap-3 md:gap-4 text-sm md:text-base font-semibold animate-fade-in-up delay-100">
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary">
                                 <Star className="w-4 h-4 fill-primary" />
-                                <span>{voteAverage}</span>
-                            </div>
+                                {voteAverage}
+                            </span>
                             {runtime && (
-                                <div className="flex items-center gap-2 text-text-secondary">
+                                <span className="flex items-center gap-1.5 text-text-secondary">
                                     <Clock className="w-4 h-4" />
-                                    <span>{runtime}</span>
-                                </div>
+                                    {runtime}
+                                </span>
                             )}
                             {releaseYear && !isNaN(releaseYear) && (
-                                <div className="flex items-center gap-2 text-text-secondary">
+                                <span className="flex items-center gap-1.5 text-text-secondary">
                                     <Calendar className="w-4 h-4" />
-                                    <span>{releaseYear}</span>
-                                </div>
+                                    {releaseYear}
+                                </span>
                             )}
                         </div>
 
-                        {/* Description */}
+                        {/* Descripción */}
                         <p className="text-text-secondary text-lg md:text-xl leading-relaxed max-w-2xl line-clamp-3 md:line-clamp-none animate-fade-in-up delay-200">
                             {movie.overview}
                         </p>
 
-                        {/* TV Season / Episode Selector */}
+                        {/* Selectores de serie */}
                         {mediaType === 'tv' && playableSeasons.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-3 pt-2 animate-fade-in-up delay-200">
-                                <div className="flex flex-col gap-1">
-                                    <label
-                                        htmlFor="season-select"
-                                        className="text-[10px] text-text-muted font-black uppercase tracking-widest"
-                                    >
+                            <div className="flex flex-wrap items-center gap-4 animate-fade-in-up delay-200">
+                                <div>
+                                    <label htmlFor="season-select" className="text-xs text-text-muted uppercase tracking-widest font-bold">
                                         Temporada
                                     </label>
                                     <select
@@ -205,7 +285,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                             setSelectedSeason(Number(e.target.value));
                                             setSelectedEpisode(1);
                                         }}
-                                        className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm backdrop-blur-md hover:bg-white/10 hover:border-white/20 focus:outline-none focus:border-primary/60 transition-all cursor-pointer min-w-[10rem]"
+                                        className="mt-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm backdrop-blur-md hover:bg-white/10 focus:outline-none focus:border-primary/60 transition"
                                     >
                                         {playableSeasons.map((s) => (
                                             <option key={s.id} value={s.season_number} className="bg-surface text-white">
@@ -214,20 +294,16 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                                         ))}
                                     </select>
                                 </div>
-
                                 {episodeCount > 0 && (
-                                    <div className="flex flex-col gap-1">
-                                        <label
-                                            htmlFor="episode-select"
-                                            className="text-[10px] text-text-muted font-black uppercase tracking-widest"
-                                        >
+                                    <div>
+                                        <label htmlFor="episode-select" className="text-xs text-text-muted uppercase tracking-widest font-bold">
                                             Episodio
                                         </label>
                                         <select
                                             id="episode-select"
                                             value={selectedEpisode}
                                             onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                                            className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm backdrop-blur-md hover:bg-white/10 hover:border-white/20 focus:outline-none focus:border-primary/60 transition-all cursor-pointer min-w-[8rem]"
+                                            className="mt-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm backdrop-blur-md hover:bg-white/10 focus:outline-none focus:border-primary/60 transition"
                                         >
                                             {Array.from({ length: episodeCount }, (_, i) => i + 1).map((ep) => (
                                                 <option key={ep} value={ep} className="bg-surface text-white">
@@ -240,17 +316,18 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                             </div>
                         )}
 
-                        {/* Actions */}
+                        {/* Acciones */}
                         <div className="flex flex-wrap items-center gap-4 pt-4 animate-fade-in-up delay-300">
                             <button
                                 onClick={() => setShowPlayer(true)}
                                 className="px-10 py-4 rounded-full bg-primary text-black font-black text-base hover:bg-primary-hover hover:scale-105 transition-all duration-300 shadow-2xl shadow-primary/40 flex items-center gap-3"
                             >
                                 <Play className="w-5 h-5 fill-black" />
-                                {mediaType === 'tv' ? `VER T${selectedSeason} • E${selectedEpisode}` : 'VER AHORA'}
+                                {mediaType === 'tv'
+                                    ? `VER T${selectedSeason} • E${selectedEpisode}`
+                                    : 'VER AHORA'}
                             </button>
 
-                            {/* Watch Party button */}
                             <WatchPartyButton
                                 tmdbId={movie.id}
                                 title={movie.title}
@@ -262,37 +339,42 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
 
                             {trailer && !showVideo && (
                                 <button
-                                    onClick={() => {
-                                        setShowVideo(true);
-                                        setIsMuted(false);
-                                    }}
+                                    onClick={initPlayer}
                                     className="px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-base hover:bg-white/10 hover:border-white/20 transition-all duration-300 backdrop-blur-md"
                                 >
                                     TRÁILER
                                 </button>
                             )}
 
-                            <div className="flex flex-wrap items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={toggleFavorite}
-                                    className={`px-4 py-3 rounded-full border transition-all duration-300 backdrop-blur-md flex items-center gap-2 ${isFavorite ? 'bg-red-500/15 border-red-500/40 text-red-200 hover:bg-red-500/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
-                                    aria-pressed={isFavorite}
-                                >
-                                    <Heart className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                                    {isFavorite ? 'En Favoritos' : 'Añadir a Favoritos'}
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={toggleFavorite}
+                                disabled={favLoading}
+                                className={`px-4 py-3 rounded-full border transition-all duration-300 backdrop-blur-md flex items-center gap-2 ${
+                                    isFavorite
+                                        ? 'bg-red-500/15 border-red-500/40 text-red-200 hover:bg-red-500/20'
+                                        : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                                } disabled:opacity-50 disabled:cursor-wait`}
+                                aria-pressed={isFavorite}
+                            >
+                                {favLoading ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                                )}
+                                {isFavorite ? 'En Favoritos' : 'Añadir a Favoritos'}
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Bottom Controls Bar */}
-                <div className="absolute bottom-8 right-8 z-20 flex flex-wrap items-center gap-3 animate-fade-in">
+                {/* Controles inferiores */}
+                <div className="absolute bottom-6 right-6 z-20 flex flex-wrap items-center gap-3 animate-fade-in">
                     {showVideo && (
                         <button
-                            onClick={() => setIsMuted(!isMuted)}
+                            onClick={toggleMute}
                             className="p-3 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20 transition-all duration-300 shadow-2xl"
+                            aria-label={isMuted ? 'Activar sonido' : 'Silenciar'}
                         >
                             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                         </button>
@@ -302,12 +384,12 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
                         className="inline-flex items-center gap-2 px-4 py-3 rounded-full bg-black/70 text-white hover:bg-white/10 border border-white/10 transition-all duration-300 shadow-2xl"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Volver a Browse
+                        Volver
                     </Link>
                 </div>
             </div>
 
-            {/* Video Player Modal */}
+            {/* Modal del reproductor */}
             {showPlayer && (
                 <VideoPlayer
                     mediaId={movie.id}
@@ -322,7 +404,7 @@ export default function MovieHero({ movie, trailer, mediaType = 'movie', seasons
     );
 }
 
-// ── Watch Party quick-create button ──────────────────────────────────────────
+// ── Watch Party Button con manejo de errores ────────────────────────
 
 interface WatchPartyButtonProps {
     tmdbId: number;
@@ -336,40 +418,57 @@ interface WatchPartyButtonProps {
 function WatchPartyButton({ tmdbId, title, posterPath, mediaType, season, episode }: WatchPartyButtonProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleCreate = async () => {
         setLoading(true);
-        const res = await fetch('/api/watch-party', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                tmdb_id:     tmdbId,
-                title,
-                poster_path: posterPath,
-                media_type:  mediaType,
-                season:      season ?? null,
-                episode:     episode ?? null,
-                name:        `Sala de ${title}`,
-                is_private:  false,
-            }),
-        });
-        const data = await res.json();
-        setLoading(false);
-        if (data.party?.room_code) {
+        setError('');
+        try {
+            const res = await fetch('/api/watch-party', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tmdb_id: tmdbId,
+                    title,
+                    poster_path: posterPath,
+                    media_type: mediaType,
+                    season: season ?? null,
+                    episode: episode ?? null,
+                    name: `Sala de ${title}`,
+                    is_private: false,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Error al crear la sala');
+            }
             router.push(`/watch-party/${data.party.room_code}`);
+        } catch (err: any) {
+            setError(err.message || 'Error de conexión');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <button
-            onClick={handleCreate}
-            disabled={loading}
-            className="px-6 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-base hover:bg-white/10 hover:border-primary/40 transition-all duration-300 backdrop-blur-md flex items-center gap-2 disabled:opacity-50"
-        >
-            {loading
-                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creando...</>
-                : <><Users className="w-4 h-4" /> Watch Party</>
-            }
-        </button>
+        <div className="relative">
+            <button
+                onClick={handleCreate}
+                disabled={loading}
+                className="px-6 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-base hover:bg-white/10 hover:border-primary/40 transition-all duration-300 backdrop-blur-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <Users className="w-4 h-4" />
+                )}
+                {loading ? 'Creando...' : 'Watch Party'}
+            </button>
+            {error && (
+                <p className="absolute top-full mt-2 left-0 text-sm text-red-400 bg-black/80 px-3 py-1 rounded-lg whitespace-nowrap">
+                    {error}
+                </p>
+            )}
+        </div>
     );
 }

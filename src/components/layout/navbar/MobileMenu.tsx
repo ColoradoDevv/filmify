@@ -119,17 +119,60 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                     </>
                 ) : (
                     <>
-                        <div className="space-y-3">
+                        {/* Content first — browsing and watching never require login */}
+                        <div className="grid gap-3">
+                            <Link
+                                href="/browse"
+                                className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-gradient-to-r from-primary to-accent text-black font-semibold justify-center transition-all hover:scale-[1.01]"
+                                onClick={onClose}
+                            >
+                                <Clapperboard className="w-5 h-5" />
+                                Explorar películas
+                            </Link>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Link
+                                href="/browse?category=tv"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                                onClick={onClose}
+                            >
+                                <Tv className="w-5 h-5 text-primary" />
+                                <span className="font-medium">Series</span>
+                            </Link>
+                            <Link
+                                href="/live-tv"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                                onClick={onClose}
+                            >
+                                <Tv className="w-5 h-5 text-primary" />
+                                <span className="font-medium">TV en Vivo</span>
+                            </Link>
+                            <Link
+                                href="/editorial"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
+                                onClick={onClose}
+                            >
+                                <BookOpen className="w-5 h-5 text-primary" />
+                                <span className="font-medium">Editorial</span>
+                            </Link>
+                        </div>
+
+                        {/* Optional account — unlocks favorites & comments */}
+                        <div className="space-y-3 pt-2 border-t border-white/10">
+                            <p className="text-xs text-text-secondary text-center pt-2">
+                                Crea una cuenta gratis para guardar favoritos y comentar
+                            </p>
                             <Link
                                 href="/login"
-                                className="block px-4 py-4 rounded-2xl bg-gradient-to-r from-primary to-accent text-black font-semibold text-center transition-all hover:scale-[1.01]"
+                                className="block px-4 py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white font-semibold text-center transition-all hover:bg-white/20"
                                 onClick={onClose}
                             >
                                 Iniciar Sesión
                             </Link>
                             <Link
                                 href="/register"
-                                className="block px-4 py-4 rounded-2xl bg-white/10 border border-white/10 text-white font-semibold text-center transition-all hover:bg-white/20"
+                                className="block px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-text-secondary font-semibold text-center transition-all hover:bg-white/10 hover:text-white"
                                 onClick={onClose}
                             >
                                 Registrarse

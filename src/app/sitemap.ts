@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getPopular, getTrending, getBlacklist } from '@/server/services/tmdb';
+import { filterAvailableSeries } from '@/server/services/vimeus';
 import { getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
 
@@ -115,24 +116,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 priority: 0.8,
             }));
 
-        // Fetch trending TV shows (multiple pages)
+        // Trending TV shows — only the ones playable on the streaming
+        // provider (unavailable series 404, so they must not be announced).
         const tvPages = await Promise.all([
             getTrending('tv', 'week', 1),
             getTrending('tv', 'week', 2),
             getTrending('tv', 'week', 3),
-            getTrending('tv', 'week', 4),
-            getTrending('tv', 'week', 5),
         ]);
 
-        const tvUrls: MetadataRoute.Sitemap = tvPages
-            .flatMap(page => page.results)
-            .filter(show => !blacklist.has(show.id))
-            .map(show => ({
-                url: `${BASE_URL}/tv/${show.id}`,
-                lastModified: currentDate,
-                changeFrequency: 'weekly' as const,
-                priority: 0.8,
-            }));
+        const availableShows = await filterAvailableSeries(
+            tvPages.flatMap(page => page.results).filter(show => !blacklist.has(show.id))
+        );
+
+        const tvUrls: MetadataRoute.Sitemap = availableShows.map(show => ({
+            url: `${BASE_URL}/tv/${show.id}`,
+            lastModified: currentDate,
+            changeFrequency: 'weekly' as const,
+            priority: 0.8,
+        }));
 
         // Editorial articles — public, high-value SEO content.
         let articleUrls: MetadataRoute.Sitemap = [];
@@ -149,7 +150,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
 
         // Combine all URLs
-        return [...staticPages, ...movieUrls, ...tvUrls, ...articleUrls];
+        return [...staticPages, ...movieUrls, ...articleUrls];
     } catch (error) {
         console.error('Error generating sitemap:', error);
         // Return at least static pages if API fails

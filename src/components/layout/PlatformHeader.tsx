@@ -32,14 +32,10 @@ export default function PlatformHeader() {
         void fetchUser();
 
         // Keep in sync with auth state changes (login, logout, token refresh).
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+        // No forced redirect on sign-out: the platform is public, so a visitor
+        // whose session ends simply continues browsing anonymously.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
-
-            // When the refresh token is invalid, Supabase fires SIGNED_OUT.
-            // Redirect to login so the user can re-authenticate cleanly.
-            if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
-                router.push('/login');
-            }
         });
 
         return () => subscription.unsubscribe();
@@ -71,7 +67,15 @@ export default function PlatformHeader() {
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
-                {/* Actions */}
+                {/* Actions — login is an optional enhancement, never required */}
+                {!user && (
+                    <Link
+                        href="/login"
+                        className="h-9 px-4 inline-flex items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
+                    >
+                        Iniciar sesión
+                    </Link>
+                )}
                 {user && (
                     <div className="flex items-center gap-1 relative">
                         <NotificationCenter user={user} />

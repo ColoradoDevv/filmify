@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { validateOutboundUrl } from '@/lib/ssrf-guard';
-
-// ── Auth helper ───────────────────────────────────────────────────────────────
-
-async function requireAuth(): Promise<boolean> {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user !== null;
-}
 
 // ── GET /api/stream?url=<encoded> — HLS proxy ─────────────────────────────────
 
 export async function GET(request: NextRequest) {
-    // 1. Authentication — unauthenticated callers cannot use the proxy.
-    if (!(await requireAuth())) {
-        return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-    }
+    // PUBLIC: playback works without an account (auth is optional on Filmify).
+    // Abuse protection relies on the SSRF guard below and the IP-ban check
+    // in middleware.
 
     const searchParams = request.nextUrl.searchParams;
     const streamUrl = searchParams.get('url');

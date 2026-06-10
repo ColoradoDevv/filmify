@@ -180,67 +180,69 @@ export default function Navbar() {
                         <div className="hidden md:flex items-center gap-6">
                             {!isAuthPage && (
                                 <>
+                                    {/* Navigation Links — content is public, visible for everyone */}
+                                    <div className="flex items-center gap-1">
+                                        {user && isAdmin && (
+                                            <Link
+                                                href="/admin"
+                                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/admin')
+                                                    ? 'bg-red-500/10 text-red-500'
+                                                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                Admin
+                                            </Link>
+                                        )}
+                                        <Link
+                                            href="/browse"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/browse')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            Explorar
+                                        </Link>
+
+
+                                        <Link
+                                            href="/live-tv"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            TV en Vivo
+                                        </Link>
+
+                                        {user && (
+                                            <Link
+                                                href="/favorites"
+                                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname === '/favorites'
+                                                    ? 'bg-accent/10 text-accent'
+                                                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                Favoritos
+                                            </Link>
+                                        )}
+                                        <Link
+                                            href="/editorial"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/editorial')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <BookOpen className="w-3.5 h-3.5" />
+                                            Editorial
+                                        </Link>
+                                    </div>
+
+                                    {/* Search Bar — public, prominent for everyone */}
+                                    <div className="h-8 w-px bg-white/10 mx-2" />
+                                    <SearchInput className="w-64" />
+
                                     {user ? (
                                         <>
-                                            {/* Navigation Links */}
-                                            <div className="flex items-center gap-1">
-                                                {isAdmin && (
-                                                    <Link
-                                                        href="/admin"
-                                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/admin')
-                                                            ? 'bg-red-500/10 text-red-500'
-                                                            : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                            }`}
-                                                    >
-                                                        Admin
-                                                    </Link>
-                                                )}
-                                                <Link
-                                                    href="/browse"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/browse')
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    Explorar
-                                                </Link>
-
-
-                                                <Link
-                                                    href="/live-tv"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    TV en Vivo
-                                                </Link>
-
-                                                <Link
-                                                    href="/favorites"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname === '/favorites'
-                                                        ? 'bg-accent/10 text-accent'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    Favoritos
-                                                </Link>
-                                                <Link
-                                                    href="/editorial"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/editorial')
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    <BookOpen className="w-3.5 h-3.5" />
-                                                    Editorial
-                                                </Link>
-                                            </div>
-
-                                            {/* Search Bar */}
-                                            <div className="h-8 w-px bg-white/10 mx-2" />
-                                            <SearchInput className="w-64" />
-
                                             {/* Notification Center */}
                                             <NotificationCenter user={user} favorites={favorites} />
 
@@ -261,7 +263,7 @@ export default function Navbar() {
                                                 href="/register"
                                                 className="px-6 py-2.5 rounded-full bg-primary text-black font-bold text-sm hover:bg-primary-hover hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20"
                                             >
-                                                Comenzar Gratis
+                                                Crear Cuenta
                                             </Link>
                                         </div>
                                     )}

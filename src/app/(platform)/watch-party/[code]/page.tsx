@@ -1,3 +1,4 @@
+// src/app/(platform)/watch-party/[code]/page.tsx
 import WatchPartyRoom from './WatchPartyRoom';
 
 interface Props {
