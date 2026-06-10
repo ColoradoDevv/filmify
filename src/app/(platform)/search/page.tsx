@@ -10,13 +10,48 @@ import { searchMovies } from '@/lib/tmdb/service';
 import { filterAvailableMovies } from '@/server/services/vimeus';
 import { getSearchCorrection } from '@/lib/ai';
 import type { Movie } from '@/types/tmdb';
+import type { Metadata } from 'next';
 
 interface SearchPageTVProps {
     initialQuery: string;
     initialResults: Movie[];
 }
 
-export default function SearchPageTV({ initialQuery, initialResults }: SearchPageTVProps) {
+export const metadata: Metadata = {
+    title: 'Buscar películas y series | FilmiFy',
+    description:
+        'Busca cualquier película o serie y descubre dónde verla online: streaming, alquiler o compra, con tráilers y reseñas.',
+    alternates: { canonical: '/search' },
+};
+
+type SearchPageProps = {
+    searchParams: Promise<{ q?: string }>;
+};
+
+export default async function SearchPage({ searchParams }: SearchPageProps) {
+    const { q } = await searchParams;
+    const query = q?.trim() ?? '';
+
+    let initialResults: Movie[] = [];
+
+    if (query) {
+        try {
+            const data = await searchMovies(query);
+            initialResults = await filterAvailableMovies(data.results as Movie[]);
+        } catch (error) {
+            console.error('Error fetching initial search:', error);
+        }
+    }
+
+    return (
+        <SearchPageClient
+            initialQuery={query}
+            initialResults={initialResults}
+        />
+    );
+}
+
+function SearchPageClient({ initialQuery, initialResults }: SearchPageTVProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialQueryValue = searchParams.get('q') ?? '';
