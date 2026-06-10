@@ -167,6 +167,41 @@ export async function getRecentlyAddedMovies(limit = 20): Promise<VimeusMovie[]>
     return (data?.movies ?? []).slice(0, limit);
 }
 
+// ── Catálogo (para sitemap) ──────────────────────────────────────────────────
+// Devuelve los N títulos más recientemente sincronizados (orden synced_at desc
+// del listing). Las páginas individuales están cacheadas 1h, así que recorrer
+// varias páginas es barato.
+
+export async function getVimeusMovieCatalog(limit = 300): Promise<VimeusMovie[]> {
+    if (!API_KEY) return [];
+    const items: VimeusMovie[] = [];
+    let page = 1;
+    let hasNext = true;
+    while (hasNext && items.length < limit && page <= MAX_PAGES) {
+        const data = await fetchMoviesPage(page);
+        if (!data) break;
+        items.push(...data.movies);
+        hasNext = data.pagination.has_next;
+        page++;
+    }
+    return items.slice(0, limit);
+}
+
+export async function getVimeusSeriesCatalog(limit = 150): Promise<VimeusSeries[]> {
+    if (!API_KEY) return [];
+    const items: VimeusSeries[] = [];
+    let page = 1;
+    let hasNext = true;
+    while (hasNext && items.length < limit && page <= MAX_PAGES) {
+        const data = await fetchSeriesPage(page);
+        if (!data) break;
+        items.push(...data.series);
+        hasNext = data.pagination.has_next;
+        page++;
+    }
+    return items.slice(0, limit);
+}
+
 // ── Memoized ID Sets ─────────────────────────────────────────────────────────
 
 type Kind = 'movies' | 'series';
@@ -269,59 +304,103 @@ async function getAvailableIds(kind: Kind): Promise<Set<number> | null> {
     return memoPromises[kind];
 }
 
-// ── Embed‑probe fallback (solo películas) ────────────────────────────────────
+// ── Embed‑probe (validación profunda) ────────────────────────────────────────
 
-async function probeEmbed(tmdbId: number): Promise<boolean> {
+/**
+ * El listing de Vimeus incluye títulos cuyo embed todavía NO tiene fuentes
+ * ("Rastreando embeds.."). Verificado empíricamente: la página del embed
+ * incrusta su estado como JSON en el HTML del servidor:
+ *   - sin fuentes:  {"backdrop":...,"embeds":[],...}
+ *   - con fuentes:  {"backdrop":...,"embeds":[{"server":...,"url":...}],...}
+ * Esta sonda descarga el HTML y descarta los títulos con "embeds":[].
+ * Cacheada 6h por título (su crawler "actualiza cada pocas horas").
+ */
+async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' = 'movie'): Promise<boolean> {
     if (!VIEW_KEY) return true; // sin view key no podemos verificar → fail open
     try {
         const res = await fetch(
-            `${BASE_URL}/e/movie?tmdb=${tmdbId}&view_key=${VIEW_KEY}`,
+            `${BASE_URL}/e/${kind}?tmdb=${tmdbId}&view_key=${VIEW_KEY}`,
             {
-                next: { revalidate: 86_400 },
+                next: { revalidate: 21_600 }, // 6h
                 headers: { 'User-Agent': 'FilmiFy/1.0' },
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             },
         );
         if (!res.ok) return false;
         const html = await res.text();
-        // Busca <title> no vacío
-        const match = html.match(/<title>([^<]*)<\/title>/i);
-        return match ? match[1].trim().length > 0 : false;
+
+        if (kind === 'movie') {
+            // 1. Estado embebido con lista de fuentes vacía → no reproducible.
+            //    (caso "Rastreando embeds..": {"embeds":[],...})
+            if (/"embeds"\s*:\s*\[\s*\]/.test(html)) return false;
+            // 2. Estado embebido con fuentes → reproducible.
+            if (/"embeds"\s*:\s*\[/.test(html)) return true;
+        } else {
+            // Series: el estado embebido lista episodios sincronizados.
+            if (/"episodes"\s*:\s*\[\s*\{/.test(html)) return true;
+            if (/"episodes"\s*:\s*\[\s*\]/.test(html)) return false;
+        }
+
+        // Fallback (si Vimeus cambia el formato): <title> con nombre real →
+        // reproducible; vacío o genérico ("Player") → no.
+        const title = html.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim() ?? '';
+        return title.length > 0 && title.toLowerCase() !== 'player';
     } catch {
         return true; // error transitorio → fail open
     }
+}
+
+/** Sonda concurrente sobre una lista; conserva el orden. */
+async function probeFilter<T extends { id: number }>(
+    items: T[],
+    kind: 'movie' | 'serie',
+): Promise<T[]> {
+    if (items.length === 0) return items;
+    const flags: boolean[] = new Array(items.length).fill(false);
+    let cursor = 0;
+    async function worker() {
+        while (cursor < items.length) {
+            const idx = cursor++;
+            flags[idx] = await probeEmbed(items[idx].id, kind);
+        }
+    }
+    await Promise.all(
+        Array.from({ length: Math.min(MAX_PROBE_CONCURRENCY, items.length) }, worker),
+    );
+    return items.filter((_, idx) => flags[idx]);
 }
 
 // ── Public API — movies ───────────────────────────────────────────────────────
 
 export async function isMovieAvailableOnVimeus(tmdbId: number): Promise<boolean> {
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) return false;
+    // Etapa 1: el título debe estar en el listing oficial.
     const ids = await getAvailableIds('movies');
-    if (ids) return ids.has(tmdbId);
-    return probeEmbed(tmdbId);
+    if (ids && !ids.has(tmdbId)) return false;
+    // Etapa 2: el embed debe tener fuentes reales (no "Rastreando embeds…").
+    return probeEmbed(tmdbId, 'movie');
 }
 
 export async function filterAvailableMovies<T extends { id: number }>(
     items: T[],
 ): Promise<T[]> {
     if (items.length === 0) return items;
+    // Etapa 1: filtro por listing (O(1) por título).
     const ids = await getAvailableIds('movies');
-    if (ids) return items.filter((item) => ids.has(item.id));
-
-    // Fallback: probes concurrentes
-    const tasks = items.map((item) => () => probeEmbed(item.id));
-    const results = await runWithConcurrency(tasks, MAX_PROBE_CONCURRENCY);
-    return items.filter((_, idx) => results[idx] ?? false);
+    const candidates = ids ? items.filter((item) => ids.has(item.id)) : items;
+    // Etapa 2: sonda del embed (cacheada 6h) — descarta "sin embeds todavía".
+    return probeFilter(candidates, 'movie');
 }
 
 // ── Public API — series ───────────────────────────────────────────────────────
 
 export async function isSeriesAvailableOnVimeus(tmdbId: number): Promise<boolean> {
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) return false;
+    // Etapa 1: listing oficial (sin API key no podemos verificar → fail open).
     const ids = await getAvailableIds('series');
-    // Sin API key no podemos verificar series → fail open
-    if (!ids) return true;
-    return ids.has(tmdbId);
+    if (ids && !ids.has(tmdbId)) return false;
+    // Etapa 2: el embed debe tener fuentes reales.
+    return probeEmbed(tmdbId, 'serie');
 }
 
 export async function filterAvailableSeries<T extends { id: number }>(
@@ -329,8 +408,8 @@ export async function filterAvailableSeries<T extends { id: number }>(
 ): Promise<T[]> {
     if (items.length === 0) return items;
     const ids = await getAvailableIds('series');
-    if (!ids) return items; // fail open
-    return items.filter((item) => ids.has(item.id));
+    const candidates = ids ? items.filter((item) => ids.has(item.id)) : items;
+    return probeFilter(candidates, 'serie');
 }
 
 // ── Episodes map ──────────────────────────────────────────────────────────────

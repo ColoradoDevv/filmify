@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import AdBanner from '@/components/ads/AdBanner';
+import AdBanner from '@/components/ads/AdBanner1';
 
 /**
  * Hook to check if the current user is a premium subscriber
@@ -59,9 +59,9 @@ interface AdBannerWrapperProps {
 }
 
 /**
- * Wrapper component that only shows ads to free (non-premium) users
+ * Wrapper component that only shows ads to free (non-premium) users.
  */
-export default function AdBannerWrapper(props: AdBannerWrapperProps) {
+export default function AdBannerWrapper({ className }: AdBannerWrapperProps) {
     const { isPremium, isLoading } = useIsPremium();
 
     // Don't show anything while loading
@@ -74,6 +74,6 @@ export default function AdBannerWrapper(props: AdBannerWrapperProps) {
         return null;
     }
 
-    // Show ad to free users
-    return <AdBanner {...props} />;
+    // Show ad to free users (AdBanner renders its own container)
+    return <div className={className}><AdBanner /></div>;
 }

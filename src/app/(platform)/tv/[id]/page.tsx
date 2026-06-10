@@ -9,6 +9,7 @@ import {
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
+import AdBanner1 from '@/components/ads/AdBanner1';
 import Image from 'next/image';
 import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
 import Link from 'next/link';
@@ -28,7 +29,11 @@ interface PageProps {
 
 function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Metadata {
     const canonical = `/tv/${tvShow.id}`;
-    const title = `Ver ${tvShow.name} online | FilmiFy`;
+    // El año hace el título único y mejora el CTR en resultados de búsqueda.
+    const year = tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : null;
+    const title = year
+        ? `Ver ${tvShow.name} (${year}) online gratis | FilmiFy`
+        : `Ver ${tvShow.name} online gratis | FilmiFy`;
     const description = tvShow.overview
         ? `${tvShow.overview} Mira ${tvShow.name} online gratis en FilmiFy, todas las temporadas, sin registro.`
         : `Mira ${tvShow.name} online en FilmiFy, con temporadas completas, reparto y tráiler.`;
@@ -189,6 +194,23 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
             ratingValue: tvShow.vote_average.toFixed(1),
             ratingCount: tvShow.vote_count,
         } : undefined,
+        // WatchAction: eligible for "Watch now" rich results in Google.
+        potentialAction: {
+            '@type': 'WatchAction',
+            target: {
+                '@type': 'EntryPoint',
+                urlTemplate: `${appUrl}/tv/${tvShow.id}`,
+                actionPlatform: [
+                    'https://schema.org/DesktopWebPlatform',
+                    'https://schema.org/MobileWebPlatform',
+                ],
+            },
+            expectsAcceptanceOf: {
+                '@type': 'Offer',
+                price: 0,
+                priceCurrency: 'USD',
+            },
+        },
     };
 
     const breadcrumbJsonLd = {
@@ -430,6 +452,11 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
                             </dl>
                         </div>
                     </section>
+
+                    {/* ── Publicidad ── */}
+                    <div className="mt-10">
+                        <AdBanner1 />
+                    </div>
 
                     {/* ── Reparto: compact horizontal row ── */}
                     {cast.length > 0 && (

@@ -52,7 +52,9 @@ const PROTECTED_PREFIXES = [
     '/lists',
     '/settings',
     '/profile',
-    '/watch-party',
+    // NOTE: /watch-party is NOT middleware-protected on purpose — the page
+    // itself shows anonymous visitors a friendly "inicia sesión" screen
+    // instead of a hard redirect.
 ];
 
 /** Admin routes — require admin/super_admin role */

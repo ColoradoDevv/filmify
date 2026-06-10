@@ -5,10 +5,12 @@ import Image from 'next/image';
 import { Heart, Play, Star, Film, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store/useStore';
 import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
+import { createClient } from '@/lib/supabase/client';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 import type { Movie, TVShow } from '@/types/tmdb';
 import { useRouter } from 'next/navigation';
 import { useTVDetection } from '@/hooks/useTVDetection';
+import { toast } from 'sonner';
 
 interface MovieCardProps {
     movie: Movie | TVShow;
@@ -59,6 +61,14 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
             e.preventDefault();
             e.stopPropagation();
             if (favLoading) return;
+
+            // Favoritos es una función solo para usuarios registrados.
+            const { data: { user } } = await createClient().auth.getUser();
+            if (!user) {
+                toast.info('Inicia sesión para guardar favoritos');
+                router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+                return;
+            }
 
             setFavLoading(true);
             const nextFavorites = isFavorite
