@@ -6,9 +6,8 @@ import { Search, X, Loader2, Sparkles, Frown } from 'lucide-react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import TVKeyboard from '@/components/tv/TVKeyboard';
 import MovieCard from '@/components/features/MovieCard';
-// ⚠️ Usamos el cliente TMDB (api proxy) y una server action para el filtro
-import { searchMovies } from '@/lib/tmdb/client';
-import { filterAvailableMovies } from '@/app/actions/catalog'; // o una server action específica
+import { searchMovies } from '@/lib/tmdb/service';
+import { filterAvailableMovies } from '@/server/services/vimeus';
 import { getSearchCorrection } from '@/lib/ai';
 import type { Movie } from '@/types/tmdb';
 
@@ -33,7 +32,6 @@ export default function SearchPageClient({
 
     useSpatialNavigation(containerRef, { enabled: true });
 
-    // Búsqueda manual (cuando el usuario pulsa enviar o una corrección)
     const performSearch = useCallback(
         (searchQuery: string) => {
             const trimmed = searchQuery.trim();
@@ -46,7 +44,6 @@ export default function SearchPageClient({
             startTransition(async () => {
                 try {
                     const data = await searchMovies(trimmed);
-                    // filterAvailableMovies es una server action, podemos llamarla
                     const filtered = await filterAvailableMovies(data.results as Movie[]);
                     setResults(filtered);
 
@@ -70,7 +67,6 @@ export default function SearchPageClient({
         []
     );
 
-    // Si cambia la URL (por navegación con el teclado virtual) actualizamos el estado
     useEffect(() => {
         setQuery(initialQuery);
         setResults(initialResults);
@@ -113,7 +109,6 @@ export default function SearchPageClient({
             className="min-h-screen p-6 lg:p-8"
             onKeyDown={handleKeyDown}
         >
-            {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center">
@@ -127,7 +122,6 @@ export default function SearchPageClient({
                     </div>
                 </div>
 
-                {/* Barra de búsqueda interactiva */}
                 <div className="relative w-full max-w-2xl">
                     <div
                         ref={searchBarRef}
@@ -166,7 +160,6 @@ export default function SearchPageClient({
                         )}
                     </div>
 
-                    {/* Botón de limpiar */}
                     {query && !isSearching && (
                         <button
                             onClick={(e) => {
@@ -184,7 +177,6 @@ export default function SearchPageClient({
                 </div>
             </div>
 
-            {/* Teclado virtual */}
             {showKeyboard && (
                 <div className="mb-8 max-w-2xl animate-in fade-in slide-in-from-top-2 duration-200">
                     <TVKeyboard
@@ -196,7 +188,6 @@ export default function SearchPageClient({
                 </div>
             )}
 
-            {/* Resultados */}
             <div className="mt-8">
                 {isSearching ? (
                     <div className="flex items-center justify-center py-20">
@@ -273,4 +264,4 @@ export default function SearchPageClient({
             </div>
         </div>
     );
-}   
+}

@@ -196,7 +196,7 @@ export function subscribeToNotifications(
                 onNew(normalizeNotification(payload.new));
             },
         )
-        .subscribe((status, err) => {
+        .subscribe((status: string, err: Error | null) => {
             if (status === 'CHANNEL_ERROR' && err) {
                 console.error('[notifications] Realtime subscription error:', err);
             }

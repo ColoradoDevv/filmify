@@ -173,13 +173,13 @@ export function subscribeToMembers(
             schema: 'public',
             table: 'party_members',
             filter: `party_id=eq.${partyId}`,
-        }, (payload) => onInsert(payload.new))
+        }, (payload: { new: Record<string, unknown> }) => onInsert(payload.new))
         .on('postgres_changes', {
             event: 'DELETE',
             schema: 'public',
             table: 'party_members',
             filter: `party_id=eq.${partyId}`,
-        }, (payload) => onDelete(payload.old))
+        }, (payload: { old: Record<string, unknown> }) => onDelete(payload.old))
         .subscribe();
 }
 
@@ -198,7 +198,7 @@ export function subscribeToMessages(
             schema: 'public',
             table: 'party_messages',
             filter: `party_id=eq.${partyId}`,
-        }, (payload: { new: any }) => {
+        }, (payload: { new: Record<string, unknown> }) => {
             // La suscripción no incluye la relación profiles automáticamente,
             // pero podemos hacer un fetch rápido solo para ese usuario.
             // Alternativa: incluir username/avatar en el payload con un trigger DB.
@@ -209,7 +209,7 @@ export function subscribeToMessages(
 }
 
 /** Obtiene el perfil de un usuario y construye el ChatMessage. */
-async function fetchProfileAndBuildMessage(row: any): Promise<ChatMessage> {
+async function fetchProfileAndBuildMessage(row: Record<string, unknown>): Promise<ChatMessage> {
     try {
         const { data: profile } = await supabase
             .from('profiles')
@@ -239,7 +239,7 @@ export function removeChannel(channel: RealtimeChannel): void {
  */
 export async function removeChannelsByPrefix(prefix: string): Promise<void> {
     const channels = supabase.getChannels();
-    channels.forEach((ch) => {
+    channels.forEach((ch: RealtimeChannel) => {
         if (ch.topic.startsWith(prefix)) {
             supabase.removeChannel(ch);
         }
@@ -249,7 +249,7 @@ export async function removeChannelsByPrefix(prefix: string): Promise<void> {
 /** Elimina TODOS los canales de Watch Party (prefijos: party:, members:, messages:). */
 export async function removeAllWatchPartyChannels(): Promise<void> {
     const channels = supabase.getChannels();
-    channels.forEach((ch) => {
+    channels.forEach((ch: RealtimeChannel) => {
         if (ch.topic.startsWith('party:') || ch.topic.startsWith('members:') || ch.topic.startsWith('messages:')) {
             supabase.removeChannel(ch);
         }

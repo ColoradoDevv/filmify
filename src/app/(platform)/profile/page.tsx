@@ -12,6 +12,7 @@ import { useTVDetection } from '@/hooks/useTVDetection';
 import { getMediaDetails } from '@/lib/tmdb/client';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 import type { User } from '@supabase/supabase-js';
+import type { Movie as MovieDetails, TVShow as TVDetails } from '@/types/tmdb';
 
 interface ReviewItem {
     id: string;
@@ -203,7 +204,7 @@ export default function ProfilePage() {
                         const details = await getMediaDetails(review.media_type, review.media_id);
                         return {
                             id: review.media_id,
-                            title: review.media_type === 'movie' ? details.title : details.name,
+                            title: getMediaTitle(details, review.media_type),
                             poster_path: details.poster_path || null,
                             media_type: review.media_type,
                         };
@@ -839,3 +840,10 @@ export default function ProfilePage() {
         </div>
     );
 }
+
+const getMediaTitle = (details: MovieDetails | TVDetails, mediaType: string) => {
+    if (mediaType === 'movie') {
+        return (details as MovieDetails).title;
+    }
+    return (details as TVDetails).name;
+};
