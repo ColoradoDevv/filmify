@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import { searchMovies } from '@/lib/tmdb/service';
 import { filterAvailableMovies } from '@/server/services/vimeus';
-import SearchPageClient from './SearchPageClient.jsx';
+import SearchPageClient from './SearchPageClient';
 import type { Movie } from '@/types/tmdb';
 
 export const metadata: Metadata = {
