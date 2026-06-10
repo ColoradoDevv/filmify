@@ -19,11 +19,11 @@ interface SearchPageTVProps {
 export default function SearchPageTV({ initialQuery, initialResults }: SearchPageTVProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const initialQueryValue = searchParams.get('q') ?? '';
 
-    // La fuente única de verdad es la prop initialQuery (viene del servidor).
-    const [query, setQuery] = useState(initialQuery);
+    const [query, setQuery] = useState(initialQueryValue);
     const [results, setResults] = useState<Movie[]>(initialResults);
-    const [showKeyboard, setShowKeyboard] = useState(!initialQuery);
+    const [showKeyboard, setShowKeyboard] = useState(!initialQueryValue);
     const [isSearching, startTransition] = useTransition();
     const [aiCorrection, setAiCorrection] = useState<string | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -31,24 +31,19 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
 
     useSpatialNavigation(containerRef, { enabled: true });
 
-    // Sincronizar estado cuando cambian las props (por navegación o recarga)
     useEffect(() => {
-        setQuery(initialQuery);
-        setShowKeyboard(!initialQuery);
+        setQuery(initialQueryValue);
+        setShowKeyboard(!initialQueryValue);
 
-        if (!initialQuery) {
+        if (!initialQueryValue) {
             setResults([]);
             setAiCorrection(null);
             return;
         }
 
-        // Ejecutar búsqueda directamente aquí (sin depender de performSearch en el array)
-        const trimmed = initialQuery.trim();
-        if (!trimmed) {
-            setResults([]);
-            setAiCorrection(null);
-            return;
-        }
+        const trimmed = initialQueryValue.trim();
+        if (!trimmed) return;
+
         startTransition(async () => {
             try {
                 const { results: rawResults } = await searchMovies(trimmed);
@@ -71,9 +66,8 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                 setAiCorrection(null);
             }
         });
-    }, [initialQuery]); // Solo depende de la prop
+    }, [initialQueryValue]);
 
-    // Búsqueda lanzada manualmente por el usuario (desde teclado virtual o corrección)
     const performSearch = useCallback((searchQuery: string) => {
         const trimmed = searchQuery.trim();
         if (!trimmed) {
@@ -110,7 +104,6 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
         if (!trimmed) return;
         setShowKeyboard(false);
         performSearch(trimmed);
-        // Actualizar URL sin recargar la página
         router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
     }, [query, performSearch, router]);
 
