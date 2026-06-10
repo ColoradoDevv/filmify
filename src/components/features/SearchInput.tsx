@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -40,6 +40,11 @@ const getYear = (item: MultiSearchResult): string => {
     return '';
 };
 
+// ── Tipos para el dropdown ────────────────────────────────────────────
+type DropdownItem =
+    | { type: 'history'; item: SearchHistoryItem }
+    | { type: 'suggestion'; item: MultiSearchResult };
+
 interface SearchInputProps {
     className?: string;
     placeholder?: string;
@@ -57,7 +62,7 @@ export default function SearchInput({
     const [history, setHistory] = useState<SearchHistoryItem[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(-1); // navegación con teclado
+    const [activeIndex, setActiveIndex] = useState(-1);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -140,7 +145,6 @@ export default function SearchInput({
         async (searchQuery: string) => {
             const trimmed = searchQuery.trim();
             if (!trimmed) return;
-            // Guardar historial antes de navegar (no esperamos)
             try {
                 await addToHistory(trimmed);
                 const updated = await getHistory();
@@ -156,7 +160,6 @@ export default function SearchInput({
 
     const goToItem = useCallback(
         async (item: MultiSearchResult) => {
-            // Guardar en historial el nombre/título
             const name = getTitle(item);
             if (name) {
                 try { await addToHistory(name); } catch {}
@@ -183,15 +186,18 @@ export default function SearchInput({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (!showSuggestions) return;
 
-        const allItems = [...history.map(h => ({ type: 'history', item: h })), ...suggestions.map(s => ({ type: 'suggestion', item: s }))];
+        const allItems: DropdownItem[] = [
+            ...history.map((h) => ({ type: 'history' as const, item: h })),
+            ...suggestions.map((s) => ({ type: 'suggestion' as const, item: s })),
+        ];
         const totalItems = allItems.length;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setActiveIndex(prev => (prev < totalItems - 1 ? prev + 1 : 0));
+            setActiveIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            setActiveIndex(prev => (prev > 0 ? prev - 1 : totalItems - 1));
+            setActiveIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (activeIndex >= 0 && activeIndex < totalItems) {
@@ -199,7 +205,7 @@ export default function SearchInput({
                 if (selected.type === 'history') {
                     goToSearch(selected.item.query);
                 } else {
-                    goToItem(selected.item);
+                    goToItem(selected.item as MultiSearchResult);
                 }
             } else if (query.trim()) {
                 goToSearch(query);
@@ -216,11 +222,7 @@ export default function SearchInput({
         setActiveIndex(-1);
     };
 
-    // Número total de items para saber cuándo mostrar el dropdown
     const showDropdown = showSuggestions && (query.trim().length >= 2 || history.length > 0);
-    const combinedItems = query.trim().length >= 2
-        ? suggestions.map(s => ({ type: 'suggestion' as const, item: s }))
-        : history.map(h => ({ type: 'history' as const, item: h }));
 
     return (
         <div ref={wrapperRef} className={`relative ${className}`}>
@@ -283,7 +285,7 @@ export default function SearchInput({
                     aria-label="Sugerencias de búsqueda"
                 >
                     <div className="py-2">
-                        {/* Sección de historial (solo si no hay query suficiente) */}
+                        {/* Sección de historial */}
                         {query.trim().length < 2 && history.length > 0 && (
                             <li className="mb-2" role="none">
                                 <div className="px-4 py-2 flex items-center justify-between">
