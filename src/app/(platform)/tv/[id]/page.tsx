@@ -20,6 +20,7 @@ interface PageProps {
 }
 
 function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Metadata {
+    const canonical = `/tv/${tvShow.id}`;
     const title = `Dónde ver ${tvShow.name} online | FilmiFy`;
     const description = tvShow.overview
         ? `${tvShow.overview} Descubre dónde ver ${tvShow.name} online, con proveedores de streaming, temporada y reparto.`
@@ -48,9 +49,11 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
         title,
         description,
         keywords,
+        alternates: { canonical },
         openGraph: {
             title,
             description,
+            url: canonical,
             type: 'website',
             images: [
                 {
@@ -156,7 +159,7 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
 
     const appUrl = getOptionalApiKeys().appUrl;
     const posterUrl = getPosterUrl(tvShow.poster_path);
-    const jsonLd = {
+    const tvJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'TVSeries',
         name: tvShow.name,
@@ -167,6 +170,19 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
         actor: cast.map((person) => person.name),
         numberOfSeasons: tvShow.number_of_seasons,
     };
+
+    // BreadcrumbList — enables breadcrumb rich results in Google SERPs.
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Explorar', item: `${appUrl}/browse` },
+            { '@type': 'ListItem', position: 3, name: tvShow.name, item: `${appUrl}/tv/${tvShow.id}` },
+        ],
+    };
+
+    const jsonLd = [tvJsonLd, breadcrumbJsonLd];
 
     const isGlobalTV = await isTVDevice();
     const isManualTV = sp.tv === 'true';

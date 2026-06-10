@@ -1,5 +1,13 @@
 import React from 'react';
 import { AlertTriangle, XCircle, ShieldAlert, Ban, Fingerprint, Mail, UserMinus, ShieldOff, Info } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Términos y Condiciones - FilmiFy',
+    description: 'Términos y condiciones de uso de la plataforma FilmiFy.',
+    alternates: { canonical: '/legal/terms' },
+};
+
 
 export default function TermsPage() {
     return (

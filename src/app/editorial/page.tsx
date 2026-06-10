@@ -6,6 +6,7 @@ import {
 import { getPublishedArticles, getFeaturedArticle, getLatestNews, CATEGORIES } from '@/lib/editorial';
 import NewsCard from '@/components/editorial/NewsCard';
 import ArticleImage from '@/components/editorial/ArticleImage';
+import { getOptionalApiKeys } from '@/lib/env';
 
 export const metadata: Metadata = {
     title: 'FilmiFy Editorial — Noticias, guías y reseñas de cine 2026',
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
         title: 'FilmiFy Editorial — Noticias y Análisis de Cine',
         description: 'Análisis profundos, guías de visualización y las últimas tendencias del cine y streaming.',
         type: 'website',
-        url: 'https://filmify.me/editorial',
+        url: '/editorial',
         siteName: 'FilmiFy',
         locale: 'es_ES',
     },
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
         description: 'Las mejores noticias y guías de cine en un solo lugar.',
     },
     alternates: {
-        canonical: 'https://filmify.me/editorial'
+        canonical: '/editorial'
     }
 };
 
@@ -202,18 +203,19 @@ export default async function EditorialPage() {
     const sources = Object.keys(newsBySource);
 
     // JSON-LD Structured Data for Editorial Index
+    const appUrl = getOptionalApiKeys().appUrl;
     const structuredData = {
         "@context": "https://schema.org",
         "@type": "Blog",
         "name": "FilmiFy Editorial",
         "description": "Noticias, guías y reseñas de cine y streaming",
-        "url": "https://filmify.me/editorial",
+        "url": `${appUrl}/editorial`,
         "publisher": {
             "@type": "Organization",
             "name": "FilmiFy",
             "logo": {
                 "@type": "ImageObject",
-                "url": "https://filmify.me/logo-icon.svg"
+                "url": `${appUrl}/logo-icon.svg`
             }
         },
         "blogPost": articles.slice(0, 10).map(a => ({
@@ -226,7 +228,7 @@ export default async function EditorialPage() {
                 "@type": "Person",
                 "name": a.author_name
             },
-            "url": `https://filmify.me/editorial/${a.slug}`
+            "url": `${appUrl}/editorial/${a.slug}`
         }))
     };
 

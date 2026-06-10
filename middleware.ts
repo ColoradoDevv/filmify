@@ -104,6 +104,30 @@ function isTVRequest(request: NextRequest): boolean {
     return TV_UA_KEYWORDS.some(kw => ua.includes(kw));
 }
 
+/**
+ * Search-engine and social-preview crawlers. These must be able to render
+ * public content routes (movie/tv/browse/search) or:
+ *   - Google/Bing can never index the hundreds of URLs the sitemap announces
+ *     (they get 307 → /login, i.e. soft-404s), and
+ *   - shared links on WhatsApp/Facebook/Twitter show the login page instead
+ *     of the movie's Open Graph card.
+ * They see exactly the same server-rendered content as a logged-in user —
+ * playback itself stays behind auth (the embed proxies require a session).
+ */
+const CRAWLER_UA_KEYWORDS = [
+    // Search engines
+    'googlebot', 'google-inspectiontool', 'bingbot', 'duckduckbot',
+    'yandexbot', 'baiduspider', 'applebot', 'slurp', 'seznambot', 'petalbot',
+    // Social / messaging link-preview bots (need OG tags)
+    'facebookexternalhit', 'facebookcatalog', 'twitterbot', 'linkedinbot',
+    'whatsapp', 'telegrambot', 'discordbot', 'slackbot', 'pinterestbot',
+];
+
+function isCrawlerRequest(request: NextRequest): boolean {
+    const ua = request.headers.get('user-agent')?.toLowerCase() || '';
+    return CRAWLER_UA_KEYWORDS.some(kw => ua.includes(kw));
+}
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 
 export default async function middleware(request: NextRequest) {
@@ -222,8 +246,9 @@ export default async function middleware(request: NextRequest) {
     //    TV devices get a pass on content routes — they can't easily log in.
     //    Preserve the intended destination so we can redirect back after login.
     if (!user && (isProtected || isAdmin)) {
-        if (isTVRequest(request) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
-            // TV device (by UA or cookie) accessing a content route — allow without auth.
+        if ((isTVRequest(request) || isCrawlerRequest(request)) && isMatch(pathname, TV_PUBLIC_PREFIXES)) {
+            // TV device or search/social crawler accessing a content route —
+            // allow without auth so pages can be indexed and previewed.
             return response;
         }
         const loginUrl = new URL('/login', request.url);

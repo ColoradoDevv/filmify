@@ -42,6 +42,8 @@ export default function VideoPlayer({
     const [error, setError]               = useState(false);
     const [hasSavedWatched, setHasSaved]  = useState(false);
     const [controlsVisible, setControlsVisible] = useState(true);
+    // Bumped on retry to force the iframe to remount and actually re-fetch.
+    const [reloadKey, setReloadKey]       = useState(0);
 
     const isWatched  = useStore((s) => s.isWatched(mediaId));
     const addWatched = useStore((s) => s.addWatched);
@@ -53,7 +55,7 @@ export default function VideoPlayer({
     const containerRef      = useRef<HTMLDivElement>(null);
     const iframeRef         = useRef<HTMLIFrameElement>(null);
 
-    // ── Request fullscreen on mount (suppresses "VER EN PANTALLA GRANDE") ──
+    // -- Request fullscreen on mount (suppresses "VER EN PANTALLA GRANDE") --
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -63,9 +65,7 @@ export default function VideoPlayer({
             (el as any).mozRequestFullScreen?.bind(el) ||
             (el as any).msRequestFullscreen?.bind(el);
         req?.().catch(() => {
-            // Fullscreen may be blocked by browser policy — silently ignore.
-            // The player still works; the Vimeus overlay may appear but is
-            // dismissible by the user.
+            // Fullscreen may be blocked by browser policy -- silently ignore.
         });
         return () => {
             const exit =
@@ -77,11 +77,10 @@ export default function VideoPlayer({
         };
     }, []);
 
-    // ── Show controls briefly then auto-hide ────────────────────────────────
+    // -- Show controls briefly then auto-hide --
     const showControls = useCallback(() => {
         setControlsVisible(true);
         if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-        // Hide after 3s of inactivity (only once loading is done)
         hideControlsTimer.current = setTimeout(() => {
             setControlsVisible(false);
         }, 3000);
@@ -106,21 +105,21 @@ export default function VideoPlayer({
 
     const embedUrl = buildVimeusUrl(mediaId, mediaType, season, episode);
 
-    // ── Lock body scroll ────────────────────────────────────────────────────
+    // -- Lock body scroll --
     useEffect(() => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
     }, []);
 
-    // ── Escape key ──────────────────────────────────────────────────────────
+    // -- Escape key --
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    // ── Load timeout ────────────────────────────────────────────────────────
+    // -- Load timeout --
     useEffect(() => {
         isMounted.current = true;
         setIsLoading(true);
@@ -137,9 +136,9 @@ export default function VideoPlayer({
             isMounted.current = false;
             if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
         };
-    }, [embedUrl]);
+    }, [embedUrl, reloadKey]);
 
-    // ── Mark as watched after 5s ────────────────────────────────────────────
+    // -- Mark as watched after 5s --
     useEffect(() => {
         if (isLoading || error || isWatched || hasSavedWatched) return;
         const t = window.setTimeout(() => {
@@ -161,17 +160,17 @@ export default function VideoPlayer({
     const handleRetry = () => {
         setIsLoading(true);
         setError(false);
-        // Re-arm timeout
-        if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
-        loadTimeoutRef.current = setTimeout(() => {
-            if (isMounted.current) { setIsLoading(false); setError(true); }
-        }, LOAD_TIMEOUT_MS);
+        // Bumping reloadKey changes the iframe's key, forcing React to remount
+        // it so the embed is actually re-fetched. The load-timeout effect re-arms
+        // off [embedUrl, reloadKey]. Without this the iframe kept its previous
+        // (dead) state and onLoad never fired again.
+        setReloadKey((k) => k + 1);
     };
 
     return (
         <div ref={containerRef} className="fixed inset-0 z-[200] bg-black flex flex-col">
 
-            {/* Top bar — auto-hides during playback, reappears on any interaction */}
+            {/* Top bar -- auto-hides during playback, reappears on any interaction */}
             <div className={`absolute top-0 inset-x-0 z-30 px-4 py-3 bg-gradient-to-b from-black/80 to-transparent flex items-center gap-3 transition-opacity duration-500 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <button
                     onClick={onClose}
@@ -232,7 +231,7 @@ export default function VideoPlayer({
                 {/* Iframe */}
                 <iframe
                     ref={iframeRef}
-                    key={embedUrl}
+                    key={`${embedUrl}#${reloadKey}`}
                     src={embedUrl}
                     title={`Reproductor: ${title}`}
                     className="w-full h-full border-0"
