@@ -1,4 +1,12 @@
 import React from 'react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Política de Privacidad - FilmiFy',
+    description: 'Cómo FilmiFy recopila, usa y protege tus datos personales.',
+    alternates: { canonical: '/legal/privacy' },
+};
+
 
 export default function PrivacyPage() {
     return (

@@ -8,6 +8,21 @@ import { isTVDevice } from '@/lib/device-detection';
 import SearchPageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Buscar películas y series | FilmiFy',
+    description: 'Busca cualquier película o serie y descubre dónde verla online: streaming, alquiler o compra, con tráilers y reseñas.',
+    // Canonical sin query params: las búsquedas (?q=) no deben competir
+    // entre sí ni indexarse como páginas duplicadas.
+    alternates: { canonical: '/search' },
+    openGraph: {
+        title: 'Buscar películas y series | FilmiFy',
+        description: 'Busca cualquier película o serie y descubre dónde verla online.',
+        url: '/search',
+        type: 'website',
+    },
+};
 
 export default async function SearchPage({
     searchParams,

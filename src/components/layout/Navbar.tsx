@@ -123,7 +123,8 @@ export default function Navbar() {
         const handleScroll = () => {
             setScrolled(window.scrollY > 20);
         };
-        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // sync on mount (e.g. when loading already scrolled)
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -177,7 +178,7 @@ export default function Navbar() {
 
                         {/* Desktop Navigation */}
                         <div className="hidden md:flex items-center gap-6">
-                            {!loading && !isAuthPage && (
+                            {!isAuthPage && (
                                 <>
                                     {user ? (
                                         <>

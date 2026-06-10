@@ -22,6 +22,7 @@ interface PageProps {
 }
 
 function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>): Metadata {
+    const canonical = `/movie/${movie.id}`;
     const title = `Dónde ver ${movie.title} online | FilmiFy`;
     const description = movie.overview
         ? `${movie.overview} Descubre dónde ver ${movie.title} online, con proveedores de streaming, alquiler y compra.`
@@ -50,9 +51,11 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
         title,
         description,
         keywords,
+        alternates: { canonical },
         openGraph: {
             title,
             description,
+            url: canonical,
             type: 'website',
             images: [
                 {
@@ -173,7 +176,8 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
         movie.release_dates?.results.find((r) => r.iso_3166_1 === 'US');
     const certification = releaseDates?.release_dates.find((r) => r.certification)?.certification || 'NR';
 
-    const jsonLd = {
+    const appUrl = getOptionalApiKeys().appUrl;
+    const movieJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'Movie',
         name: movie.title,
@@ -202,6 +206,19 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
             uploadDate: trailer.published_at,
         } : undefined,
     };
+
+    // BreadcrumbList — enables breadcrumb rich results in Google SERPs.
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Explorar', item: `${appUrl}/browse` },
+            { '@type': 'ListItem', position: 3, name: movie.title, item: `${appUrl}/movie/${movie.id}` },
+        ],
+    };
+
+    const jsonLd = [movieJsonLd, breadcrumbJsonLd];
 
     // Format currency
     const formatCurrency = (value: number) => {

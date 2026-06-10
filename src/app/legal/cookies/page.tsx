@@ -1,5 +1,13 @@
 import React from 'react';
 import { Lock, Settings, BarChart, Shield, AlertTriangle } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Política de Cookies - FilmiFy',
+    description: 'Qué cookies usa FilmiFy y cómo gestionarlas.',
+    alternates: { canonical: '/legal/cookies' },
+};
+
 
 export default function CookiesPage() {
     return (

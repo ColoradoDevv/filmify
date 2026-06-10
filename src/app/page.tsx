@@ -9,6 +9,7 @@ import TrendingScroller from '@/components/features/TrendingScroller';
 import { headers } from 'next/headers';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import type { Movie } from '@/types/tmdb';
+import { getOptionalApiKeys } from '@/lib/env';
 
 export const metadata: Metadata = {
   title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
@@ -29,12 +30,7 @@ export const metadata: Metadata = {
     title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
     description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
     type: 'website',
-    images: [
-      {
-        url: '/logo-icon.svg',
-        alt: 'FilmiFy: dónde ver películas y series online',
-      },
-    ],
+    // og:image: inherits the generated 1200x630 PNG from opengraph-image.tsx
   },
   twitter: {
     card: 'summary_large_image',
@@ -60,68 +56,31 @@ export default async function LandingPage() {
     ? getImageUrl(heroMovie.backdrop_path, isMobile ? 'w780' : 'original') 
     : null;
 
-  // JSON-LD Structured Data for SEO
+  // JSON-LD Structured Data for SEO.
+  // Organization + WebSite live in the root layout (site-wide). Here we only
+  // add the WebApplication node, with URLs derived from the configured domain.
+  const appUrl = getOptionalApiKeys().appUrl;
   const structuredData = {
     "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": "https://filmify.com/#organization",
-        name: "FilmiFy",
-        url: "https://filmify.com",
-        logo: {
-          "@type": "ImageObject",
-          url: "https://filmify.com/logo-icon.svg",
-          width: 512,
-          height: 512
-        },
-        description: "Plataforma premium para descubrir, organizar y disfrutar de películas y series",
-        sameAs: [
-          "https://twitter.com/filmify",
-          "https://facebook.com/filmify"
-        ]
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://filmify.com/#website",
-        url: "https://filmify.com",
-        name: "FilmiFy",
-        description: "Tu universo de películas - Descubre, organiza y disfruta",
-        publisher: {
-          "@id": "https://filmify.com/#organization"
-        },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: "https://filmify.com/browse?q={search_term_string}"
-          },
-          "query-input": "required name=search_term_string"
-        },
-        inLanguage: "es-ES"
-      },
-      {
-        "@type": "WebApplication",
-        "@id": "https://filmify.com/#webapp",
-        name: "FilmiFy",
-        url: "https://filmify.com",
-        applicationCategory: "EntertainmentApplication",
-        operatingSystem: "Web Browser",
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD"
-        },
-        description: "Aplicación web para gestionar tu colección de películas con búsqueda inteligente, listas personalizadas y catálogo actualizado",
-        featureList: [
-          "Búsqueda inteligente de películas",
-          "Listas personalizadas",
-          "Catálogo actualizado diariamente",
-          "Sincronización en la nube"
-        ],
-        screenshot: "https://filmify.com/screenshot.jpg"
-      }
-    ]
+    "@type": "WebApplication",
+    "@id": `${appUrl}/#webapp`,
+    name: "FilmiFy",
+    url: appUrl,
+    applicationCategory: "EntertainmentApplication",
+    operatingSystem: "Web Browser",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD"
+    },
+    description: "Aplicación web para descubrir dónde ver películas y series online, con búsqueda inteligente, listas personalizadas y catálogo actualizado",
+    featureList: [
+      "Búsqueda inteligente de películas",
+      "Listas personalizadas",
+      "Catálogo actualizado diariamente",
+      "Sincronización en la nube"
+    ],
+    inLanguage: "es-ES"
   };
 
   return (

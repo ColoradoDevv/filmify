@@ -13,6 +13,14 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
+import type { Metadata } from 'next';
+
+// Admin dashboard — private, never indexable.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
+
+
 // Force dynamic rendering for all admin routes since they use cookies for auth
 export const dynamic = 'force-dynamic';
 

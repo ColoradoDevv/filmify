@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getPopular, getTrending, getBlacklist } from '@/server/services/tmdb';
+import { getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
 
 /**
@@ -42,23 +43,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.8,
         },
         {
-            url: `${BASE_URL}/favorites`,
+            url: `${BASE_URL}/editorial`,
+            lastModified: currentDate,
+            changeFrequency: 'daily',
+            priority: 0.8,
+        },
+        {
+            url: `${BASE_URL}/live-tv`,
             lastModified: currentDate,
             changeFrequency: 'weekly',
             priority: 0.7,
         },
-        {
-            url: `${BASE_URL}/profile`,
+        ...Object.keys(CATEGORIES).map((cat) => ({
+            url: `${BASE_URL}/editorial/categoria/${cat}`,
             lastModified: currentDate,
-            changeFrequency: 'monthly',
-            priority: 0.6,
-        },
-        {
-            url: `${BASE_URL}/lists`,
-            lastModified: currentDate,
-            changeFrequency: 'monthly',
+            changeFrequency: 'weekly' as const,
             priority: 0.5,
-        },
+        })),
         {
             url: `${BASE_URL}/contact`,
             lastModified: currentDate,
@@ -133,8 +134,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 priority: 0.8,
             }));
 
+        // Editorial articles — public, high-value SEO content.
+        let articleUrls: MetadataRoute.Sitemap = [];
+        try {
+            const articles = await getPublishedArticles(100);
+            articleUrls = articles.map((a) => ({
+                url: `${BASE_URL}/editorial/${a.slug}`,
+                lastModified: new Date(a.updated_at || a.published_at || a.created_at),
+                changeFrequency: 'weekly' as const,
+                priority: 0.7,
+            }));
+        } catch (e) {
+            console.warn('[sitemap] editorial fetch failed', e);
+        }
+
         // Combine all URLs
-        return [...staticPages, ...movieUrls, ...tvUrls];
+        return [...staticPages, ...movieUrls, ...tvUrls, ...articleUrls];
     } catch (error) {
         console.error('Error generating sitemap:', error);
         // Return at least static pages if API fails

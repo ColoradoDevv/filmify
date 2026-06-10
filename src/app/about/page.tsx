@@ -7,6 +7,13 @@ import Image from 'next/image';
 export const metadata = {
     title: 'Sobre Nosotros - FilmiFy',
     description: 'Conoce la misión de FilmiFy: transformar la forma en que descubres y disfrutas del cine y las series.',
+    alternates: { canonical: '/about' },
+    openGraph: {
+        title: 'Sobre Nosotros - FilmiFy',
+        description: 'Conoce la misión de FilmiFy: transformar la forma en que descubres y disfrutas del cine y las series.',
+        url: '/about',
+        type: 'website',
+    },
 };
 
 export default function AboutPage() {

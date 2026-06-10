@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Clock, Tag, Calendar, ArrowRight, BookOpen } from 'lucide-react';
 import { getArticleBySlug, getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import ArticleImage from '@/components/editorial/ArticleImage';
+import { getOptionalApiKeys } from '@/lib/env';
 
 interface Props {
     params: Promise<{ slug: string }>;
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             authors: [article.author_name],
             images: article.cover_url ? [{ url: article.cover_url }] : [],
             siteName: 'FilmiFy',
-            url: `https://filmify.me/editorial/${slug}`,
+            url: `/editorial/${slug}`,
         },
         twitter: {
             card: 'summary_large_image',
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             description: article.excerpt,
         },
         alternates: {
-            canonical: `https://filmify.me/editorial/${slug}`
+            canonical: `/editorial/${slug}`
         }
     };
 }
@@ -98,6 +99,7 @@ export default async function ArticlePage({ params }: Props) {
         ? new Date(article.published_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
         : '';
 
+    const appUrl = getOptionalApiKeys().appUrl;
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
@@ -115,12 +117,12 @@ export default async function ArticlePage({ params }: Props) {
             name: 'FilmiFy',
             logo: {
                 '@type': 'ImageObject',
-                url: 'https://filmify.me/logo-icon.svg',
+                url: `${appUrl}/logo-icon.svg`,
             },
         },
         mainEntityOfPage: {
             '@type': 'WebPage',
-            '@id': `https://filmify.me/editorial/${slug}`,
+            '@id': `${appUrl}/editorial/${slug}`,
         },
     };
 

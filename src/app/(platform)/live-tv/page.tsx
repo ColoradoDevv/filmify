@@ -1,8 +1,17 @@
 import LiveTVClient from './LiveTVClient';
 
-export const metadata = {
-    title: 'TV en Vivo - FilmiFy',
-    description: 'Mira canales de TV en vivo gratis de todo el mundo'
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'TV en Vivo gratis - Canales de todo el mundo | FilmiFy',
+    description: 'Mira canales de TV en vivo gratis de todo el mundo: noticias, deportes, entretenimiento y más, organizados por categoría.',
+    alternates: { canonical: '/live-tv' },
+    openGraph: {
+        title: 'TV en Vivo gratis - Canales de todo el mundo | FilmiFy',
+        description: 'Mira canales de TV en vivo gratis de todo el mundo: noticias, deportes, entretenimiento y más.',
+        url: '/live-tv',
+        type: 'website',
+    },
 };
 
 // ISR: rebuild at most once per day. The channel list is cached in Supabase

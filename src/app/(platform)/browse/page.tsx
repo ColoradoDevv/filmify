@@ -17,6 +17,7 @@ interface BrowsePageProps {
 }
 
 export const metadata: Metadata = {
+    alternates: { canonical: '/browse' },
     title: 'FilmiFy - Explora dónde ver películas y series online',
     description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
     keywords: [

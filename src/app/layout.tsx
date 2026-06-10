@@ -63,28 +63,22 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "https://filmify.com",
+    url: appUrl,
     siteName: "FilmiFy",
     title: "FilmiFy - Dónde ver películas y series online",
     description: "FilmiFy te ayuda a descubrir dónde ver películas y series online, con reseñas, tráileres y proveedores actualizados.",
-    images: [
-      {
-        url: "/logo-icon.svg",
-        width: 512,
-        height: 512,
-        alt: "FilmiFy - Plataforma de Dónde Ver Cine",
-      },
-    ],
+    // og:image is generated as a 1200x630 PNG by src/app/opengraph-image.tsx
+    // (file-based metadata) — social crawlers don't render SVG images.
   },
   twitter: {
     card: "summary_large_image",
     title: "FilmiFy - Dónde ver películas y series online",
     description: "Descubre dónde ver películas y series online, con proveedores de streaming, alquiler y compra.",
-    images: ["/logo-icon.svg"],
+    // twitter:image falls back to the generated og:image PNG.
     creator: "@filmify",
   },
   alternates: {
-    canonical: 'https://filmify.me',
+    canonical: '/',
   },
   category: "entertainment",
 };
@@ -113,6 +107,40 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
+        {/* Site-wide structured data: WebSite (enables Google sitelinks search
+            box) + Organization (brand knowledge panel). */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'FilmiFy',
+                url: appUrl,
+                potentialAction: {
+                  '@type': 'SearchAction',
+                  target: {
+                    '@type': 'EntryPoint',
+                    urlTemplate: `${appUrl}/search?q={search_term_string}`,
+                  },
+                  'query-input': 'required name=search_term_string',
+                },
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'FilmiFy',
+                url: appUrl,
+                logo: `${appUrl}/logo-icon.svg`,
+                sameAs: [
+                  'https://twitter.com/filmify',
+                  'https://facebook.com/filmify',
+                ],
+              },
+            ]),
+          }}
+        />
       </head>
       <body
         suppressHydrationWarning
