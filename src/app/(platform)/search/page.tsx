@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, X, Loader2, Sparkles, Frown } from 'lucide-react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import TVKeyboard from '@/components/tv/TVKeyboard';
@@ -18,6 +18,9 @@ interface SearchPageTVProps {
 
 export default function SearchPageTV({ initialQuery, initialResults }: SearchPageTVProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // La fuente única de verdad es la prop initialQuery (viene del servidor).
     const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState<Movie[]>(initialResults);
     const [showKeyboard, setShowKeyboard] = useState(!initialQuery);
@@ -28,28 +31,62 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
 
     useSpatialNavigation(containerRef, { enabled: true });
 
-    // Sincronizar estado si los props iniciales cambian (poco probable en cliente puro, pero por seguridad)
+    // Sincronizar estado cuando cambian las props (por navegación o recarga)
     useEffect(() => {
         setQuery(initialQuery);
-        setResults(initialResults);
-    }, [initialQuery, initialResults]);
+        setShowKeyboard(!initialQuery);
 
-    // Búsqueda cliente‑side: llama a la API de TMDB y filtra
-    const performSearch = useCallback(async (searchQuery: string) => {
-        const trimmed = searchQuery.trim();
-        if (!trimmed) {
+        if (!initialQuery) {
             setResults([]);
             setAiCorrection(null);
             return;
         }
 
+        // Ejecutar búsqueda directamente aquí (sin depender de performSearch en el array)
+        const trimmed = initialQuery.trim();
+        if (!trimmed) {
+            setResults([]);
+            setAiCorrection(null);
+            return;
+        }
         startTransition(async () => {
             try {
                 const { results: rawResults } = await searchMovies(trimmed);
                 const available = await filterAvailableMovies(rawResults as Movie[]);
                 setResults(available);
 
-                // Si no hay resultados, pedir corrección a la IA
+                if (available.length === 0) {
+                    try {
+                        const correction = await getSearchCorrection(trimmed);
+                        setAiCorrection(correction);
+                    } catch {
+                        setAiCorrection(null);
+                    }
+                } else {
+                    setAiCorrection(null);
+                }
+            } catch (error) {
+                console.error('Error buscando:', error);
+                setResults([]);
+                setAiCorrection(null);
+            }
+        });
+    }, [initialQuery]); // Solo depende de la prop
+
+    // Búsqueda lanzada manualmente por el usuario (desde teclado virtual o corrección)
+    const performSearch = useCallback((searchQuery: string) => {
+        const trimmed = searchQuery.trim();
+        if (!trimmed) {
+            setResults([]);
+            setAiCorrection(null);
+            return;
+        }
+        startTransition(async () => {
+            try {
+                const { results: rawResults } = await searchMovies(trimmed);
+                const available = await filterAvailableMovies(rawResults as Movie[]);
+                setResults(available);
+
                 if (available.length === 0) {
                     try {
                         const correction = await getSearchCorrection(trimmed);
@@ -68,24 +105,24 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
         });
     }, []);
 
-    // Maneja el envío desde el teclado virtual
     const handleKeyboardSubmit = useCallback(() => {
         const trimmed = query.trim();
         if (!trimmed) return;
         setShowKeyboard(false);
         performSearch(trimmed);
-    }, [query, performSearch]);
+        // Actualizar URL sin recargar la página
+        router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
+    }, [query, performSearch, router]);
 
-    // Al limpiar la búsqueda, resetea todo
     const handleClear = useCallback(() => {
         setQuery('');
         setResults([]);
         setAiCorrection(null);
         setShowKeyboard(true);
+        router.replace('/search');
         searchBarRef.current?.focus();
-    }, []);
+    }, [router]);
 
-    // Manejo global de teclas
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Escape') {
             if (showKeyboard) {
@@ -96,10 +133,7 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
         }
     };
 
-    // Determinar el placeholder del campo de búsqueda según el estado
-    const searchPlaceholder = query
-        ? query
-        : 'Buscar películas y series...';
+    const searchPlaceholder = query || 'Buscar películas y series...';
 
     return (
         <div
@@ -155,7 +189,6 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                             {searchPlaceholder}
                         </span>
 
-                        {/* Indicador de búsqueda en curso */}
                         {isSearching && (
                             <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
                         )}
@@ -226,7 +259,6 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                             No encontramos nada para &quot;{query}&quot;
                         </p>
 
-                        {/* Corrección de IA */}
                         {aiCorrection && (
                             <div className="flex items-center gap-2 bg-primary/10 px-5 py-3 rounded-xl border border-primary/20 animate-fade-in shadow-lg shadow-primary/5 mb-6">
                                 <Sparkles className="w-4 h-4 text-primary shrink-0" />
@@ -237,6 +269,7 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                                     onClick={() => {
                                         setQuery(aiCorrection);
                                         performSearch(aiCorrection);
+                                        router.replace(`/search?q=${encodeURIComponent(aiCorrection)}`);
                                     }}
                                     className="text-primary font-bold hover:underline tv-focusable focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                                     data-focusable="true"
