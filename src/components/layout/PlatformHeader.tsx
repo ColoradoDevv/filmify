@@ -54,19 +54,19 @@ export default function PlatformHeader() {
             {/* MD3 Top App Bar — small variant, 56px height */}
             <div
                 style={{ top: 'var(--announcement-height, 0px)' }}
-                className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
+                className="group/searchbar sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Mobile logo — se oculta cuando el usuario está escribiendo en la barra */}
-                <div className="flex items-center gap-2 lg:hidden shrink-0">
+                {/* Mobile logo — se oculta con una animación al enfocar la búsqueda */}
+                <div className="flex items-center gap-2 lg:hidden shrink-0 overflow-hidden transition-all duration-300 ease-out group-focus-within/searchbar:w-0 group-focus-within/searchbar:opacity-0 group-focus-within/searchbar:-translate-x-2">
                     <Link href="/" className="flex items-center gap-2" aria-label="Inicio" data-mobile-logo>
                         <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
                         <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
                     </Link>
                 </div>
 
-                {/* Search — cuando se enfoca en móvil, ocupa todo el ancho */}
-                <div className="flex-1 min-w-0 max-w-sm md3-search-container">
-                    <SearchInput className="w-full md3-search-input" placeholder="Buscar…" />
+                {/* Search — al enfocar en móvil, ocupa todo el ancho disponible */}
+                <div className="flex-1 min-w-0 max-w-sm transition-all duration-300 ease-out group-focus-within/searchbar:max-w-full">
+                    <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
 
@@ -83,7 +83,7 @@ export default function PlatformHeader() {
                     </Link>
                 )}
                 {user && (
-                    <div className="flex items-center gap-1 relative">
+                    <div className="flex items-center gap-1 relative shrink-0 overflow-hidden transition-all duration-300 ease-out group-focus-within/searchbar:w-0 group-focus-within/searchbar:opacity-0 group-focus-within/searchbar:translate-x-2 lg:group-focus-within/searchbar:w-auto lg:group-focus-within/searchbar:opacity-100 lg:group-focus-within/searchbar:translate-x-0">
                         <NotificationCenter user={user} />
 
                         {/* Avatar button — MD3 icon button */}

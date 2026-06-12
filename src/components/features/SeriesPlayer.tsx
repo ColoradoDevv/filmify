@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
-import { Play, Loader2, AlertCircle, RefreshCw, Tv, Youtube, Maximize } from 'lucide-react';
+import {
+    Play, Loader2, AlertCircle, RefreshCw, Tv, Youtube, Maximize,
+    ChevronLeft, ChevronRight, Layers, X,
+} from 'lucide-react';
 import { trackPlay, trackTrailer } from '@/lib/analytics';
 
 export interface SeasonEpisodes {
@@ -27,6 +30,7 @@ const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 // Player customization (per Vimeus docs): theme + brand color (FilmiFy cyan).
 const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autoplay=1';
 const LOAD_TIMEOUT_MS = 20_000;
+const NEXT_UP_SECONDS = 5;
 
 type Mode = 'idle' | 'serie' | 'trailer';
 
@@ -43,6 +47,10 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     const [season, setSeason] = useState<number>(seasons[0]?.season ?? 1);
     const [episode, setEpisode] = useState<number>(seasons[0]?.episodes[0] ?? 1);
 
+    // "Siguiente episodio" — cuenta atrás al terminar el episodio actual.
+    const [showNextUp, setShowNextUp] = useState(false);
+    const [countdown, setCountdown] = useState(NEXT_UP_SECONDS);
+
     const containerRef = useRef<HTMLDivElement>(null);
     const playButtonRef = useRef<HTMLButtonElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,7 +59,36 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         () => seasons.find((s) => s.season === season),
         [seasons, season],
     );
-    const episodeOptions = currentSeason?.episodes ?? [];
+    const episodeOptions = useMemo(() => currentSeason?.episodes ?? [], [currentSeason]);
+
+    // Próximo / anterior episodio (puede caer en la temporada siguiente/anterior).
+    const nextEpisode = useMemo(() => {
+        if (seasons.length === 0) return null;
+        const idx = episodeOptions.indexOf(episode);
+        if (idx !== -1 && idx + 1 < episodeOptions.length) {
+            return { season, episode: episodeOptions[idx + 1] };
+        }
+        const seasonIdx = seasons.findIndex((s) => s.season === season);
+        const next = seasons[seasonIdx + 1];
+        if (next && next.episodes.length > 0) {
+            return { season: next.season, episode: next.episodes[0] };
+        }
+        return null;
+    }, [seasons, season, episode, episodeOptions]);
+
+    const prevEpisode = useMemo(() => {
+        if (seasons.length === 0) return null;
+        const idx = episodeOptions.indexOf(episode);
+        if (idx > 0) {
+            return { season, episode: episodeOptions[idx - 1] };
+        }
+        const seasonIdx = seasons.findIndex((s) => s.season === season);
+        const prev = seasons[seasonIdx - 1];
+        if (prev && prev.episodes.length > 0) {
+            return { season: prev.season, episode: prev.episodes[prev.episodes.length - 1] };
+        }
+        return null;
+    }, [seasons, season, episode, episodeOptions]);
 
     // Keep selection valid if the seasons prop changes.
     useEffect(() => {
@@ -73,13 +110,19 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`
         : null;
 
-    const startSerie = useCallback(() => {
+    // Carga (o recarga) el reproductor en la temporada/episodio indicado.
+    const loadSerie = useCallback((s: number, e: number) => {
+        setSeason(s);
+        setEpisode(e);
         setMode('serie');
         setIsLoading(true);
         setError(false);
+        setShowNextUp(false);
         setReloadKey((k) => k + 1);
-        trackPlay({ mediaType: 'serie', tmdbId, title, season, episode });
-    }, [tmdbId, title, season, episode]);
+        trackPlay({ mediaType: 'serie', tmdbId, title, season: s, episode: e });
+    }, [tmdbId, title]);
+
+    const startSerie = useCallback(() => loadSerie(season, episode), [loadSerie, season, episode]);
 
     const startTrailer = useCallback(() => {
         if (!trailerUrl) return;
@@ -87,20 +130,31 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         setMode('trailer');
         setIsLoading(true);
         setError(false);
+        setShowNextUp(false);
         setReloadKey((k) => k + 1);
     }, [trailerUrl, tmdbId, title]);
 
-    // Changing season/episode while playing reloads the embed.
+    // Cambiar de temporada/episodio desde los selectores: si ya se está
+    // reproduciendo, recarga el embed; si no, solo actualiza la selección.
     const changeSeason = (s: number) => {
         const target = seasons.find((x) => x.season === s);
-        setSeason(s);
-        setEpisode(target?.episodes[0] ?? 1);
-        if (mode === 'serie') startSerie();
+        const firstEp = target?.episodes[0] ?? 1;
+        if (mode === 'serie') loadSerie(s, firstEp);
+        else { setSeason(s); setEpisode(firstEp); }
     };
     const changeEpisode = (e: number) => {
-        setEpisode(e);
-        if (mode === 'serie') startSerie();
+        if (mode === 'serie') loadSerie(season, e);
+        else setEpisode(e);
     };
+
+    // Episodios del navegador inferior: seleccionar uno siempre reproduce.
+    const playEpisode = useCallback((e: number) => loadSerie(season, e), [loadSerie, season]);
+    const playNext = useCallback(() => {
+        if (nextEpisode) loadSerie(nextEpisode.season, nextEpisode.episode);
+    }, [nextEpisode, loadSerie]);
+    const playPrev = useCallback(() => {
+        if (prevEpisode) loadSerie(prevEpisode.season, prevEpisode.episode);
+    }, [prevEpisode, loadSerie]);
 
     // Reintento contextual según el modo actual (serie o tráiler).
     const retryCurrent = useCallback(() => {
@@ -142,6 +196,40 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     useEffect(() => {
         if (mode === 'idle') playButtonRef.current?.focus();
     }, [mode]);
+
+    // Detecta el fin del episodio vía postMessage del embed (best-effort:
+    // depende de que Vimeus emita un evento de tipo "ended"/"finish").
+    useEffect(() => {
+        if (mode !== 'serie' || !nextEpisode) return;
+        const handler = (e: MessageEvent) => {
+            if (!e.origin.includes('vimeus.com')) return;
+            const data = e.data;
+            const signal = typeof data === 'string'
+                ? data
+                : String((data as Record<string, unknown>)?.event ?? (data as Record<string, unknown>)?.type ?? (data as Record<string, unknown>)?.action ?? (data as Record<string, unknown>)?.state ?? '');
+            if (/ended|finish|complete/i.test(signal)) {
+                setShowNextUp(true);
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, [mode, nextEpisode]);
+
+    // Reinicia la cuenta atrás cada vez que aparece el aviso.
+    useEffect(() => {
+        if (showNextUp) setCountdown(NEXT_UP_SECONDS);
+    }, [showNextUp]);
+
+    // Cuenta atrás: al llegar a 0, avanza automáticamente al siguiente episodio.
+    useEffect(() => {
+        if (!showNextUp) return;
+        if (countdown <= 0) {
+            playNext();
+            return;
+        }
+        const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [showNextUp, countdown, playNext]);
 
     const selectCls =
         'h-9 px-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-semibold ' +
@@ -315,7 +403,106 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                         allowFullScreen
                     />
                 )}
+
+                {/* === Aviso de "siguiente episodio" con cuenta atrás === */}
+                {showNextUp && nextEpisode && (
+                    <div className="absolute inset-0 z-30 flex items-end sm:items-center justify-center sm:justify-end p-4 sm:p-8 bg-gradient-to-t from-black/90 via-black/40 to-transparent animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="w-full sm:w-80 bg-surface-container border border-outline-variant rounded-xl p-4 shadow-2xl">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs uppercase tracking-widest text-white/50 font-bold">
+                                    Siguiente episodio
+                                </p>
+                                <button
+                                    onClick={() => setShowNextUp(false)}
+                                    className="text-white/40 hover:text-white transition-colors"
+                                    aria-label="Cancelar reproducción automática"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <p className="text-white font-bold mb-3">
+                                Continuar con Episodio {nextEpisode.episode}
+                                {nextEpisode.season !== season && ` · Temporada ${nextEpisode.season}`}
+                            </p>
+                            <button
+                                onClick={playNext}
+                                className="relative w-full flex items-center justify-center gap-2 h-11 rounded-lg bg-primary text-white font-bold overflow-hidden hover:bg-primary-hover transition-colors"
+                            >
+                                <span
+                                    className="absolute inset-0 bg-white/20 transition-[width] duration-1000 ease-linear"
+                                    style={{ width: `${(countdown / NEXT_UP_SECONDS) * 100}%` }}
+                                    aria-hidden
+                                />
+                                <Play className="w-4 h-4 fill-current relative" />
+                                <span className="relative">Reproducir ahora ({countdown})</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* === Navegador de episodios — entre el reproductor y las reseñas === */}
+            {seasons.length > 0 && (
+                <div className="mt-4 rounded-xl border border-outline-variant bg-surface-container-low/60 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                        <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                            <Layers className="w-4 h-4 text-primary" />
+                            Episodios
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={playPrev}
+                                disabled={!prevEpisode}
+                                className="flex items-center gap-1 h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Anterior
+                            </button>
+                            <label className="sr-only" htmlFor="episodes-season">Temporada</label>
+                            <select
+                                id="episodes-season"
+                                value={season}
+                                onChange={(e) => changeSeason(Number(e.target.value))}
+                                className={selectCls}
+                            >
+                                {seasons.map((s) => (
+                                    <option key={s.season} value={s.season} className="bg-surface text-white">
+                                        Temporada {s.season}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={playNext}
+                                disabled={!nextEpisode}
+                                className="flex items-center gap-1 h-9 px-3 rounded-lg bg-primary/20 border border-primary/30 text-sm font-semibold text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Siguiente
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {episodeOptions.map((ep) => {
+                            const active = ep === episode;
+                            return (
+                                <button
+                                    key={ep}
+                                    onClick={() => playEpisode(ep)}
+                                    aria-current={active ? 'true' : undefined}
+                                    className={`min-w-[3rem] h-10 px-3 rounded-lg text-sm font-bold transition-colors ${
+                                        active
+                                            ? 'bg-primary text-white shadow-sm'
+                                            : 'bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10'
+                                    }`}
+                                >
+                                    {ep}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Home, Clapperboard, Search, Heart, User } from 'lucide-react';
+import { Home, Clapperboard, Search, Heart, User, Tv, Radio } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { LucideIcon } from 'lucide-react';
@@ -13,9 +13,8 @@ const supabase = createClient();
 interface Tab {
     name: string;
     icon: LucideIcon;
-    /** Destino base. Para "Cuenta" se resuelve según sesión. */
     href: string;
-    isActive: (path: string) => boolean;
+    isActive: (path: string, category: string | null) => boolean;
 }
 
 /**
@@ -27,6 +26,7 @@ interface Tab {
  */
 export default function MobileTabBar() {
     const pathname = usePathname() ?? '';
+    const category = useSearchParams().get('category');
     const [loggedIn, setLoggedIn] = useState(false);
 
     useEffect(() => {
@@ -43,14 +43,19 @@ export default function MobileTabBar() {
     const hiddenOn = ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email', '/watch-party/'];
     if (hiddenOn.some((p) => pathname.startsWith(p))) return null;
 
-    const accountHref = loggedIn ? '/settings' : '/login';
-
     const tabs: Tab[] = [
         { name: 'Inicio', icon: Home, href: '/', isActive: (p) => p === '/' },
-        { name: 'Explorar', icon: Clapperboard, href: '/browse', isActive: (p) => p.startsWith('/browse') || p.startsWith('/genero') },
+        { name: 'Explorar', icon: Clapperboard, href: '/browse', isActive: (p, cat) => (p.startsWith('/browse') && cat !== 'tv') || p.startsWith('/genero') },
         { name: 'Buscar', icon: Search, href: '/search', isActive: (p) => p.startsWith('/search') },
-        { name: 'Favoritos', icon: Heart, href: '/favorites', isActive: (p) => p.startsWith('/favorites') },
-        { name: 'Cuenta', icon: User, href: accountHref, isActive: (p) => p.startsWith('/settings') || p.startsWith('/profile') || p.startsWith('/login') },
+        ...(loggedIn
+            ? [
+                { name: 'Favoritos', icon: Heart, href: '/favorites', isActive: (p: string) => p.startsWith('/favorites') },
+                { name: 'Cuenta', icon: User, href: '/settings', isActive: (p: string) => p.startsWith('/settings') || p.startsWith('/profile') },
+            ]
+            : [
+                { name: 'Series', icon: Tv, href: '/browse?category=tv', isActive: (p: string, cat: string | null) => p.startsWith('/browse') && cat === 'tv' },
+                { name: 'TV en Vivo', icon: Radio, href: '/live-tv', isActive: (p: string) => p.startsWith('/live-tv') },
+            ]),
     ];
 
     return (
@@ -64,7 +69,7 @@ export default function MobileTabBar() {
             >
                 <ul className="flex items-stretch justify-around h-16 px-1 list-none m-0">
                     {tabs.map((tab) => {
-                        const active = tab.isActive(pathname);
+                        const active = tab.isActive(pathname, category);
                         const Icon = tab.icon;
                         return (
                             <li key={tab.name} className="flex-1">

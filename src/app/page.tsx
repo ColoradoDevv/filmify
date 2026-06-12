@@ -330,8 +330,10 @@ export default async function HomePage() {
           <Footer />
         </PlatformContent>
 
-        {/* Navegación inferior — solo móvil/tablet */}
-        <MobileTabBar />
+        {/* Navegación inferior — solo móvil/tablet. Suspense: usa useSearchParams. */}
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
       </div>
     </>
   );

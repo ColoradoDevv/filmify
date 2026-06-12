@@ -125,6 +125,7 @@ export default function SearchInput({
             if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
                 setShowSuggestions(false);
                 setActiveIndex(-1);
+                inputRef.current?.blur();
             }
         };
         document.addEventListener('mousedown', handler);
@@ -146,6 +147,7 @@ export default function SearchInput({
             setShowSuggestions(false);
             setActiveIndex(-1);
             setQuery('');
+            inputRef.current?.blur();
         },
         [router]
     );
@@ -164,6 +166,7 @@ export default function SearchInput({
             setShowSuggestions(false);
             setActiveIndex(-1);
             setQuery('');
+            inputRef.current?.blur();
         },
         [router]
     );
@@ -205,6 +208,7 @@ export default function SearchInput({
         } else if (e.key === 'Escape') {
             setShowSuggestions(false);
             setActiveIndex(-1);
+            inputRef.current?.blur();
         }
     };
 
