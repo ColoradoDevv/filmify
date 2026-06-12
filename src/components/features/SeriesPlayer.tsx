@@ -443,7 +443,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                             <button
                                 onClick={playNext}
                                 disabled={!nextEpisode}
-                                className="flex items-center gap-1 h-9 px-3 rounded-lg bg-primary/20 border border-primary/30 text-sm font-semibold text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                className="flex items-center gap-1 h-9 px-3 rounded-lg bg-primary/20 cursor-pointer border border-primary/30 text-sm font-semibold text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                                 
                                 <ChevronRight className="w-4 h-4" />
@@ -462,7 +462,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                                     className={`min-w-[3rem] h-10 px-3 rounded-lg text-sm font-bold transition-colors ${
                                         active
                                             ? 'bg-primary text-white shadow-sm'
-                                            : 'bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10'
+                                            : 'bg-white/5 cursor-pointer border border-white/10 text-text-secondary hover:text-white hover:bg-white/10'
                                     }`}
                                 >
                                     {ep}

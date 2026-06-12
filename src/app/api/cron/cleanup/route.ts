@@ -1,6 +1,6 @@
-import { createServiceRoleClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getOptionalApiKeys } from '@/lib/env';
+import { cleanupInactiveParties } from '@/lib/watch-party-cleanup';
 
 export async function GET(request: Request) {
     // Check for authorization header to secure it with a secret
@@ -12,18 +12,10 @@ export async function GET(request: Request) {
     }
 
     try {
-        // SEC-018: use service role client — cron jobs run without a user session,
-        // so the anon client would have no permissions to execute the RPC.
-        const supabase = createServiceRoleClient();
-
-        const { error } = await supabase.rpc('cleanup_inactive_parties');
-
-        if (error) {
-            console.error('Error cleaning up parties:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({ success: true, message: 'Cleanup executed successfully' });
+        // Limpieza en TS (service role) — basada en heartbeat real, no en la
+        // mera existencia de filas. No depende de aplicar la función SQL.
+        const result = await cleanupInactiveParties();
+        return NextResponse.json({ success: true, ...result });
     } catch (error) {
         console.error('Unexpected error during cleanup:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -16,7 +16,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!article) return { title: 'Artículo no encontrado' };
 
     return {
-        title: `${article.title} — FilmiFy Editorial`,
+        // Marca corta al final para no robar caracteres a la keyword del título
+        // (Google muestra ~60 chars). `absolute` por si se añade un template.
+        title: { absolute: `${article.title} | FilmiFy` },
         description: article.excerpt,
         keywords: article.tags,
         openGraph: {
@@ -42,6 +44,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export const revalidate = 3600;
 
+// Pre-genera los artículos publicados en build para que el primer crawler
+// reciba HTML listo (mejor TTFB / indexación). Los nuevos artículos se
+// renderizan on-demand y luego quedan cacheados por ISR.
+export async function generateStaticParams() {
+    try {
+        const articles = await getPublishedArticles(100);
+        return articles.map((a) => ({ slug: a.slug }));
+    } catch {
+        return [];
+    }
+}
+
+/** Inline markdown: **negrita** y [enlaces](url). Los enlaces internos
+ *  (/genero/*, /browse, …) distribuyen autoridad SEO hacia el catálogo. */
+function fmtInline(text: string): string {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>')
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" class="text-primary font-medium hover:underline">$1</a>');
+}
+
 /** Convert markdown-like content to HTML paragraphs */
 function renderContent(content: string) {
     const lines = content.split('\n');
@@ -62,7 +84,7 @@ function renderContent(content: string) {
             elements.push(
                 <li key={key++} className="flex items-start gap-2 text-on-surface-variant mb-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                    <span dangerouslySetInnerHTML={{ __html: trimmed.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>') }} />
+                    <span dangerouslySetInnerHTML={{ __html: fmtInline(trimmed.slice(2)) }} />
                 </li>
             );
         } else if (/^\d+\./.test(trimmed)) {
@@ -71,13 +93,13 @@ function renderContent(content: string) {
             elements.push(
                 <li key={key++} className="flex items-start gap-3 text-on-surface-variant mb-2">
                     <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{num}</span>
-                    <span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>') }} />
+                    <span dangerouslySetInnerHTML={{ __html: fmtInline(text) }} />
                 </li>
             );
         } else {
             elements.push(
                 <p key={key++} className="text-on-surface-variant leading-relaxed mb-4"
-                    dangerouslySetInnerHTML={{ __html: trimmed.replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>') }}
+                    dangerouslySetInnerHTML={{ __html: fmtInline(trimmed) }}
                 />
             );
         }
@@ -100,14 +122,17 @@ export default async function ArticlePage({ params }: Props) {
         : '';
 
     const appUrl = getOptionalApiKeys().appUrl;
-    const jsonLd = {
+    const categoryLabel = CATEGORIES[article.category] ?? article.category;
+    const articleJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
         headline: article.title,
         description: article.excerpt,
         image: article.cover_url,
         datePublished: article.published_at,
-        dateModified: article.published_at,
+        // dateModified usa la fecha de actualización real cuando existe —
+        // señal de frescura para Google (cae a published_at si no hay edición).
+        dateModified: article.updated_at || article.published_at,
         author: {
             '@type': 'Person',
             name: article.author_name,
@@ -124,11 +149,28 @@ export default async function ArticlePage({ params }: Props) {
             '@type': 'WebPage',
             '@id': `${appUrl}/editorial/${slug}`,
         },
+        articleSection: categoryLabel,
+        keywords: article.tags?.length ? article.tags.join(', ') : undefined,
+        wordCount: article.content ? article.content.trim().split(/\s+/).length : undefined,
+        inLanguage: 'es-ES',
+    };
+
+    // Breadcrumbs: aparecen en resultados de Google (Inicio › Editorial › …)
+    // y refuerzan la jerarquía del sitio.
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Editorial', item: `${appUrl}/editorial` },
+            { '@type': 'ListItem', position: 3, name: categoryLabel, item: `${appUrl}/editorial/categoria/${article.category}` },
+            { '@type': 'ListItem', position: 4, name: article.title, item: `${appUrl}/editorial/${slug}` },
+        ],
     };
 
     return (
         <>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([articleJsonLd, breadcrumbJsonLd]) }} />
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
                 {/* Back */}

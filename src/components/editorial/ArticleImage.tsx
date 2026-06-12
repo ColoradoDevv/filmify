@@ -34,8 +34,11 @@ export default function ArticleImage({
     alt,
     category = 'general',
     fill,
-    className = '',
+    width,
+    height,
+    sizes,
     priority,
+    className = '',
 }: ArticleImageProps) {
     const fallback = CATEGORY_FALLBACKS[category] ?? DEFAULT_FALLBACK;
     const [imgSrc, setImgSrc] = useState<string>(src || fallback);
@@ -50,15 +53,25 @@ export default function ArticleImage({
         ? { position: 'absolute', inset: 0, width: '100%', height: '100%' }
         : {};
 
+    // width/height intrínsecos reservan el aspect-ratio antes de cargar →
+    // evitan Cumulative Layout Shift (CLS), métrica de Core Web Vitals.
+    // Para `fill`, damos dimensiones nominales 16:9 que el CSS sobrescribe.
+    const dimensions = fill
+        ? { width: 1200, height: 675 }
+        : { width, height };
+
     return (
         <img
             src={imgSrc}
             alt={alt}
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
+            {...(priority ? { fetchPriority: 'high' as const } : {})}
             onError={handleError}
             className={className}
             style={fillStyles}
+            sizes={sizes}
+            {...dimensions}
         />
     );
 }

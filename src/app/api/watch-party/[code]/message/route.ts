@@ -34,19 +34,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     if (!member) return NextResponse.json({ error: 'No eres miembro de esta sala' }, { status: 403 });
 
     // SEC-010: resolve reply metadata server-side from the DB, never from the client.
+    // No usamos el embed profiles:user_id(...) (no hay FK declarada →
+    // PGRST200); resolvemos el username con una segunda consulta.
     let replyPreview: string | null = null;
     let replyUsername: string | null = null;
     if (reply_to_id) {
         const { data: replyMsg } = await supabase
             .from('party_messages')
-            .select('text, user_id, profiles:user_id(username)')
+            .select('text, user_id')
             .eq('id', reply_to_id)
             .eq('party_id', party.id)   // must belong to the same party
             .single();
         if (replyMsg) {
-            replyPreview  = typeof replyMsg.text === 'string' ? replyMsg.text.slice(0, 80) : null;
-            const profile = Array.isArray(replyMsg.profiles) ? replyMsg.profiles[0] : replyMsg.profiles;
-            replyUsername = (profile as { username?: string } | null)?.username ?? null;
+            replyPreview = typeof replyMsg.text === 'string' ? replyMsg.text.slice(0, 80) : null;
+            if (replyMsg.user_id) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', replyMsg.user_id)
+                    .single();
+                replyUsername = profile?.username ?? null;
+            }
         }
     }
 

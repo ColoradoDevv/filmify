@@ -3,7 +3,7 @@ import { searchTitles, type SearchResultItem } from '@/app/actions/search';
 import SearchPageClient from './SearchPageClient';
 
 export const metadata: Metadata = {
-    title: 'Buscar películas y series | FilmiFy',
+    title: { absolute: 'Buscar películas y series | FilmiFy' },
     description:
         'Busca cualquier película o serie disponible para ver online gratis en FilmiFy.',
     alternates: { canonical: '/search' },
