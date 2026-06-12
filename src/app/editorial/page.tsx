@@ -9,7 +9,7 @@ import ArticleImage from '@/components/editorial/ArticleImage';
 import { getOptionalApiKeys } from '@/lib/env';
 
 export const metadata: Metadata = {
-    title: 'FilmiFy Editorial — Noticias, guías y reseñas de cine 2026',
+    title: { absolute: 'Noticias, guías y reseñas de cine y series 2026 | FilmiFy Editorial' },
     description: 'Tu fuente definitiva de noticias de cine y streaming. Análisis profundos, guías de visualización y las últimas tendencias del séptimo arte actualizadas diariamente.',
     keywords: [
         'noticias cine 2026',
@@ -82,9 +82,9 @@ function HeroCard({ article }: { article: any }) {
                                 {CATEGORIES[article.category] ?? article.category}
                             </span>
                         </div>
-                        <h1 className="text-xl sm:text-4xl font-black text-white leading-tight mb-3 group-hover:text-primary/90 transition-colors max-w-3xl line-clamp-3">
+                        <h2 className="text-xl sm:text-4xl font-black text-white leading-tight mb-3 group-hover:text-primary/90 transition-colors max-w-3xl line-clamp-3">
                             {article.title}
-                        </h1>
+                        </h2>
                         <p className="text-white/70 text-xs sm:text-base line-clamp-2 mb-4 max-w-2xl hidden sm:block">
                             {article.excerpt}
                         </p>
@@ -224,6 +224,7 @@ export default async function EditorialPage() {
             "description": a.excerpt,
             "image": a.cover_url,
             "datePublished": a.published_at,
+            "dateModified": a.updated_at || a.published_at,
             "author": {
                 "@type": "Person",
                 "name": a.author_name
@@ -232,18 +233,39 @@ export default async function EditorialPage() {
         }))
     };
 
+    // Breadcrumbs: Inicio › Editorial (aparecen en resultados de Google).
+    const breadcrumbData = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Editorial', item: `${appUrl}/editorial` },
+        ],
+    };
+
     return (
         <>
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
                 {/* JSON-LD */}
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                dangerouslySetInnerHTML={{ __html: JSON.stringify([structuredData, breadcrumbData]) }}
             />
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
 
                 {/* ── Main column (3/4) ──────────────────────────────────── */}
                 <div className="xl:col-span-3 space-y-10">
+
+                    {/* H1 semántico de la sección — describe la página para SEO
+                        (el hero usa <h2>, ya que su título cambia a diario). */}
+                    <header>
+                        <h1 className="text-2xl sm:text-3xl font-black text-on-surface tracking-tight">
+                            Noticias, guías y reseñas de cine y series
+                        </h1>
+                        <p className="text-sm text-on-surface-variant mt-1.5">
+                            FilmiFy Editorial — análisis, estrenos de streaming y guías para ver online, actualizado a diario.
+                        </p>
+                    </header>
 
                     {/* Hero */}
                     {featured && <HeroCard article={featured} />}

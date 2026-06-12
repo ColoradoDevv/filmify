@@ -6,6 +6,7 @@ import { getArticlesAndNewsByCategory, CATEGORIES } from '@/lib/editorial';
 import type { Article, NewsItem } from '@/lib/editorial';
 import NewsCard from '@/components/editorial/NewsCard';
 import ArticleImage from '@/components/editorial/ArticleImage';
+import { getOptionalApiKeys } from '@/lib/env';
 
 interface Props { params: Promise<{ cat: string }> }
 
@@ -13,10 +14,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { cat } = await params;
     const label = CATEGORIES[cat];
     if (!label) return { title: 'Categoría no encontrada' };
+    const canonical = `/editorial/categoria/${cat}`;
+    const title = `${label}: noticias, guías y análisis de cine | FilmiFy`;
+    const description = `Las últimas noticias, guías y análisis sobre ${label.toLowerCase()} en FilmiFy Editorial. Contenido actualizado a diario.`;
     return {
-        title: `${label} — FilmiFy Editorial`,
-        description: `Las últimas noticias, guías y análisis sobre ${label.toLowerCase()} en FilmiFy Editorial.`,
+        // `absolute`: el título ya incluye la marca; evita doble marca si se
+        // añade un template a futuro.
+        title: { absolute: title },
+        description,
+        alternates: { canonical },
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            url: canonical,
+            siteName: 'FilmiFy',
+            locale: 'es_ES',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+        },
     };
+}
+
+// Pre-genera las páginas de categoría en build → HTML listo para el primer
+// crawler (mejor TTFB que renderizar on-demand).
+export function generateStaticParams() {
+    return Object.keys(CATEGORIES).map((cat) => ({ cat }));
 }
 
 export const revalidate = 1800;
@@ -33,8 +59,43 @@ export default async function CategoryPage({ params }: Props) {
 
     const { articles, news } = await getArticlesAndNewsByCategory(cat);
 
+    const appUrl = getOptionalApiKeys().appUrl;
+    // CollectionPage + ItemList: le dice a Google que esto es un listado y qué
+    // artículos contiene (refuerza el enlazado interno hacia cada artículo).
+    const collectionJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: `${label} — FilmiFy Editorial`,
+        description: `Noticias, guías y análisis sobre ${label.toLowerCase()} en FilmiFy.`,
+        url: `${appUrl}/editorial/categoria/${cat}`,
+        inLanguage: 'es-ES',
+        isPartOf: { '@type': 'WebSite', name: 'FilmiFy', url: appUrl },
+        mainEntity: {
+            '@type': 'ItemList',
+            itemListElement: articles.slice(0, 20).map((a, i) => ({
+                '@type': 'ListItem',
+                position: i + 1,
+                url: `${appUrl}/editorial/${a.slug}`,
+                name: a.title,
+            })),
+        },
+    };
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Editorial', item: `${appUrl}/editorial` },
+            { '@type': 'ListItem', position: 3, name: label, item: `${appUrl}/editorial/categoria/${cat}` },
+        ],
+    };
+
     return (
         <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify([collectionJsonLd, breadcrumbJsonLd]) }}
+            />
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
                 {/* Header */}
                 <div className="mb-8">

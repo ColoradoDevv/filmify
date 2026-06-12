@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useStore } from '@/lib/store/useStore';
+import { buildVimeusUrl } from '@/lib/vimeus-embed';
 import type { Movie, TVShow } from '@/types/tmdb';
 
 interface VideoPlayerProps {
@@ -15,20 +16,7 @@ interface VideoPlayerProps {
     title: string;
 }
 
-const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const LOAD_TIMEOUT_MS = 15_000;
-
-// Player customization (per Vimeus docs): theme + brand color (FilmiFy cyan).
-const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autoplay=1';
-
-function buildVimeusUrl(mediaId: number, mediaType: 'movie' | 'tv', season: number, episode: number): string {
-    const base = 'https://vimeus.com/e';
-    const vk = `view_key=${VIMEUS_VIEW_KEY}`;
-    if (mediaType === 'movie') {
-        return `${base}/movie?tmdb=${mediaId}&${vk}&${VIMEUS_STYLE}`;
-    }
-    return `${base}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}&${VIMEUS_STYLE}`;
-}
 
 // Lista de eventos usada para mostrar los controles, fuera del componente para evitar recrearla
 const INTERACTION_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointermove'];
