@@ -6,6 +6,7 @@ import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
+import HeroPosterCollage from '@/components/features/HeroPosterCollage';
 import { TrendingUp, Tv, Film } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -64,7 +65,6 @@ async function fetchContent(
 }
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
-    const userAgent = (await headers()).get('user-agent') || '';
 
     const params = await searchParams;
 
@@ -155,15 +155,14 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     return (
         <div className="space-y-6 sm:space-y-8 pb-20">
             {/* ── Hero Section ────────────────────────────────── */}
-            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
-                {/* Fondo con gradiente y desenfoque */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-surface to-accent/10" />
-                <div className="absolute inset-0 backdrop-blur-3xl" />
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[200px] sm:min-h-[260px] flex items-center">
+                {/* Fondo: mosaico de pósters del catálogo (estilo Netflix) */}
+                <HeroPosterCollage posters={content.map((m) => m.poster_path)} />
 
                 <div className="relative z-10 p-5 sm:p-12">
                     <div className="max-w-2xl">
                         {/* Etiqueta de categoría */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
                             {isTV ? (
                                 <Tv className="w-4 h-4 text-primary" />
                             ) : (
@@ -174,22 +173,19 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                             </span>
                         </div>
 
-                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3">
+                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3 drop-shadow-lg">
                             Explora{' '}
                             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                                 {isTV ? 'Series' : 'Películas'}
                             </span>
                         </h1>
-                        <p className="text-text-secondary text-sm sm:text-lg leading-relaxed">
+                        <p className="text-white/80 text-sm sm:text-lg leading-relaxed drop-shadow">
                             {isTV
                                 ? 'Descubre las series más populares y aclamadas del momento.'
                                 : 'Explora las películas que están definiendo la conversación cinematográfica.'}
                         </p>
                     </div>
                 </div>
-
-                {/* Decoración sutil */}
-                <div className="absolute bottom-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mb-32 pointer-events-none" />
             </div>
 
             {/* Filtros y contenido */}

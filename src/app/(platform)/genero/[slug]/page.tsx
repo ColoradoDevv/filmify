@@ -7,6 +7,7 @@ import { filterAvailableMovies } from '@/server/services/vimeus';
 import { GENRE_PAGES, getGenreBySlug } from '@/lib/genres';
 import { getOptionalApiKeys } from '@/lib/env';
 import MovieGrid from '@/components/features/MovieGrid';
+import HeroPosterCollage from '@/components/features/HeroPosterCollage';
 import type { Movie } from '@/types/tmdb';
 
 interface PageProps {
@@ -87,21 +88,21 @@ export default async function GenrePage({ params }: PageProps) {
 
             <div className="space-y-6 sm:space-y-8 pb-20">
                 {/* Hero del género */}
-                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-surface to-accent/10" />
-                    <div className="absolute inset-0 backdrop-blur-3xl" />
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[200px] sm:min-h-[260px] flex items-center">
+                    {/* Fondo: mosaico de pósters del género (estilo Netflix) */}
+                    <HeroPosterCollage posters={movies.map((m) => m.poster_path)} />
                     <div className="relative z-10 p-5 sm:p-12 max-w-3xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
                             <Clapperboard className="w-4 h-4 text-primary" />
                             <span className="text-xs font-medium text-white/90">Género</span>
                         </div>
-                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3">
+                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3 drop-shadow-lg">
                             Películas de{' '}
                             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                                 {genre.name}
                             </span>
                         </h1>
-                        <p className="text-text-secondary text-sm sm:text-lg leading-relaxed">
+                        <p className="text-white/80 text-sm sm:text-lg leading-relaxed drop-shadow">
                             {genre.description}
                         </p>
                     </div>

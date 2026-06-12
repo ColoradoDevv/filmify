@@ -1,56 +1,40 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useActionState } from 'react';
+import { useState, useMemo, useEffect, useActionState } from 'react';
+
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, AlertCircle, Loader2, ArrowLeft, Eye, EyeOff, Sparkles, Check, X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { Mail, Lock, User, AlertCircle, Loader2, ArrowLeft, Eye, EyeOff, Check, X } from 'lucide-react';
+
+
+
 import { registerAction, type RegisterState } from './actions';
 
 const initialState: RegisterState = { error: '' };
 
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
-const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
+
 
 export default function RegisterPage() {
     const router = useRouter();
     const [state, formAction, isPending] = useActionState(registerAction, initialState);
 
     const [formData, setFormData] = useState({
-        name: '',
-        username: '',
         email: '',
         password: '',
     });
+
     const [showPassword, setShowPassword] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-    const [usernameStatus, setUsernameStatus] = useState<'default' | 'success' | 'error' | 'loading'>('default');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-    const captchaRef = useRef<HCaptcha>(null);
-    const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const supabase = createClient();
 
     // Registration kill-switch check (admin setting).
+
     const [registrationAllowed, setRegistrationAllowed] = useState(true);
     const [checkingSettings, setCheckingSettings] = useState(true);
 
-    // Blacklist — client mirror of the server list, used only for real-time
-    // UX feedback. The server action is the source of truth.
-    const blacklist = useMemo(() => [
-        'admin', 'administrator', 'root', 'sysadmin', 'system', 'support', 'help', 'mod', 'moderator',
-        'staff', 'official', 'filmify', 'owner', 'ceo', 'webmaster', 'dev', 'developer',
-        'puto', 'puta', 'mierda', 'cabron', 'pendejo', 'verga', 'pito', 'culo', 'coño',
-        'mamaguevo', 'zorra', 'perra', 'maricon', 'marica', 'idiota', 'estupido', 'imbecil',
-        'bastardo', 'polla', 'semen', 'tetas', 'vagina', 'concha', 'chupala', 'gonorrea',
-        'malparido', 'carechimba', 'pajero', 'pajera',
-        'dick', 'ass', 'bitch', 'fuck', 'shit', 'bastard', 'cunt', 'whore', 'slut',
-        'nigger', 'nigga', 'faggot', 'rape', 'sex', 'porn', 'cock', 'pussy', 'tit', 'boob',
-        'anus', 'anal', 'penis', 'nazi', 'hitler', 'kkk',
-    ], []);
+
 
     const passwordValidation = useMemo(() => {
         const password = formData.password;
@@ -80,13 +64,7 @@ export default function RegisterPage() {
             });
     }, []);
 
-    // Reset captcha whenever the server action returns an error.
-    useEffect(() => {
-        if (state?.error) {
-            captchaRef.current?.resetCaptcha();
-            setCaptchaToken(null);
-        }
-    }, [state?.error]);
+
 
     // On successful signup the server action returns one of:
     //   - needsEmailConfirmation: true → go to /confirm-email?email=...
@@ -99,152 +77,86 @@ export default function RegisterPage() {
         }
     }, [state, isPending, router]);
 
-    if (!checkingSettings && !registrationAllowed) {
-        return (
-            <div className="relative flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-                <Link
-                    href="/"
-                    className="absolute top-0 left-0 inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
-                >
-                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-medium">Volver al inicio</span>
-                </Link>
-                <div className="bg-red-500/10 p-6 rounded-full mb-6">
-                    <User className="w-16 h-16 text-red-500" />
-                </div>
-                <h1 className="text-3xl font-bold text-white mb-4">Registro Cerrado</h1>
-                <p className="text-gray-400 max-w-md mb-8">
-                    Lo sentimos, el registro de nuevos usuarios está temporalmente deshabilitado.
-                    Por favor, intenta más tarde o contacta al administrador.
-                </p>
-                <Link href="/" className="px-6 py-3 bg-surface border border-surface-light rounded-xl hover:bg-surface-light transition-colors">
-                    Volver al Inicio
-                </Link>
+    const showRegistrationClosed = !checkingSettings && !registrationAllowed;
+
+    const registrationClosedUI = showRegistrationClosed ? (
+        <div className="relative flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+
+            <Link
+                href="/"
+                className="absolute top-0 left-0 inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
+            >
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">Volver al inicio</span>
+            </Link>
+            <div className="bg-red-500/10 p-6 rounded-full mb-6">
+                <User className="w-16 h-16 text-red-500" />
             </div>
-        );
-    }
+            <h1 className="text-3xl font-bold text-white mb-4">Registro Cerrado</h1>
+            <p className="text-gray-400 max-w-md mb-8">
+                Lo sentimos, el registro de nuevos usuarios está temporalmente deshabilitado.
+                Por favor, intenta más tarde o contacta al administrador.
+            </p>
+            <Link
+                href="/"
+                className="px-6 py-3 bg-surface border border-surface-light rounded-xl hover:bg-surface-light transition-colors"
+            >
+                Volver al Inicio
+            </Link>
+        </div>
+    ) : null;
 
-    const checkUsernameUnique = async (username: string) => {
-        const { data } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('username', username)
-            .maybeSingle();
-        return !data;
-    };
-
-    const generateSuggestions = async (baseName: string, isBlacklisted: boolean) => {
-        const newSuggestions: string[] = [];
-        const randomSuffix = () => Math.floor(Math.random() * 1000);
-
-        if (isBlacklisted) {
-            const prefixes = ['Cinefilo', 'MovieBuff', 'FilmFan', 'Director', 'Actor', 'Viewer'];
-            for (let i = 0; i < 3; i++) {
-                const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-                newSuggestions.push(`${prefix}_${randomSuffix()}`);
-            }
-        } else {
-            newSuggestions.push(`${baseName}_${randomSuffix()}`);
-            newSuggestions.push(`${baseName}${randomSuffix()}`);
-            newSuggestions.push(`The${baseName}`);
-        }
-
-        const verifiedSuggestions: string[] = [];
-        for (const suggestion of newSuggestions) {
-            const isUnique = await checkUsernameUnique(suggestion);
-            if (isUnique) verifiedSuggestions.push(suggestion);
-            if (verifiedSuggestions.length >= 3) break;
-        }
-
-        return verifiedSuggestions;
-    };
-
-    const validateUsername = async (username: string) => {
-        if (username.length < 3) {
-            setUsernameStatus('error');
-            setSuggestions([]);
-            return;
-        }
-
-        setUsernameStatus('loading');
-        setSuggestions([]);
-
-        const lowerVal = username.toLowerCase();
-        const isBlacklisted = blacklist.some(word => lowerVal.includes(word));
-
-        if (isBlacklisted) {
-            setUsernameStatus('error');
-            const newSuggestions = await generateSuggestions(username, true);
-            setSuggestions(newSuggestions);
-            return;
-        }
-
-        const isUnique = await checkUsernameUnique(username);
-        if (!isUnique) {
-            setUsernameStatus('error');
-            const newSuggestions = await generateSuggestions(username, false);
-            setSuggestions(newSuggestions);
-        } else {
-            setUsernameStatus('success');
-            setSuggestions([]);
-        }
-    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-
-        if (name === 'username') {
-            if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
-
-            if (value.length > 0 && value.length < 3) {
-                setUsernameStatus('error');
-                setSuggestions([]);
-            } else if (value.length === 0) {
-                setUsernameStatus('default');
-                setSuggestions([]);
-            } else {
-                setUsernameStatus('loading');
-                checkTimeoutRef.current = setTimeout(() => validateUsername(value), 500);
-            }
-        }
     };
 
-    const applySuggestion = (suggestion: string) => {
-        setFormData(prev => ({ ...prev, username: suggestion }));
-        setUsernameStatus('success');
-        setSuggestions([]);
-    };
 
     // Form submit handler: injects the captcha + terms into FormData before
     // handing off to the server action, and does a client-side pre-flight to
     // give instant feedback.
     const handleSubmit = (fd: FormData) => {
         if (!isPasswordValid) return;
-        if (usernameStatus !== 'success') return;
         if (!acceptedTerms) return;
-        if (hcaptchaConfigured && !captchaToken) return;
-
-        if (hcaptchaConfigured && captchaToken) {
-            fd.set('captchaToken', captchaToken);
-        }
         fd.set('acceptedTerms', acceptedTerms ? 'true' : 'false');
         formAction(fd);
     };
 
+
+
     const displayError =
         state?.error ||
         (!isPasswordValid && formData.password.length > 0 ? 'Completa todos los requisitos de contraseña' : '') ||
-        (usernameStatus === 'error' ? 'Elige un nickname válido' : '') ||
         '';
+
+
+    // Modal post-registro: el nickname se completa cuando el usuario empieza a comentar.
+    // Se activa SOLO cuando el usuario quiere comentar y no se detecta nickname.
+    const [showNicknameModal, setShowNicknameModal] = useState(false);
+
+    useEffect(() => {
+        if (isPending) return;
+        if (!state) return;
+        if (state.error) return;
+        if (state.needsEmailConfirmation) return;
+
+        // Para evitar falsas activaciones, el modal se muestra inicialmente después del registro.
+        // Luego se cerrará automáticamente cuando el usuario tenga un nickname.
+        setShowNicknameModal(true);
+    }, [state, isPending]);
+
 
     const canSubmit =
         isPasswordValid &&
-        usernameStatus === 'success' &&
         acceptedTerms &&
-        (!hcaptchaConfigured || !!captchaToken) &&
         !!formData.email &&
         !isPending;
+
+
+
+
+
 
     return (
         <div className="relative">
@@ -283,85 +195,44 @@ export default function RegisterPage() {
                     </div>
                 )}
 
-                <form action={handleSubmit} className="space-y-4">
-                    {/* Username */}
-                    <div>
-                        <label htmlFor="username" className="block text-sm font-semibold mb-1.5 text-text-primary">
-                            Nickname (Usuario) <span className="text-red-400">*</span>
-                        </label>
-                        <div className="relative">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
-                            <input
-                                type="text"
-                                id="username"
-                                name="username"
-                                value={formData.username}
-                                onChange={handleChange}
-                                required
-                                minLength={3}
-                                maxLength={20}
-                                autoComplete="username"
-                                className={`w-full pl-12 pr-4 py-3 bg-surface border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all ${usernameStatus === 'error'
-                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                                    : usernameStatus === 'success'
-                                        ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
-                                        : 'border-surface-light focus:border-primary focus:ring-primary/20'
-                                    }`}
-                                placeholder="Tu nickname único"
-                            />
-                            {usernameStatus === 'loading' && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                    <Loader2 className="w-4 h-4 animate-spin text-text-muted" />
-                                </div>
-                            )}
-                        </div>
+                {showNicknameModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowNicknameModal(false)}
+                            aria-hidden
+                        />
+                        <div className="relative w-full max-w-md rounded-3xl border border-surface-light/50 bg-surface/95 backdrop-blur-xl p-6 shadow-2xl">
+                            <h3 className="text-xl font-bold text-white">Falta tu nickname</h3>
+                            <p className="text-text-secondary text-sm mt-2">
+                                Elige tu nickname para empezar a comentar.
+                            </p>
 
-                        {state?.fieldErrors?.username && (
-                            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.username}</p>
-                        )}
-
-                        {suggestions.length > 0 && (
-                            <div className="mt-2 animate-fade-in-up">
-                                <p className="text-xs text-text-secondary mb-1.5">Sugerencias disponibles:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {suggestions.map((suggestion) => (
-                                        <button
-                                            key={suggestion}
-                                            type="button"
-                                            onClick={() => applySuggestion(suggestion)}
-                                            className="px-3 py-1 text-xs font-medium bg-surface-light/50 hover:bg-primary/20 hover:text-primary border border-surface-light hover:border-primary/30 rounded-full transition-all"
-                                        >
-                                            {suggestion}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="mt-6 flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNicknameModal(false)}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-surface-light bg-background/80 hover:bg-background transition-colors text-text-primary font-semibold"
+                                >
+                                    Ahora no
+                                </button>
+                                <Link
+                                    href="/settings"
+                                    onClick={() => setShowNicknameModal(false)}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-black hover:bg-primary-hover transition-colors font-semibold text-center"
+                                >
+                                    Ir a Ajustes
+                                </Link>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Display name */}
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-semibold mb-1.5 text-text-primary">
-                            Nombre para mostrar <span className="text-text-secondary font-normal text-xs">(Opcional)</span>
-                        </label>
-                        <div className="relative">
-                            <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
-                            <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                autoComplete="name"
-                                maxLength={60}
-                                className="w-full pl-12 pr-4 py-3 bg-surface border border-surface-light rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                                placeholder={formData.username || 'Tu nombre visible'}
-                            />
                         </div>
-                        <p className="text-xs text-text-secondary mt-1 ml-1">
-                            Si lo dejas vacío, usaremos tu nickname.
-                        </p>
                     </div>
+                )}
+
+
+                <form action={handleSubmit} className="space-y-4">
+
+
+
 
                     {/* Email */}
                     <div>
@@ -447,19 +318,8 @@ export default function RegisterPage() {
                         )}
                     </div>
 
-                    {/* hCaptcha */}
-                    {hcaptchaConfigured && (
-                        <div className="flex justify-center py-2">
-                            <HCaptcha
-                                sitekey={HCAPTCHA_SITE_KEY}
-                                onVerify={(token) => setCaptchaToken(token)}
-                                ref={captchaRef}
-                                theme="dark"
-                            />
-                        </div>
-                    )}
-
                     {/* Terms */}
+
                     <div className="flex items-start gap-3 p-4 bg-surface/50 border border-surface-light rounded-xl">
                         <input
                             type="checkbox"
@@ -493,9 +353,7 @@ export default function RegisterPage() {
                     {state?.fieldErrors?.terms && (
                         <p className="text-xs text-red-400 -mt-2">{state.fieldErrors.terms}</p>
                     )}
-                    {state?.fieldErrors?.captcha && (
-                        <p className="text-xs text-red-400 text-center">{state.fieldErrors.captcha}</p>
-                    )}
+
 
                     <button
                         type="submit"
@@ -508,10 +366,7 @@ export default function RegisterPage() {
                                 Creando cuenta...
                             </>
                         ) : (
-                            <>
-                                <Sparkles className="w-4 h-4" />
-                                Crear Cuenta
-                            </>
+                            'Crear Cuenta'
                         )}
                     </button>
                 </form>

@@ -15,16 +15,25 @@ interface MovieGridProps {
     /** Fija el género para "Cargar más" (p. ej. en /genero/[slug], donde no
      *  viene como query param). Tiene prioridad sobre ?genre=. */
     fixedGenre?: number;
+    /** Página TMDB desde la que continuar al pulsar "Cargar más". El SSR
+     *  inicial suele consumir varias páginas de TMDB para juntar 20+ títulos
+     *  disponibles, así que el cliente debe continuar desde donde quedó. */
+    initialNextPage?: number;
 }
 
-export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGenre }: MovieGridProps) {
+export default function MovieGrid({
+    initialMovies,
+    mediaType = 'movie',
+    fixedGenre,
+    initialNextPage = 2,
+}: MovieGridProps) {
     const searchParams = useSearchParams();
     const genre = fixedGenre != null ? String(fixedGenre) : searchParams.get('genre');
     const year = searchParams.get('year');
     const sortBy = searchParams.get('sort_by');
 
     const [movies, setMovies] = useState<(Movie | TVShow)[]>(initialMovies);
-    const [page, setPage] = useState(1);
+    const [nextPage, setNextPage] = useState(initialNextPage);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true); // Detener carga cuando no hay más
     const [error, setError] = useState<string | null>(null);
@@ -41,10 +50,10 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
     // Reiniciar cuando cambien los filtros o el tipo de contenido
     useEffect(() => {
         setMovies(initialMovies);
-        setPage(1);
+        setNextPage(initialNextPage);
         setHasMore(true);
         setError(null);
-    }, [initialMovies, mediaType, genre, year, sortBy]);
+    }, [initialMovies, initialNextPage, mediaType, genre, year, sortBy]);
 
     const handleLoadMore = useCallback(async () => {
         if (loading || !hasMore) return;
@@ -53,9 +62,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
         setError(null);
 
         try {
-            const nextPage = page + 1;
-
-            const results = await loadMoreMovies({
+            const { items, nextPage: newNextPage, hasMore: more } = await loadMoreMovies({
                 page: nextPage,
                 mediaType,
                 genre: genre ? Number(genre) : undefined,
@@ -63,22 +70,15 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                 sortBy: (sortBy as LoadMoreOptions['sortBy']) || undefined,
             });
 
-            // Si no llegan resultados, deshabilitar carga
-            if (!results || results.length === 0) {
-                setHasMore(false);
-                setLoading(false);
-                return;
-            }
+            setNextPage(newNextPage);
+            setHasMore(more);
 
-            // Evitar duplicados
-            const existingIds = new Set(movies.map(m => m.id));
-            const newMovies = results.filter(m => !existingIds.has(m.id));
+            // Evitar duplicados con lo ya cargado
+            const existingIds = new Set(movies.map((m) => m.id));
+            const newMovies = items.filter((m) => !existingIds.has(m.id));
 
-            if (newMovies.length === 0) {
-                setHasMore(false);
-            } else {
-                setMovies(prev => [...prev, ...newMovies]);
-                setPage(nextPage);
+            if (newMovies.length > 0) {
+                setMovies((prev) => [...prev, ...newMovies]);
 
                 // Mover foco al primer elemento nuevo (accesibilidad TV)
                 setTimeout(() => {
@@ -90,6 +90,8 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                         }
                     }
                 }, 150);
+            } else if (!more) {
+                setHasMore(false);
             }
         } catch (err) {
             console.error('Error loading more content:', err);
@@ -97,7 +99,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
         } finally {
             setLoading(false);
         }
-    }, [loading, hasMore, page, genre, year, sortBy, mediaType, movies]);
+    }, [loading, hasMore, genre, year, sortBy, mediaType, movies]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -148,11 +150,12 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                 ))}
 
                 {/* Esqueletos durante carga */}
-                {loading && Array.from({ length: 8 }).map((_, i) => (
-                    <div key={`skeleton-${i}`} role="gridcell" aria-hidden="true">
-                        <MovieCardSkeleton />
-                    </div>
-                ))}
+                {loading &&
+                    Array.from({ length: 8 }).map((_, i) => (
+                        <div key={`skeleton-${i}`} role="gridcell" aria-hidden="true">
+                            <MovieCardSkeleton />
+                        </div>
+                    ))}
             </div>
 
             {/* Mensaje de error */}
@@ -171,7 +174,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                         onClick={handleLoadMore}
                         onKeyDown={handleKeyDown}
                         disabled={loading}
-                        className="group relative w-full sm:w-auto px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all sm:hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none text-white"
+                        className="group cursor-pointer relative w-full sm:w-auto px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all sm:hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none text-white"
                         tabIndex={0}
                         data-focusable="true"
                         aria-label={`Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}
@@ -183,7 +186,9 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                             ) : (
                                 <Plus className="w-4 h-4 text-primary" />
                             )}
-                            {loading ? 'Cargando...' : `Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}
+                            {loading
+                                ? 'Cargando...'
+                                : `Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}
                         </span>
                     </button>
                 ) : movies.length > 0 ? (
@@ -196,3 +201,4 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
         </div>
     );
 }
+

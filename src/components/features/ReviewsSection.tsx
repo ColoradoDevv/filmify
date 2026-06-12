@@ -343,6 +343,15 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                                     <p className="text-sm text-text-secondary max-w-xs mx-auto">
                                         Para dejar tu opinión necesitas una cuenta.
                                     </p>
+
+                                    <div className="mt-3 text-xs text-text-secondary max-w-[18rem] mx-auto">
+                                        <p className="text-text-secondary/90">
+                                            Registro seguro: <span className="text-white font-semibold">no pedimos datos bancarios</span>.
+                                        </p>
+                                        <p className="text-text-secondary/90 mt-1">
+                                            Tu cuenta se usa solo con fines sociales: <span className="text-white font-semibold">favoritos</span> y <span className="text-white font-semibold">reseñas</span>.
+                                        </p>
+                                    </div>
                                 </div>
                                 <a
                                     href="/login"

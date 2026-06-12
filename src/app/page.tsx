@@ -73,16 +73,21 @@ export default async function HomePage() {
 
   // Only show titles that are actually playable on the streaming provider —
   // we never advertise content the visitor can't watch.
-  const [availableDay, availableWeek, availableTV] = await Promise.all([
+  const [availableDay, availableWeek, availableTV, availableRecentlyAdded] = await Promise.all([
     filterAvailableMovies(trendingDay.results),
     filterAvailableMovies(trendingWeek.results),
     filterAvailableSeries(trendingTV.results),
+    filterAvailableMovies(recentlyAdded.map((m) => ({ id: m.tmdb_id } as any))),
   ]);
 
   const heroMovie = availableDay[0];
   const scrollerMovies = availableDay.slice(0, 15);
   const gridMovies = availableWeek;
   const tvShows = availableTV.slice(0, 15);
+
+  const availableRecentlyAddedIds = new Set(availableRecentlyAdded.map((x: any) => x.id));
+  const recentlyAddedFiltered = recentlyAdded.filter((m) => availableRecentlyAddedIds.has(m.tmdb_id));
+
 
   const backdropUrl = heroMovie
     ? getImageUrl(heroMovie.backdrop_path, 'original')
@@ -220,8 +225,9 @@ export default async function HomePage() {
             {/* ── Trending scroller (tendencias del día) ───────────────── */}
             <TrendingScroller movies={scrollerMovies} />
 
-            {/* ── Agregadas recientemente (datos reales del proveedor) ──── */}
-            {recentlyAdded.length > 0 && (
+            {/* ── Agregadas recientemente (filtradas por disponibilidad) ──── */}
+            {recentlyAddedFiltered.length > 0 && (
+
               <section aria-label="Películas agregadas recientemente">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -230,7 +236,8 @@ export default async function HomePage() {
                   </h2>
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {recentlyAdded.map((m) => (
+                  {recentlyAddedFiltered.map((m) => (
+
                     <Link
                       key={m.tmdb_id}
                       href={`/movie/${m.tmdb_id}`}

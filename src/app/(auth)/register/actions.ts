@@ -9,13 +9,14 @@ import { getOptionalApiKeys } from '@/lib/env';
 
 export type RegisterState = {
     error: string;
-    fieldErrors?: Partial<Record<'email' | 'password' | 'username' | 'terms' | 'captcha', string>>;
+    fieldErrors?: Partial<Record<'email' | 'password' | 'terms', string>>;
     needsEmailConfirmation?: boolean;
     email?: string;
 };
 
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
 
 // Authoritative server-side blacklist. The client has its own copy for UX
 // but the server is the source of truth.
@@ -73,11 +74,20 @@ export async function registerAction(
 
     const email = String(formData.get('email') ?? '').trim().toLowerCase();
     const password = String(formData.get('password') ?? '');
-    const username = String(formData.get('username') ?? '').trim();
-    const fullName = String(formData.get('name') ?? '').trim();
-    const captchaToken = String(formData.get('captchaToken') ?? '');
+    const fullName = '';
+
     const acceptedTerms = formData.get('acceptedTerms') === 'true';
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
+
+    // Username se asigna más tarde cuando el usuario empieza a comentar.
+    // Aquí no lo solicitamos para simplificar el registro.
+    const username = '';
+
+    // Username validation no aplica en el registro (se completa después).
+
+
+
+
+
 
     const fieldErrors: RegisterState['fieldErrors'] = {};
 
@@ -86,11 +96,7 @@ export async function registerAction(
         fieldErrors.email = 'Email inválido';
     }
 
-    if (!USERNAME_RE.test(username)) {
-        fieldErrors.username = 'Nickname debe tener 3-20 caracteres (letras, números, _)';
-    } else if (containsBlacklisted(username)) {
-        fieldErrors.username = 'Este nickname no está permitido';
-    }
+
 
     const passwordError = validatePassword(password);
     if (passwordError) {
@@ -101,9 +107,7 @@ export async function registerAction(
         fieldErrors.terms = 'Debes aceptar los Términos y Condiciones';
     }
 
-    if (hcaptchaEnabled && !captchaToken) {
-        fieldErrors.captcha = 'Por favor completa el captcha';
-    }
+
 
     if (Object.keys(fieldErrors).length > 0) {
         return {
@@ -112,27 +116,8 @@ export async function registerAction(
         };
     }
 
-    // --- Username uniqueness check (admin client bypasses RLS) ---
-    let supabaseAdmin;
-    try {
-        supabaseAdmin = createAdminClient();
-    } catch (err) {
-        console.error('[register] Admin client unavailable:', err);
-        return { error: 'El servicio de registro no está disponible en este momento.' };
-    }
+    // Nota: el nickname se completa más tarde cuando el usuario empieza a comentar.
 
-    const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('username', username)
-        .maybeSingle();
-
-    if (existingProfile) {
-        return {
-            error: 'Este nickname ya está en uso',
-            fieldErrors: { username: 'Este nickname ya está en uso' },
-        };
-    }
 
     // --- Build the redirect URL for the confirmation email ---
     // We prefer NEXT_PUBLIC_APP_URL but fall back to the request origin so
@@ -155,10 +140,10 @@ export async function registerAction(
         options: {
             emailRedirectTo: `${origin}/auth/callback`,
             data: {
-                full_name: fullName || username,
-                username,
+                full_name: fullName || null,
+                username: null,
             },
-            ...(hcaptchaEnabled && captchaToken ? { captchaToken } : {}),
+
         },
     });
 
@@ -170,15 +155,10 @@ export async function registerAction(
                 fieldErrors: { email: 'Este email ya está registrado' },
             };
         }
-        if (msg.includes('captcha')) {
-            return {
-                error: 'Verificación de captcha fallida. Intenta de nuevo.',
-                fieldErrors: { captcha: 'Captcha inválido' },
-            };
-        }
         console.error('[register] signUp error:', signUpError);
         return { error: signUpError.message || 'No se pudo crear la cuenta' };
     }
+
 
     // Supabase returns action="user_repeated_signup" (200 OK, no error) when
     // the email already exists. In that case signUpData.user holds the
@@ -205,21 +185,23 @@ export async function registerAction(
     const newUserId = newUser.id;
 
     // --- Explicit profile creation as a safety net. The DB trigger
-    //     handle_new_user() should have already created the profile row,
-    //     but we upsert here in case the trigger failed or was absent.
-    //     Uses the admin client so RLS is bypassed. ---
+    //     handle_new_user() should have already created the profile row.
+    //     We upsert here in case the trigger failed or was absent.
+    //     Username público se completará más tarde.
+    const supabaseAdmin = createAdminClient();
     const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .upsert(
             {
                 id: newUserId,
-                username,
-                full_name: fullName || username,
-                // SEC-026: do NOT store email in the public profiles table.
+                username: null,
+                full_name: fullName || null,
                 updated_at: new Date().toISOString(),
             },
             { onConflict: 'id' }
         );
+
+
 
     if (profileError) {
         // Profile creation failed — this is a hard error. The user exists in
