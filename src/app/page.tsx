@@ -330,8 +330,6 @@ export default async function HomePage() {
               </div>
             </nav>
           </main>
-
-          <Footer />
         </PlatformContent>
 
         {/* Navegación inferior — solo móvil/tablet. Suspense: usa useSearchParams. */}
