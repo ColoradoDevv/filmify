@@ -27,7 +27,11 @@ const { appUrl, gaId, adsenseClientId } = getOptionalApiKeys();
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
-  title: "FilmiFy - Dónde ver películas y series online | Cine en streaming",
+  // Las páginas que tienen su propio <title> ya incluyen la marca "FilmiFy"
+  // de forma consistente, así que NO usamos un template "%s | FilmiFy"
+  // (duplicaría la marca). Este título es solo el fallback para páginas que
+  // no fijan uno propio.
+  title: "FilmiFy - Ver películas y series online gratis | Cine en streaming",
   description: "FilmiFy te ayuda a descubrir dónde ver películas y series online, con reseñas, tráileres y proveedores actualizados. Encuentra opciones de streaming, alquiler y compra desde un solo lugar.",
   keywords: [
     "ver películas online",

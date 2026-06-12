@@ -25,8 +25,12 @@ import { getOptionalApiKeys } from '@/lib/env';
 export const revalidate = 1800;
 
 export const metadata: Metadata = {
-  title: 'FilmiFy - Ver películas y series online gratis | Cine en streaming',
-  description: 'Mira películas y series online en FilmiFy sin registrarte. Catálogo actualizado a diario con estrenos, tendencias y clásicos. Busca, descubre y reproduce al instante.',
+  // `absolute` evita que el template "%s | FilmiFy" del layout duplique la marca.
+  // Lidera con la acción + keyword (como Plex/JustWatch) y reserva la marca al final.
+  title: {
+    absolute: 'Ver Películas y Series Online Gratis - FilmiFy | Cine en HD',
+  },
+  description: 'Ver películas y series online gratis y en HD, sin registro. Catálogo actualizado a diario: estrenos, tendencias y clásicos. Reproduce al instante en FilmiFy.',
   keywords: [
     'FilmiFy',
     'filmify',
@@ -165,7 +169,7 @@ export default async function HomePage() {
                 <div className="absolute inset-0">
                   <Image
                     src={backdropUrl}
-                    alt={`Imagen de fondo de la película ${heroMovie.title}`}
+                    alt={`Ver ${heroMovie.title} online gratis en FilmiFy — películas y series en streaming HD`}
                     fill
                     className="object-cover"
                     priority

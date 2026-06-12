@@ -33,9 +33,21 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
     const title = year
         ? `Ver ${tvShow.name} (${year}) online gratis | FilmiFy`
         : `Ver ${tvShow.name} online gratis | FilmiFy`;
-    const description = tvShow.overview
-        ? `${tvShow.overview} Mira ${tvShow.name} online gratis en FilmiFy, todas las temporadas, sin registro.`
-        : `Mira ${tvShow.name} online en FilmiFy, con temporadas completas, reparto y tráiler.`;
+    // El gancho de marca va PRIMERO porque Google trunca a ~155 caracteres.
+    // Así, aunque la sinopsis de TMDB falte o esté en otro idioma, la
+    // descripción mostrada en resultados sigue siendo relevante a la búsqueda
+    // ("ver X online") en lugar de ser sobrescrita por Google con el reparto.
+    const hook = year
+        ? `Ver ${tvShow.name} (${year}) online gratis y en HD en FilmiFy, todas las temporadas, sin registro.`
+        : `Ver ${tvShow.name} online gratis y en HD en FilmiFy, todas las temporadas, sin registro.`;
+    const genres = tvShow.genres?.map((g) => g.name).filter(Boolean).slice(0, 3).join(', ');
+    const synopsis = tvShow.overview?.trim();
+    const extra = synopsis
+        ? ` ${synopsis}`
+        : genres
+            ? ` Serie de ${genres}. Mira el tráiler, reparto y reproduce los episodios online.`
+            : ' Mira el tráiler, reparto y reproduce todos los episodios online.';
+    const description = (hook + extra).slice(0, 300);
     const keywordSet = new Set<string>([
         tvShow.name,
         `ver ${tvShow.name}`,
@@ -57,7 +69,9 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
     const keywords = Array.from(keywordSet).slice(0, 24);
 
     return {
-        title,
+        // `absolute`: el título ya incluye "| FilmiFy"; evita que el template
+        // del layout lo duplique ("... | FilmiFy | FilmiFy").
+        title: { absolute: title },
         description,
         keywords,
         alternates: { canonical },

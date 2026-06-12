@@ -30,9 +30,22 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
     const title = year
         ? `Ver ${movie.title} (${year}) online gratis | FilmiFy`
         : `Ver ${movie.title} online gratis | FilmiFy`;
-    const description = movie.overview
-        ? `${movie.overview.slice(0, 200)}... Mira ${movie.title} online gratis en FilmiFy, sin registro.`
-        : `Mira ${movie.title} online en FilmiFy, con elenco, tráiler y reproducción gratuita.`;
+
+    // El gancho de marca va PRIMERO porque Google trunca a ~155 caracteres.
+    // Así, aunque la sinopsis de TMDB falte o esté en otro idioma, la
+    // descripción mostrada en resultados sigue siendo relevante a la búsqueda
+    // ("ver X online") en lugar de ser sobrescrita por Google con el reparto.
+    const hook = year
+        ? `Ver ${movie.title} (${year}) online gratis y en HD en FilmiFy, sin registro.`
+        : `Ver ${movie.title} online gratis y en HD en FilmiFy, sin registro.`;
+    const genres = movie.genres?.map((g) => g.name).filter(Boolean).slice(0, 3).join(', ');
+    const synopsis = movie.overview?.trim();
+    const extra = synopsis
+        ? ` ${synopsis}`
+        : genres
+            ? ` Película de ${genres}. Mira el tráiler, reparto y reproduce online.`
+            : ' Mira el tráiler, reparto y reproduce la película online.';
+    const description = (hook + extra).slice(0, 300);
 
     const keywordSet = new Set<string>([
         movie.title,
@@ -52,7 +65,9 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
     const keywords = Array.from(keywordSet).slice(0, 24);
 
     return {
-        title,
+        // `absolute`: el título ya incluye "| FilmiFy"; evita que el template
+        // del layout lo duplique ("... | FilmiFy | FilmiFy").
+        title: { absolute: title },
         description,
         keywords,
         alternates: { canonical },
