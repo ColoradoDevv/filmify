@@ -44,6 +44,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     const [episode, setEpisode] = useState<number>(seasons[0]?.episodes[0] ?? 1);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const playButtonRef = useRef<HTMLButtonElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const currentSeason = useMemo(
@@ -101,15 +102,26 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         if (mode === 'serie') startSerie();
     };
 
-    // Load-timeout watchdog for the series embed
+    // Reintento contextual según el modo actual (serie o tráiler).
+    const retryCurrent = useCallback(() => {
+        if (mode === 'serie') startSerie();
+        else if (mode === 'trailer') startTrailer();
+    }, [mode, startSerie, startTrailer]);
+
+    // Timeout unificado para cualquier modo de carga (serie o tráiler).
     useEffect(() => {
-        if (mode !== 'serie' || !isLoading) return;
+        if (!isLoading) return;
         timeoutRef.current = setTimeout(() => {
-            setIsLoading(false);
             setError(true);
+            setIsLoading(false);
         }, LOAD_TIMEOUT_MS);
         return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
-    }, [mode, isLoading, reloadKey]);
+    }, [isLoading, reloadKey]);
+
+    // Limpieza del timeout al desmontar.
+    useEffect(() => {
+        return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+    }, []);
 
     const handleLoad = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -126,22 +138,26 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         req?.().catch(() => { /* blocked by browser policy — ignore */ });
     };
 
+    // Foco inicial en el botón de reproducción (accesibilidad con teclado).
+    useEffect(() => {
+        if (mode === 'idle') playButtonRef.current?.focus();
+    }, [mode]);
+
     const selectCls =
         'h-9 px-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-semibold ' +
         'hover:bg-white/10 focus:outline-none focus:border-primary/60 transition-all cursor-pointer';
 
     return (
         <div className="w-full">
-            {/* Tab bar: Ver Serie / Tráiler + season-episode pickers */}
-            <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 bg-surface-container-low border border-outline-variant border-b-0 rounded-t-xl">
+            {/* Barra de pestañas y controles */}
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-container-low border border-outline-variant border-b-0 rounded-t-xl overflow-x-auto">
                 <button
                     onClick={startSerie}
-                    className={[
-                        'flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-semibold transition-colors',
+                    className={`flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
                         mode !== 'trailer'
-                            ? 'bg-primary text-white'
-                            : 'text-text-secondary hover:text-white hover:bg-white/5',
-                    ].join(' ')}
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-white/5'
+                    }`}
                 >
                     <Tv className="w-4 h-4" />
                     Ver Serie
@@ -149,12 +165,11 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                 {trailerUrl && (
                     <button
                         onClick={startTrailer}
-                        className={[
-                            'flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-semibold transition-colors',
+                        className={`flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
                             mode === 'trailer'
-                                ? 'bg-primary text-white'
-                                : 'text-text-secondary hover:text-white hover:bg-white/5',
-                        ].join(' ')}
+                                ? 'bg-primary text-white shadow-sm'
+                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                        }`}
                     >
                         <Youtube className="w-4 h-4" />
                         Tráiler
@@ -164,7 +179,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                 <div className="flex-1" />
 
                 {seasons.length > 0 && (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <label className="sr-only" htmlFor="player-season">Temporada</label>
                         <select
                             id="player-season"
@@ -196,7 +211,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
 
                 <button
                     onClick={handleFullscreen}
-                    className="flex items-center justify-center w-9 h-9 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+                    className="flex items-center justify-center w-9 h-9 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors shrink-0"
                     aria-label="Pantalla completa"
                     title="Pantalla completa"
                 >
@@ -209,11 +224,12 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                 ref={containerRef}
                 className="relative w-full aspect-video bg-black rounded-b-xl overflow-hidden border border-outline-variant border-t-0"
             >
-                {/* Idle: backdrop + big play button (click-to-play, lazy) */}
+                {/* === Estado IDLE: backdrop + botón de reproducción === */}
                 {mode === 'idle' && (
                     <button
+                        ref={playButtonRef}
                         onClick={startSerie}
-                        className="group absolute inset-0 w-full h-full cursor-pointer"
+                        className="group absolute inset-0 w-full h-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-b-xl"
                         aria-label={`Reproducir ${title}`}
                     >
                         {backdropUrl && (
@@ -235,13 +251,13 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                                 {seasons.length > 0 ? `Ver T${season} · E${episode}` : 'Ver ahora'}
                             </span>
                             <span className="text-white/50 text-xs uppercase tracking-widest">
-                                Gratis · Sin registro
+                                Haz clic para reproducir
                             </span>
                         </div>
                     </button>
                 )}
 
-                {/* Loading */}
+                {/* === Cargando === */}
                 {mode !== 'idle' && isLoading && !error && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black">
                         <Loader2 className="w-9 h-9 text-primary animate-spin" />
@@ -249,20 +265,22 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                     </div>
                 )}
 
-                {/* Error + retry */}
-                {mode === 'serie' && error && (
+                {/* === Error (funciona para serie y tráiler) === */}
+                {error && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black p-6 text-center">
                         <div className="w-12 h-12 rounded-full bg-error-container flex items-center justify-center">
                             <AlertCircle className="w-5 h-5 text-on-error-container" />
                         </div>
                         <div>
-                            <p className="text-white font-medium mb-1">No se pudo cargar el reproductor</p>
+                            <p className="text-white font-medium mb-1">
+                                No se pudo cargar {mode === 'trailer' ? 'el tráiler' : 'la serie'}
+                            </p>
                             <p className="text-white/40 text-sm max-w-xs">
                                 Revisa tu conexión e inténtalo de nuevo.
                             </p>
                         </div>
                         <button
-                            onClick={startSerie}
+                            onClick={retryCurrent}
                             className="flex items-center gap-2 h-9 px-5 rounded-full bg-primary text-white text-sm font-medium hover:shadow-lg transition-shadow"
                         >
                             <RefreshCw className="w-3.5 h-3.5" />
@@ -271,7 +289,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                     </div>
                 )}
 
-                {/* Series embed */}
+                {/* === Iframe de la serie === */}
                 {mode === 'serie' && !error && (
                     <iframe
                         key={`serie-${reloadKey}`}
@@ -285,8 +303,8 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                     />
                 )}
 
-                {/* Trailer embed */}
-                {mode === 'trailer' && trailerUrl && (
+                {/* === Iframe del tráiler === */}
+                {mode === 'trailer' && trailerUrl && !error && (
                     <iframe
                         key={`trailer-${reloadKey}`}
                         src={trailerUrl}

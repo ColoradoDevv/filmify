@@ -59,6 +59,7 @@ Do not include markdown formatting or explanations.`;
 
         return recommendations;
     } catch (error) {
+        console.error('[getGeminiRecommendations] Groq error:', error);
         return [];
     }
 }
@@ -254,9 +255,10 @@ export async function generateAIResponse(prompt: string): Promise<string> {
  * Get AI-generated search correction
  */
 export async function getSearchCorrection(query: string): Promise<string | null> {
-    const settings = await getSettings();
-    if (!settings.enableAi) return null;
-
+    // La corrección ortográfica es una ayuda ligera de UX: depende solo de que
+    // haya GROQ_API_KEY, no del flag `enableAi` (que regula la IA "pesada" de
+    // recomendaciones). Así sigue funcionando aunque ese flag esté apagado o
+    // la consulta de settings falle.
     if (!groq) {
         return null;
     }
@@ -286,6 +288,9 @@ export async function getSearchCorrection(query: string): Promise<string | null>
         // Remove quotes if present
         return text.replace(/^["']|["']$/g, '');
     } catch (error) {
+        // Logueamos el error real de Groq (modelo deprecado, clave inválida,
+        // rate limit…) para poder diagnosticarlo desde los logs del servidor.
+        console.error('[getSearchCorrection] Groq error:', error);
         return null;
     }
 }

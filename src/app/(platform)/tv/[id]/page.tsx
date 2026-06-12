@@ -61,23 +61,17 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
         description,
         keywords,
         alternates: { canonical },
+        // El og:image lo genera opengraph-image.tsx de este segmento.
         openGraph: {
             title,
             description,
             url: canonical,
             type: 'website',
-            images: [
-                {
-                    url: getPosterUrl(tvShow.poster_path) || '/logo-icon.svg',
-                    alt: `${tvShow.name} poster`,
-                },
-            ],
         },
         twitter: {
             card: 'summary_large_image',
             title,
             description,
-            images: [getPosterUrl(tvShow.poster_path) || '/logo-icon.svg'],
         },
     };
 }
@@ -289,76 +283,50 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
                             src={backdropUrl}
                             alt=""
                             fill
-                            className="object-cover opacity-20 blur-sm scale-105"
+                            className="object-cover opacity-25 blur-sm scale-105"
                             sizes="100vw"
                             priority
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/85 to-background" />
                     </div>
                 )}
 
-                <div className="relative max-w-5xl mx-auto">
+                <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Back link */}
                     <Link
                         href="/browse?category=tv"
-                        className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors mb-3"
+                        className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors mt-4 mb-6"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Volver a series
                     </Link>
 
-                    {/* ── Poster (left) + Player (right) ── */}
-                    <div className="grid lg:grid-cols-[220px,1fr] gap-5 items-stretch">
-                        <aside className="hidden lg:flex flex-col gap-3">
-                            <div className="relative aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-2xl">
-                                {posterUrl ? (
-                                    <Image
-                                        src={posterUrl}
-                                        alt={`Póster de ${tvShow.name}`}
-                                        fill
-                                        className="object-cover"
-                                        sizes="220px"
-                                        priority
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0 bg-surface-container flex items-center justify-center">
-                                        <Tv className="w-10 h-10 text-text-muted opacity-30" />
-                                    </div>
-                                )}
-                            </div>
-                            {/* Quick facts fill the remaining column height */}
-                            <div className="flex-1 rounded-xl bg-surface-container-low border border-outline-variant p-3 flex flex-col justify-center gap-2 text-sm">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-text-muted">Rating</span>
-                                    <span className="flex items-center gap-1 text-primary font-bold">
-                                        <Star className="w-3.5 h-3.5 fill-primary" />
-                                        {tvShow.vote_average ? tvShow.vote_average.toFixed(1) : 'NR'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-text-muted">Temporadas</span>
-                                    <span className="text-white font-medium">{tvShow.number_of_seasons}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-text-muted">Episodios</span>
-                                    <span className="text-white font-medium">{tvShow.number_of_episodes}</span>
-                                </div>
-                            </div>
-                        </aside>
+                    {/* ── Player (full width, sin grid) ── */}
+                    <SeriesPlayer
+                        tmdbId={tvShow.id}
+                        title={tvShow.name}
+                        backdropUrl={backdropUrl}
+                        trailerKey={trailer?.key ?? null}
+                        seasons={seasons}
+                    />
 
-                        {/* Player */}
-                        <SeriesPlayer
-                            tmdbId={tvShow.id}
-                            title={tvShow.name}
-                            backdropUrl={backdropUrl}
-                            trailerKey={trailer?.key ?? null}
-                            seasons={seasons}
-                        />
+                    {/* Mobile quick facts */}
+                    <div className="lg:hidden flex items-center gap-3 mt-3 mb-4 text-sm flex-wrap">
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
+                            <Star className="w-3.5 h-3.5 fill-primary" />
+                            {tvShow.vote_average ? tvShow.vote_average.toFixed(1) : 'NR'}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                            {tvShow.number_of_seasons} temporada{tvShow.number_of_seasons === 1 ? '' : 's'}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                            {tvShow.number_of_episodes} ep.
+                        </span>
                     </div>
 
                     {/* ── Title bar ── */}
-                    <div className="flex flex-wrap items-start justify-between gap-4 mt-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4 mt-6">
                         <div className="min-w-0">
                             <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
                                 {tvShow.name}

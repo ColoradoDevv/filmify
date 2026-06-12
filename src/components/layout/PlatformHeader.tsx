@@ -56,17 +56,20 @@ export default function PlatformHeader() {
                 style={{ top: 'var(--announcement-height, 0px)' }}
                 className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Mobile logo — solo el ícono en pantallas muy estrechas para
-                    dar todo el ancho posible a la búsqueda. */}
-                <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0" aria-label="Inicio">
-                    <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
-                    <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
-                </Link>
-
-                {/* Search — takes remaining space */}
-                <div className="flex-1 min-w-0 max-w-sm">
-                    <SearchInput className="w-full" placeholder="Buscar…" />
+                {/* Mobile logo — se oculta cuando el usuario está escribiendo en la barra */}
+                <div className="flex items-center gap-2 lg:hidden shrink-0">
+                    <Link href="/" className="flex items-center gap-2" aria-label="Inicio" data-mobile-logo>
+                        <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
+                        <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
+                    </Link>
                 </div>
+
+                {/* Search — cuando se enfoca en móvil, ocupa todo el ancho */}
+                <div className="flex-1 min-w-0 max-w-sm md3-search-container">
+                    <SearchInput className="w-full md3-search-input" placeholder="Buscar…" />
+                </div>
+
+
 
                 {/* Actions — login is an optional enhancement, never required.
                     En móvil el login vive en la tab bar (Cuenta), así que aquí

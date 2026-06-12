@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
 import type { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
+import { searchTitles, type SearchResultItem } from '@/app/actions/search';
 import {
     addToHistory, getHistory, clearHistory, SearchHistoryItem,
 } from '@/lib/supabase/history';
@@ -59,7 +60,7 @@ export default function SearchInput({
     const pathname = usePathname();
 
     const [query, setQuery] = useState('');
-    const [suggestions, setSuggestions] = useState<MultiSearchResult[]>([]);
+    const [suggestions, setSuggestions] = useState<SearchResultItem[]>([]);
     const [history, setHistory] = useState<SearchHistoryItem[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -94,38 +95,27 @@ export default function SearchInput({
             return;
         }
 
-        const controller = new AbortController();
+        // Usa el mismo server action que la página de búsqueda: solo devuelve
+        // títulos reproducibles (películas + series), sin personas ni títulos
+        // no disponibles en el proveedor.
+        let cancelled = false;
         const timer = setTimeout(async () => {
             setLoading(true);
             try {
-                const res = await fetch(
-                    `/api/tmdb/search?query=${encodeURIComponent(query.trim())}`,
-                    { signal: controller.signal }
-                );
-                const data = await res.json();
-                if (!isMounted.current) return;
-
-                const filtered = (data.results ?? [])
-                    .filter((item: MultiSearchResult) =>
-                        item.media_type === 'movie' ||
-                        item.media_type === 'tv' ||
-                        item.media_type === 'person'
-                    )
-                    .slice(0, 5);
-                setSuggestions(filtered);
+                const items = await searchTitles(query.trim());
+                if (cancelled || !isMounted.current) return;
+                setSuggestions(items.slice(0, 6));
                 setActiveIndex(-1);
-            } catch (e: any) {
-                if (e.name !== 'AbortError') console.error('Search error:', e);
+            } catch (e) {
+                if (!cancelled) console.error('Search error:', e);
             } finally {
-                if (isMounted.current && !controller.signal.aborted) {
-                    setLoading(false);
-                }
+                if (!cancelled && isMounted.current) setLoading(false);
             }
         }, 300);
 
         return () => {
+            cancelled = true;
             clearTimeout(timer);
-            controller.abort();
         };
     }, [query]);
 
@@ -272,6 +262,7 @@ export default function SearchInput({
                         className="p-1 rounded-full bg-primary/20 hover:bg-primary/40 text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         aria-label="Buscar"
                     >
+
                         <CornerDownLeft className="w-4 h-4" />
                     </button>
                 </div>
