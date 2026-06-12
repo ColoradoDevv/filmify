@@ -266,37 +266,6 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
 
                 <div className="flex-1" />
 
-                {seasons.length > 0 && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <label className="sr-only" htmlFor="player-season">Temporada</label>
-                        <select
-                            id="player-season"
-                            value={season}
-                            onChange={(e) => changeSeason(Number(e.target.value))}
-                            className={selectCls}
-                        >
-                            {seasons.map((s) => (
-                                <option key={s.season} value={s.season} className="bg-surface text-white">
-                                    Temporada {s.season}
-                                </option>
-                            ))}
-                        </select>
-                        <label className="sr-only" htmlFor="player-episode">Episodio</label>
-                        <select
-                            id="player-episode"
-                            value={episode}
-                            onChange={(e) => changeEpisode(Number(e.target.value))}
-                            className={selectCls}
-                        >
-                            {episodeOptions.map((ep) => (
-                                <option key={ep} value={ep} className="bg-surface text-white">
-                                    Episodio {ep}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
                 <button
                     onClick={handleFullscreen}
                     className="flex items-center justify-center w-9 h-9 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors shrink-0"
@@ -456,7 +425,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                                 className="flex items-center gap-1 h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                                 <ChevronLeft className="w-4 h-4" />
-                                Anterior
+                                
                             </button>
                             <label className="sr-only" htmlFor="episodes-season">Temporada</label>
                             <select
@@ -476,7 +445,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                                 disabled={!nextEpisode}
                                 className="flex items-center gap-1 h-9 px-3 rounded-lg bg-primary/20 border border-primary/30 text-sm font-semibold text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
-                                Siguiente
+                                
                                 <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
