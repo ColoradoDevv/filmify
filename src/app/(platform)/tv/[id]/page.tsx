@@ -9,7 +9,6 @@ import {
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
-import AdBanner1 from '@/components/ads/AdBanner1';
 import Image from 'next/image';
 import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
 import Link from 'next/link';
@@ -453,10 +452,6 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
                         </div>
                     </section>
 
-                    {/* ── Publicidad ── */}
-                    <div className="mt-10">
-                        <AdBanner1 />
-                    </div>
 
                     {/* ── Reparto: compact horizontal row ── */}
                     {cast.length > 0 && (

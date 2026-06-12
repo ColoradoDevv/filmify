@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
-import AdBanner1 from '@/components/ads/AdBanner1';
 import { isTVDevice } from '@/lib/device-detection';
 import MovieDetailsPageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -365,7 +364,6 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                             {certification}
                         </span>
                     </div>
-                    <AdBanner1 />
 
                     {/* ── Title + actions ────────────────────────── */}
                     <div className="flex flex-wrap items-start justify-between gap-4 mt-6">
@@ -486,7 +484,9 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                     {/* ── Publicidad: banner 728×90 (AdBanner1 ya está arriba;
                          dos unidades nativas en la misma página no funcionan
                          porque comparten el id de contenedor) ── */}
-                    <div className="hidden md:block mt-10">
+                    {/* AdBanner2 ahora se auto-escala → visible en todas las
+                        resoluciones (móvil, tablet, pc) sin desbordarse. */}
+                    <div className="mt-10">
                         <AdBanner2 />
                     </div>
 

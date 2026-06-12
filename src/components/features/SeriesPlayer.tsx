@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Play, Loader2, AlertCircle, RefreshCw, Tv, Youtube, Maximize } from 'lucide-react';
+import { trackPlay, trackTrailer } from '@/lib/analytics';
 
 export interface SeasonEpisodes {
     season: number;
@@ -76,15 +77,17 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         setIsLoading(true);
         setError(false);
         setReloadKey((k) => k + 1);
-    }, []);
+        trackPlay({ mediaType: 'serie', tmdbId, title, season, episode });
+    }, [tmdbId, title, season, episode]);
 
     const startTrailer = useCallback(() => {
         if (!trailerUrl) return;
+        trackTrailer({ mediaType: 'serie', tmdbId, title });
         setMode('trailer');
         setIsLoading(true);
         setError(false);
         setReloadKey((k) => k + 1);
-    }, [trailerUrl]);
+    }, [trailerUrl, tmdbId, title]);
 
     // Changing season/episode while playing reloads the embed.
     const changeSeason = (s: number) => {

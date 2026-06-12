@@ -124,7 +124,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
     }
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-8 sm:space-y-12">
             {/* Grid de tarjetas */}
             <div
                 ref={gridRef}
@@ -171,7 +171,7 @@ export default function MovieGrid({ initialMovies, mediaType = 'movie', fixedGen
                         onClick={handleLoadMore}
                         onKeyDown={handleKeyDown}
                         disabled={loading}
-                        className="group relative px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none text-white"
+                        className="group relative w-full sm:w-auto px-8 py-4 bg-surface hover:bg-surface-hover border border-surface-light rounded-2xl font-medium transition-all sm:hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed tv-focusable tv-button-focus focus:outline-none text-white"
                         tabIndex={0}
                         data-focusable="true"
                         aria-label={`Cargar más ${mediaType === 'tv' ? 'series' : 'películas'}`}

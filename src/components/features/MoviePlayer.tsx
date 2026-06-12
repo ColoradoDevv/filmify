@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Play, Loader2, AlertCircle, RefreshCw, Clapperboard, Youtube, Maximize } from 'lucide-react';
+import { trackPlay, trackTrailer } from '@/lib/analytics';
 
 interface MoviePlayerProps {
     tmdbId: number;
@@ -48,11 +49,13 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
         setIsLoading(true);
         setError(false);
         setReloadKey((k) => k + 1);
-    }, []);
+        trackPlay({ mediaType: 'movie', tmdbId, title });
+    }, [tmdbId, title]);
 
     // Inicia el tráiler (si está disponible)
     const startTrailer = useCallback(() => {
         if (!trailerUrl) return;
+        trackTrailer({ mediaType: 'movie', tmdbId, title });
         setMode('trailer');
         setIsLoading(true);
         setError(false);

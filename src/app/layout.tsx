@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
-import { Analytics } from "@vercel/analytics/react";
+import AnalyticsClient from "@/components/AnalyticsClient";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
@@ -157,7 +157,7 @@ export default async function RootLayout({
         {children}
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
-        <Analytics />
+        <AnalyticsClient />
         <CookieConsent />
         <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
           {`

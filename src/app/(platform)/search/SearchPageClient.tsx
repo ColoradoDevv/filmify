@@ -106,16 +106,16 @@ export default function SearchPageClient({
     return (
         <div
             ref={containerRef}
-            className="min-h-screen p-6 lg:p-8"
+            className="min-h-screen sm:p-2 lg:p-8"
             onKeyDown={handleKeyDown}
         >
-            <div className="mb-8">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center">
-                        <Search className="w-6 h-6 text-primary" />
+            <div className="mb-6 sm:mb-8">
+                <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
+                        <Search className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-white">Buscar</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white">Buscar</h1>
                         <p className="text-white/40 text-sm mt-0.5">
                             Películas, series y más
                         </p>

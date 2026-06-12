@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Film, Search } from 'lucide-react';
 import EditorialNav from '@/components/editorial/EditorialNav';
+import AdBanner1 from '@/components/ads/AdBanner1';
 
 export const metadata: Metadata = {
     title: {
@@ -78,6 +79,14 @@ export default function EditorialLayout({ children }: { children: React.ReactNod
 
             {/* Content */}
             <main className="min-h-screen">{children}</main>
+
+            {/* Publicidad — al pie de todas las vistas del editorial */}
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-12" role="complementary" aria-label="Publicidad">
+                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/50 text-center mb-2 select-none">
+                    Publicidad
+                </p>
+                <AdBanner1 />
+            </div>
 
             {/* Footer */}
             <footer className="bg-surface-container-low border-t border-outline-variant mt-16">
