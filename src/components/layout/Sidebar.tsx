@@ -7,7 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
-    Home, Film, Tv, Radio, BookOpen,
+    Home, Film, Tv, BookOpen,
     Heart, Settings, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
@@ -56,12 +56,6 @@ const SECTIONS: NavSection[] = [
                 icon: Tv,
                 isActive: (p, cat) =>
                     p.startsWith('/browse') && cat === 'tv',
-            },
-            {
-                name: 'TV en Vivo',
-                href: '/live-tv',
-                icon: Radio,
-                isActive: (p) => p.startsWith('/live-tv'),
             },
             {
                 name: 'Editorial',

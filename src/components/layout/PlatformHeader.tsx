@@ -65,7 +65,7 @@ export default function PlatformHeader() {
                 </div>
 
                 {/* Search — al enfocar en móvil, ocupa todo el ancho disponible */}
-                <div className="flex-1 min-w-0 max-w-sm transition-all duration-300 ease-out group-focus-within/searchbar:max-w-full">
+                <div className="flex-1 min-w-0 max-w-sm transition-all duration-300 ease-out max-lg:group-focus-within/searchbar:max-w-full">
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
