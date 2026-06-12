@@ -6,7 +6,6 @@ import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
-import AdBanner2 from '@/components/ads/AdBanner2';
 import { TrendingUp, Tv, Film } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -154,17 +153,17 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     }
 
     return (
-        <div className="space-y-8 pb-20">
+        <div className="space-y-6 sm:space-y-8 pb-20">
             {/* ── Hero Section ────────────────────────────────── */}
-            <div className="relative rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
                 {/* Fondo con gradiente y desenfoque */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-surface to-accent/10" />
                 <div className="absolute inset-0 backdrop-blur-3xl" />
 
-                <div className="relative z-10 p-8 sm:p-12">
+                <div className="relative z-10 p-5 sm:p-12">
                     <div className="max-w-2xl">
                         {/* Etiqueta de categoría */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 mb-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
                             {isTV ? (
                                 <Tv className="w-4 h-4 text-primary" />
                             ) : (
@@ -175,13 +174,13 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                             </span>
                         </div>
 
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-3">
+                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3">
                             Explora{' '}
                             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                                 {isTV ? 'Series' : 'Películas'}
                             </span>
                         </h1>
-                        <p className="text-text-secondary text-lg leading-relaxed">
+                        <p className="text-text-secondary text-sm sm:text-lg leading-relaxed">
                             {isTV
                                 ? 'Descubre las series más populares y aclamadas del momento.'
                                 : 'Explora las películas que están definiendo la conversación cinematográfica.'}
@@ -197,10 +196,6 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <FilterBar genres={genres} />
             <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
 
-            {/* Publicidad — al final del grid, nunca interrumpe la exploración */}
-            <div className="hidden md:block">
-                <AdBanner2 />
-            </div>
         </div>
     );
 }

@@ -6,6 +6,7 @@ import { Heart, Share2, Check, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store/useStore';
 import { saveFavoritesToSupabase } from '@/lib/supabase/favorites';
 import { createClient } from '@/lib/supabase/client';
+import { trackFavorite } from '@/lib/analytics';
 import { toast } from 'sonner';
 import type { Movie, TVShow } from '@/types/tmdb';
 
@@ -45,6 +46,11 @@ export default function MovieActions({ movie }: MovieActionsProps) {
             removeFavorite(movie.id);
         } else {
             addFavorite(movie as Movie);
+            trackFavorite({
+                mediaType: 'title' in movie ? 'movie' : 'serie',
+                tmdbId: movie.id,
+                title: 'title' in movie ? movie.title : movie.name,
+            });
         }
 
         try {

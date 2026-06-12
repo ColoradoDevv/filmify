@@ -13,7 +13,11 @@ const nextConfig = {
   //   ignoreDuringBuilds: true,
   // },
   images: {
-    unoptimized: true,
+    // Loader propio: pide a TMDB el tamaño exacto que se muestra (resize +
+    // srcset responsive), sin usar el optimizador de Vercel (cero coste de
+    // transformaciones). Ver src/lib/tmdbImageLoader.ts.
+    loader: 'custom',
+    loaderFile: './src/lib/tmdbImageLoader.ts',
     remotePatterns: [
       {
         protocol: 'https',
@@ -30,9 +34,10 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
       },
     ],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    formats: ['image/webp'],
+    // Anchos que Next usará para generar el srcset (coinciden con los tamaños
+    // de TMDB para que el loader mapee 1:1 sin redondeos hacia arriba).
+    deviceSizes: [185, 342, 500, 780, 1280],
+    imageSizes: [92, 154, 300],
     minimumCacheTTL: 60,
   },
   async rewrites() {

@@ -14,102 +14,76 @@ const VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const BASE_URL = 'https://vimeus.com';
 
 const PAGE_REVALIDATE_S = 3_600;       // Next Data Cache TTL per page
-const MEMO_TTL_MS = 10 * 60_000;       // in‑process memo TTL
 const FETCH_TIMEOUT_MS = 8_000;
-const MAX_PAGES = 200;                 // safety bound
-const MAX_CONCURRENT_PAGES = 6;        // workers for building the set
-const MAX_PROBE_CONCURRENCY = 10;      // workers for embed probes
+const MAX_PAGES = 200;                 // safety bound al recorrer el catálogo
+const MAX_PROBE_CONCURRENCY = 16;      // workers for embed probes (acelera cold start)
 const MAX_EPISODE_PAGES = 10;
-const PAGE_RETRY_COUNT = 2;            // retries for individual pages
 
 const DEBUG = process.env.NODE_ENV === 'development';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+// Campos reales devueltos por la API (data.result[]). Las imágenes son rutas
+// relativas de TMDB → prefijar con https://image.tmdb.org/t/p/<size>.
 export interface VimeusMovie {
-    id: number;
-    content_type: 'movie';
     tmdb_id: number;
     imdb_id: string | null;
     title: string;
     poster: string | null;
     backdrop: string | null;
-    synced_at: string;
+    quality?: string;
+    embed_url?: string;
+    download_url?: string;
 }
 
 export interface VimeusSeries {
-    id: number;
-    content_type: 'series';
     tmdb_id: number;
     imdb_id: string | null;
     title: string;
     poster: string | null;
     backdrop: string | null;
-    total_seasons: number;
-    total_episodes: number;
-    synced_at: string;
+    quality?: string;
+    embed_url?: string;
+    download_url?: string;
 }
 
+// En episodes, season y episode llegan como STRING ("1").
 export interface VimeusEpisode {
-    id: number;
-    content_type: string;
     tmdb_id: number;
     imdb_id: string | null;
-    title: string;
+    show_title?: string;
+    parent_type?: string;
     poster: string | null;
     backdrop: string | null;
-    season: number;
-    episode: number;
-    synced_at: string;
+    season: string | number;
+    episode: string | number;
 }
 
-interface Pagination {
-    current_page: number;
-    total_pages: number;
-    total_results: number;
-    per_page: number;
-    has_next: boolean;
-    has_prev: boolean;
+/**
+ * Forma REAL de la respuesta del listing (verificada contra la API en vivo):
+ *   { error, message, data: { result: Item[], pages: <total de páginas> } }
+ * Nota: los items NO traen `synced_at`; `pages` es un entero (no un objeto).
+ */
+interface ListingData<I> {
+    result: I[];
+    pages: number;
 }
 
-interface ListingEnvelope<T> {
+interface ListingEnvelope<I> {
     error: boolean;
     message: string;
-    data: (T & { pagination: Pagination }) | null;
+    data: ListingData<I> | null;
 }
 
-// ── Generic concurrent executor ───────────────────────────────────────────────
-
-/** Runs async tasks with limited concurrency. */
-async function runWithConcurrency<T>(
-    tasks: (() => Promise<T>)[],
-    concurrency: number,
-): Promise<T[]> {
-    const results: T[] = new Array(tasks.length);
-    let cursor = 0;
-
-    async function worker() {
-        while (cursor < tasks.length) {
-            const idx = cursor++;
-            try {
-                results[idx] = await tasks[idx]();
-            } catch {
-                // La tarea individual puede fallar sin detener a las demás
-            }
-        }
-    }
-
-    await Promise.all(
-        Array.from({ length: Math.min(concurrency, tasks.length) }, worker),
-    );
-    return results.filter((_, i) => results[i] !== undefined);
+/** Resultado normalizado de una página del listing. */
+interface ListingPage<I> {
+    items: I[];
+    pages: number;
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
-async function fetchListing<T>(
-    path: string,
-): Promise<(T & { pagination: Pagination }) | null> {
+async function fetchListing<I>(path: string): Promise<ListingPage<I> | null> {
     if (!API_KEY) return null;
     try {
         const res = await fetch(`${BASE_URL}${path}`, {
@@ -121,27 +95,16 @@ async function fetchListing<T>(
             if (DEBUG) console.warn(`[Vimeus] HTTP ${res.status} for ${path}`);
             return null;
         }
-        const json = (await res.json()) as ListingEnvelope<T>;
+        const json = (await res.json()) as ListingEnvelope<I>;
         if (json.error || !json.data) {
             if (DEBUG) console.warn(`[Vimeus] API error: ${json.message}`);
             return null;
         }
-        // Verificación defensiva: si falta pagination, devolvemos una mínima
-        if (!json.data.pagination) {
-            if (DEBUG) console.warn(`[Vimeus] Missing pagination for ${path}`);
-            return {
-                ...json.data,
-                pagination: {
-                    current_page: 1,
-                    total_pages: 1,
-                    total_results: 0,
-                    per_page: 50,
-                    has_next: false,
-                    has_prev: false,
-                },
-            };
-        }
-        return json.data;
+        const items = Array.isArray(json.data.result) ? json.data.result : [];
+        const pages = typeof json.data.pages === 'number' && json.data.pages > 0
+            ? json.data.pages
+            : 1;
+        return { items, pages };
     } catch (err) {
         if (DEBUG) console.error(`[Vimeus] Fetch error for ${path}:`, err);
         return null;
@@ -149,13 +112,13 @@ async function fetchListing<T>(
 }
 
 const fetchMoviesPage = (page: number) =>
-    fetchListing<{ movies: VimeusMovie[] }>(`/api/listing/movies?page=${page}`);
+    fetchListing<VimeusMovie>(`/api/listing/movies?page=${page}`);
 
 const fetchSeriesPage = (page: number) =>
-    fetchListing<{ series: VimeusSeries[] }>(`/api/listing/series?page=${page}`);
+    fetchListing<VimeusSeries>(`/api/listing/series?page=${page}`);
 
 const fetchEpisodesPage = (tmdbId: number, page: number) =>
-    fetchListing<{ episodes: VimeusEpisode[] }>(
+    fetchListing<VimeusEpisode>(
         `/api/listing/episodes?tmdb_id=${tmdbId}&page=${page}`,
     );
 
@@ -164,147 +127,55 @@ const fetchEpisodesPage = (tmdbId: number, page: number) =>
 export async function getRecentlyAddedMovies(limit = 20): Promise<VimeusMovie[]> {
     if (!API_KEY) return [];
     const data = await fetchMoviesPage(1);
-    return (data?.movies ?? []).slice(0, limit);
+    return (data?.items ?? []).slice(0, limit);
 }
 
 // ── Catálogo (para sitemap) ──────────────────────────────────────────────────
-// Devuelve los N títulos más recientemente sincronizados (orden synced_at desc
-// del listing). Las páginas individuales están cacheadas 1h, así que recorrer
-// varias páginas es barato.
+// Recorre el listing por páginas (100 items/página) hasta `limit`. Las páginas
+// están cacheadas 1h en el Data Cache, así que recorrer varias es barato.
 
-export async function getVimeusMovieCatalog(limit = 300): Promise<VimeusMovie[]> {
+export async function getVimeusMovieCatalog(limit = 500): Promise<VimeusMovie[]> {
     if (!API_KEY) return [];
     const items: VimeusMovie[] = [];
-    let page = 1;
-    let hasNext = true;
-    while (hasNext && items.length < limit && page <= MAX_PAGES) {
+    const first = await fetchMoviesPage(1);
+    if (!first) return [];
+    items.push(...first.items);
+    const totalPages = Math.min(first.pages, MAX_PAGES);
+    for (let page = 2; page <= totalPages && items.length < limit; page++) {
         const data = await fetchMoviesPage(page);
         if (!data) break;
-        items.push(...data.movies);
-        hasNext = data.pagination.has_next;
-        page++;
+        items.push(...data.items);
     }
     return items.slice(0, limit);
 }
 
-export async function getVimeusSeriesCatalog(limit = 150): Promise<VimeusSeries[]> {
+export async function getVimeusSeriesCatalog(limit = 300): Promise<VimeusSeries[]> {
     if (!API_KEY) return [];
     const items: VimeusSeries[] = [];
-    let page = 1;
-    let hasNext = true;
-    while (hasNext && items.length < limit && page <= MAX_PAGES) {
+    const first = await fetchSeriesPage(1);
+    if (!first) return [];
+    items.push(...first.items);
+    const totalPages = Math.min(first.pages, MAX_PAGES);
+    for (let page = 2; page <= totalPages && items.length < limit; page++) {
         const data = await fetchSeriesPage(page);
         if (!data) break;
-        items.push(...data.series);
-        hasNext = data.pagination.has_next;
-        page++;
+        items.push(...data.items);
     }
     return items.slice(0, limit);
 }
 
 // ── Memoized ID Sets ─────────────────────────────────────────────────────────
 
-type Kind = 'movies' | 'series';
+// NOTA DE DISEÑO: antes construíamos un Set con TODOS los tmdb_id del listing
+// (152 páginas de películas ≈ 15 000 títulos). Recorrer eso en cada cold start
+// disparaba timeouts y hacía que la home tardara >40s. Se eliminó.
+//
+// Ahora la disponibilidad se decide por título con `probeEmbed` (sonda del
+// embed, cacheada 6h) — ~20 sondas por página, baratas y cacheadas. El sitemap
+// usa el catálogo del listing directamente (ya son títulos reproducibles), sin
+// verificar nada.
 
-interface MemoEntry {
-    ids: Set<number>;
-    expires: number;
-}
-
-const memos: Record<Kind, MemoEntry | null> = { movies: null, series: null };
-const memoPromises: Record<Kind, Promise<Set<number> | null> | null> = {
-    movies: null,
-    series: null,
-};
-
-/** Invalida la caché en proceso para forzar un refresco completo. */
-export function invalidateAvailabilityCache(kind?: Kind) {
-    if (kind) {
-        memos[kind] = null;
-        memoPromises[kind] = null;
-    } else {
-        memos.movies = null;
-        memos.series = null;
-        memoPromises.movies = null;
-        memoPromises.series = null;
-    }
-}
-
-async function buildIdSet(kind: Kind): Promise<Set<number> | null> {
-    if (!API_KEY) return null;
-
-    const extract = (data: any): { tmdb_id: number }[] =>
-        kind === 'movies' ? (data?.movies ?? []) : (data?.series ?? []);
-    const fetchPage = kind === 'movies' ? fetchMoviesPage : fetchSeriesPage;
-
-    const first = await fetchPage(1);
-    if (!first) return null;
-
-    const ids = new Set<number>(extract(first).map((m) => m.tmdb_id));
-
-    // Si no hay paginación o falta total_pages, asumimos solo una página
-    if (!first.pagination || typeof first.pagination.total_pages !== 'number') {
-        if (DEBUG) console.warn('[Vimeus] Invalid pagination, using single page');
-        return ids;
-    }
-
-    const totalPages = Math.min(first.pagination.total_pages, MAX_PAGES);
-
-    // Construir funciones de tarea con reintentos
-    const tasks: (() => Promise<void>)[] = [];
-    for (let p = 2; p <= totalPages; p++) {
-        tasks.push(() =>
-            attemptWithRetries(async () => {
-                const data = await fetchPage(p);
-                if (data) {
-                    extract(data).forEach((m) => ids.add(m.tmdb_id));
-                }
-            }, PAGE_RETRY_COUNT),
-        );
-    }
-
-    await runWithConcurrency(tasks, MAX_CONCURRENT_PAGES);
-    return ids;
-}
-
-/** Reintenta una función asíncrona un número limitado de veces. */
-async function attemptWithRetries(
-    fn: () => Promise<void>,
-    retries: number,
-): Promise<void> {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            await fn();
-            return;
-        } catch {
-            if (attempt === retries) {
-                if (DEBUG) console.warn('[Vimeus] Max retries reached for a page');
-            }
-            // Espera exponencial mínima
-            await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
-        }
-    }
-}
-
-async function getAvailableIds(kind: Kind): Promise<Set<number> | null> {
-    const now = Date.now();
-    const memo = memos[kind];
-    if (memo && memo.expires > now) return memo.ids;
-
-    if (!memoPromises[kind]) {
-        memoPromises[kind] = buildIdSet(kind).then((ids) => {
-            memoPromises[kind] = null;
-            if (ids && ids.size > 0) {
-                memos[kind] = { ids, expires: now + MEMO_TTL_MS };
-                return ids;
-            }
-            return null;
-        });
-    }
-    return memoPromises[kind];
-}
-
-// ── Embed‑probe (validación profunda) ────────────────────────────────────────
+// ── Embed‑probe (validación por título) ──────────────────────────────────────
 
 /**
  * El listing de Vimeus incluye títulos cuyo embed todavía NO tiene fuentes
@@ -370,30 +241,11 @@ async function probeFilter<T extends { id: number }>(
     return items.filter((_, idx) => flags[idx]);
 }
 
-// ── Filtro ligero (solo listing, sin sonda) ──────────────────────────────────
-// Para superficies que procesan cientos de títulos (p. ej. el sitemap), donde
-// hacer una sonda HTTP por cada uno excedería el tiempo de la función. Confía
-// en el listing oficial: O(1) por título, cero fetches extra. Si no hay API
-// key disponible, devuelve la lista tal cual (fail open).
-
-export async function filterByListing<T extends { id: number }>(
-    items: T[],
-    kind: 'movies' | 'series',
-): Promise<T[]> {
-    if (items.length === 0) return items;
-    const ids = await getAvailableIds(kind);
-    if (!ids) return items;
-    return items.filter((item) => ids.has(item.id));
-}
-
 // ── Public API — movies ───────────────────────────────────────────────────────
 
 export async function isMovieAvailableOnVimeus(tmdbId: number): Promise<boolean> {
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) return false;
-    // Etapa 1: el título debe estar en el listing oficial.
-    const ids = await getAvailableIds('movies');
-    if (ids && !ids.has(tmdbId)) return false;
-    // Etapa 2: el embed debe tener fuentes reales (no "Rastreando embeds…").
+    // Sonda del embed: distingue reproducible / "Rastreando embeds…" (cacheada 6h).
     return probeEmbed(tmdbId, 'movie');
 }
 
@@ -401,21 +253,13 @@ export async function filterAvailableMovies<T extends { id: number }>(
     items: T[],
 ): Promise<T[]> {
     if (items.length === 0) return items;
-    // Etapa 1: filtro por listing (O(1) por título).
-    const ids = await getAvailableIds('movies');
-    const candidates = ids ? items.filter((item) => ids.has(item.id)) : items;
-    // Etapa 2: sonda del embed (cacheada 6h) — descarta "sin embeds todavía".
-    return probeFilter(candidates, 'movie');
+    return probeFilter(items, 'movie');
 }
 
 // ── Public API — series ───────────────────────────────────────────────────────
 
 export async function isSeriesAvailableOnVimeus(tmdbId: number): Promise<boolean> {
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) return false;
-    // Etapa 1: listing oficial (sin API key no podemos verificar → fail open).
-    const ids = await getAvailableIds('series');
-    if (ids && !ids.has(tmdbId)) return false;
-    // Etapa 2: el embed debe tener fuentes reales.
     return probeEmbed(tmdbId, 'serie');
 }
 
@@ -423,9 +267,7 @@ export async function filterAvailableSeries<T extends { id: number }>(
     items: T[],
 ): Promise<T[]> {
     if (items.length === 0) return items;
-    const ids = await getAvailableIds('series');
-    const candidates = ids ? items.filter((item) => ids.has(item.id)) : items;
-    return probeFilter(candidates, 'serie');
+    return probeFilter(items, 'serie');
 }
 
 // ── Episodes map ──────────────────────────────────────────────────────────────
@@ -438,17 +280,26 @@ export async function getSeriesEpisodeMap(
     const bySeason = new Map<number, Set<number>>();
 
     try {
-        let page = 1;
-        let hasNext = true;
-        while (hasNext && page <= MAX_EPISODE_PAGES) {
+        const first = await fetchEpisodesPage(tmdbId, 1);
+        if (!first) return [];
+        const totalPages = Math.min(first.pages, MAX_EPISODE_PAGES);
+
+        const collect = (items: VimeusEpisode[]) => {
+            items.forEach((ep) => {
+                // season/episode llegan como string ("1") → normalizar a número.
+                const s = Number(ep.season);
+                const e = Number(ep.episode);
+                if (!Number.isFinite(s) || !Number.isFinite(e)) return;
+                if (!bySeason.has(s)) bySeason.set(s, new Set());
+                bySeason.get(s)!.add(e);
+            });
+        };
+
+        collect(first.items);
+        for (let page = 2; page <= totalPages; page++) {
             const data = await fetchEpisodesPage(tmdbId, page);
             if (!data) break;
-            data.episodes.forEach((ep) => {
-                if (!bySeason.has(ep.season)) bySeason.set(ep.season, new Set());
-                bySeason.get(ep.season)!.add(ep.episode);
-            });
-            hasNext = data.pagination.has_next;
-            page++;
+            collect(data.items);
         }
     } catch {
         // Fallback silencioso

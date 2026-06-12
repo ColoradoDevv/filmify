@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { trackSearch } from '@/lib/analytics';
 import Image from 'next/image';
 import {
     Search, Film, Tv, User, Loader2, Clock, X, CornerDownLeft,
@@ -145,6 +146,7 @@ export default function SearchInput({
         async (searchQuery: string) => {
             const trimmed = searchQuery.trim();
             if (!trimmed) return;
+            trackSearch(trimmed);
             try {
                 await addToHistory(trimmed);
                 const updated = await getHistory();

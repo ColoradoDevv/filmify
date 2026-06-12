@@ -1,7 +1,6 @@
 import { MetadataRoute } from 'next';
-import { getPopular, getTrending, getBlacklist } from '@/server/services/tmdb';
+import { getBlacklist } from '@/server/services/tmdb';
 import {
-    filterByListing,
     getVimeusMovieCatalog,
     getVimeusSeriesCatalog,
 } from '@/server/services/vimeus';
@@ -112,82 +111,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             console.warn('[sitemap] blacklist fetch failed, continuing', e);
         }
 
-        // Fetch top popular movies (multiple pages for better coverage)
-        const moviePages = await Promise.all([
-            getPopular(1),
-            getPopular(2),
-            getPopular(3),
-            getPopular(4),
-            getPopular(5),
-        ]);
-
-        // Catálogo real del proveedor: los títulos más recientemente
-        // sincronizados en Vimeus (con su fecha real como lastModified).
-        // Esto multiplica la superficie indexable frente a usar solo trending.
+        // El catálogo del listing de Vimeus YA son títulos reproducibles, así
+        // que se usa directamente — sin verificar embed por embed (eso es lo
+        // que provocaba timeouts). Solo unas pocas peticiones paginadas.
         const [movieCatalog, seriesCatalog] = await Promise.all([
-            getVimeusMovieCatalog(300),
-            getVimeusSeriesCatalog(150),
+            getVimeusMovieCatalog(1000),
+            getVimeusSeriesCatalog(500),
         ]);
 
-        // Only announce content that is actually playable — unavailable
-        // titles 404, and a sitemap full of 404s tanks crawl trust.
-        // (filterAvailable* aplica listing + sonda de embeds, ambas cacheadas.)
-        const movieCandidates = new Map<number, Date>();
+        const seenMovies = new Set<number>();
+        const movieUrls: MetadataRoute.Sitemap = [];
         movieCatalog.forEach(m => {
-            if (!blacklist.has(m.tmdb_id)) {
-                movieCandidates.set(m.tmdb_id, new Date(m.synced_at));
-            }
+            if (blacklist.has(m.tmdb_id) || seenMovies.has(m.tmdb_id)) return;
+            seenMovies.add(m.tmdb_id);
+            movieUrls.push({
+                url: `${BASE_URL}/movie/${m.tmdb_id}`,
+                lastModified: currentDate,
+                changeFrequency: 'weekly' as const,
+                priority: 0.8,
+            });
         });
-        moviePages.flatMap(page => page.results).forEach(m => {
-            if (!blacklist.has(m.id) && !movieCandidates.has(m.id)) {
-                movieCandidates.set(m.id, currentDate);
-            }
-        });
 
-        // Filtro ligero (solo listing, sin sonda HTTP por título) — procesar
-        // cientos de títulos con sonda excedería el tiempo de la función.
-        const availableMovies = await filterByListing(
-            Array.from(movieCandidates.keys()).map(id => ({ id })),
-            'movies'
-        );
-
-        const movieUrls: MetadataRoute.Sitemap = availableMovies.map(({ id }) => ({
-            url: `${BASE_URL}/movie/${id}`,
-            lastModified: movieCandidates.get(id) ?? currentDate,
-            changeFrequency: 'weekly' as const,
-            priority: 0.8,
-        }));
-
-        // Series: catálogo del proveedor + trending, igualmente filtradas.
-        const tvPages = await Promise.all([
-            getTrending('tv', 'week', 1),
-            getTrending('tv', 'week', 2),
-            getTrending('tv', 'week', 3),
-        ]);
-
-        const seriesCandidates = new Map<number, Date>();
+        const seenShows = new Set<number>();
+        const tvUrls: MetadataRoute.Sitemap = [];
         seriesCatalog.forEach(s => {
-            if (!blacklist.has(s.tmdb_id)) {
-                seriesCandidates.set(s.tmdb_id, new Date(s.synced_at));
-            }
+            if (blacklist.has(s.tmdb_id) || seenShows.has(s.tmdb_id)) return;
+            seenShows.add(s.tmdb_id);
+            tvUrls.push({
+                url: `${BASE_URL}/tv/${s.tmdb_id}`,
+                lastModified: currentDate,
+                changeFrequency: 'weekly' as const,
+                priority: 0.8,
+            });
         });
-        tvPages.flatMap(page => page.results).forEach(s => {
-            if (!blacklist.has(s.id) && !seriesCandidates.has(s.id)) {
-                seriesCandidates.set(s.id, currentDate);
-            }
-        });
-
-        const availableShows = await filterByListing(
-            Array.from(seriesCandidates.keys()).map(id => ({ id })),
-            'series'
-        );
-
-        const tvUrls: MetadataRoute.Sitemap = availableShows.map(({ id }) => ({
-            url: `${BASE_URL}/tv/${id}`,
-            lastModified: seriesCandidates.get(id) ?? currentDate,
-            changeFrequency: 'weekly' as const,
-            priority: 0.8,
-        }));
 
         // Páginas de género — landing pages permanentes de alto valor.
         const genreUrls: MetadataRoute.Sitemap = GENRE_PAGES.map((g) => ({

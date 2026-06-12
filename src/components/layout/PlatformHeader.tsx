@@ -56,22 +56,25 @@ export default function PlatformHeader() {
                 style={{ top: 'var(--announcement-height, 0px)' }}
                 className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Mobile logo */}
-                <div className="flex items-center gap-2 lg:hidden">
-                    <img src="/logo-icon.svg" alt="FilmiFy" className="h-6 w-6" />
-                    <span className="md3-title-large text-on-surface font-medium">FilmiFy</span>
-                </div>
+                {/* Mobile logo — solo el ícono en pantallas muy estrechas para
+                    dar todo el ancho posible a la búsqueda. */}
+                <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0" aria-label="Inicio">
+                    <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
+                    <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
+                </Link>
 
                 {/* Search — takes remaining space */}
-                <div className="flex-1 max-w-sm">
+                <div className="flex-1 min-w-0 max-w-sm">
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
-                {/* Actions — login is an optional enhancement, never required */}
+                {/* Actions — login is an optional enhancement, never required.
+                    En móvil el login vive en la tab bar (Cuenta), así que aquí
+                    se oculta para no robar espacio a la búsqueda. */}
                 {!user && (
                     <Link
                         href="/login"
-                        className="h-9 px-4 inline-flex items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
+                        className="hidden sm:inline-flex h-9 px-4 items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
                     >
                         Iniciar sesión
                     </Link>

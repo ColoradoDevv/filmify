@@ -6,6 +6,7 @@ import { Play, Info, Flame, Clapperboard } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
+import MobileTabBar from '@/components/layout/MobileTabBar';
 import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import MovieGrid from '@/components/features/MovieGrid';
@@ -148,11 +149,11 @@ export default async function HomePage() {
           {/* Top header: search + optional login */}
           <PlatformHeader />
 
-          <main className="p-4 sm:p-6 lg:p-8 space-y-10 pb-16">
+          <main className="px-3 py-4 sm:px-6 sm:py-6 lg:p-8 space-y-8 sm:space-y-10 pb-16">
 
             {/* ── Hero: #1 trending title, watch instantly ─────────────── */}
             <section
-              className="relative rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[55vh] flex items-end"
+              className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[60vh] sm:min-h-[55vh] flex items-end"
               aria-label="Película destacada"
             >
               {heroMovie && backdropUrl && (
@@ -174,8 +175,8 @@ export default async function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-transparent to-transparent" />
 
-              <div className="relative z-10 w-full p-6 sm:p-10">
-                <div className="max-w-2xl space-y-4">
+              <div className="relative z-10 w-full p-4 sm:p-10">
+                <div className="max-w-2xl space-y-3 sm:space-y-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10">
                     <Flame className="w-4 h-4 text-primary" />
                     <span className="text-xs font-medium text-gray-300">
@@ -183,28 +184,28 @@ export default async function HomePage() {
                     </span>
                   </div>
 
-                  <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white line-clamp-2">
+                  <h1 className="text-2xl sm:text-5xl font-bold tracking-tight text-white line-clamp-2">
                     {heroMovie?.title || 'Ver películas y series online'}
                   </h1>
 
-                  <p className="text-base sm:text-lg text-gray-300 line-clamp-3">
+                  <p className="text-sm sm:text-lg text-gray-300 line-clamp-2 sm:line-clamp-3">
                     {heroMovie?.overview ||
                       'Miles de películas y series para ver al instante, sin registro.'}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-1 sm:pt-2">
                     {heroMovie && (
                       <>
                         <Link
                           href={`/movie/${heroMovie.id}`}
-                          className="inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-white rounded-xl font-semibold text-base hover:scale-105 transition-all duration-300 glow-primary"
+                          className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-primary text-white rounded-xl font-semibold text-base hover:scale-105 transition-all duration-300 glow-primary"
                         >
                           <Play className="w-5 h-5 fill-current" />
                           Ver ahora
                         </Link>
                         <Link
                           href={`/movie/${heroMovie.id}`}
-                          className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-semibold text-base backdrop-blur-sm transition-all duration-300"
+                          className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-semibold text-base backdrop-blur-sm transition-all duration-300"
                         >
                           <Info className="w-5 h-5" />
                           Más información
@@ -231,7 +232,7 @@ export default async function HomePage() {
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {recentlyAdded.map((m) => (
                     <Link
-                      key={m.id}
+                      key={m.tmdb_id}
                       href={`/movie/${m.tmdb_id}`}
                       className="group flex-shrink-0 w-32"
                     >
@@ -321,6 +322,9 @@ export default async function HomePage() {
 
           <Footer />
         </PlatformContent>
+
+        {/* Navegación inferior — solo móvil/tablet */}
+        <MobileTabBar />
       </div>
     </>
   );
