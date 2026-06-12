@@ -59,8 +59,11 @@ export default async function PlatformLayout({
                 </main>
             </PlatformContent>
 
-            {/* Navegación inferior — solo móvil/tablet */}
-            <MobileTabBar />
+            {/* Navegación inferior — solo móvil/tablet.
+                Suspense: MobileTabBar usa useSearchParams (active-state detection). */}
+            <Suspense fallback={null}>
+                <MobileTabBar />
+            </Suspense>
         </div>
     );
 }
