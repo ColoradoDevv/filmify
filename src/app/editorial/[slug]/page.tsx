@@ -56,12 +56,32 @@ export async function generateStaticParams() {
     }
 }
 
+/** Solo se permiten enlaces internos (/...) y http(s) absolutos. Bloquea
+ *  esquemas peligrosos como javascript: o data: para evitar XSS a través del
+ *  contenido renderizado con dangerouslySetInnerHTML. */
+function isSafeHref(url: string): boolean {
+    const u = url.trim();
+    if (u.startsWith('/')) return true;            // ruta interna
+    return /^https?:\/\//i.test(u);                // http(s) absoluto
+}
+
+/** Escapa los caracteres HTML peligrosos del texto de enlace/destino. */
+function escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** Inline markdown: **negrita** y [enlaces](url). Los enlaces internos
  *  (/genero/*, /browse, …) distribuyen autoridad SEO hacia el catálogo. */
 function fmtInline(text: string): string {
     return text
         .replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>')
-        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" class="text-primary font-medium hover:underline">$1</a>');
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label: string, url: string) => {
+            if (!isSafeHref(url)) return label; // esquema no permitido → solo el texto
+            const safeUrl = escapeAttr(url.trim());
+            const isExternal = /^https?:\/\//i.test(url.trim());
+            const rel = isExternal ? ' target="_blank" rel="noopener noreferrer nofollow"' : '';
+            return `<a href="${safeUrl}" class="text-primary font-medium hover:underline"${rel}>${label}</a>`;
+        });
 }
 
 /** Convert markdown-like content to HTML paragraphs */

@@ -93,6 +93,14 @@ export default function PrivacyPage() {
                     </div>
 
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                        <h4 className="font-semibold text-white mb-2">Reproductores de vídeo de terceros</h4>
+                        <p className="text-gray-300 text-sm">
+                            <strong>Propósito:</strong> La reproducción de contenido se realiza mediante reproductores de vídeo de terceros incrustados (embebidos) en la plataforma a través de marcos en línea (iframes). FilmiFy no aloja ni almacena los archivos de vídeo.<br />
+                            <strong>Datos compartidos:</strong> Al cargar un reproductor embebido, el proveedor correspondiente puede recibir tu dirección IP, información del navegador/dispositivo y la página desde la que se solicita la reproducción. Estos terceros operan bajo sus propias políticas de privacidad, sobre las que FilmiFy no tiene control.
+                        </p>
+                    </div>
+
+                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
                         <h4 className="font-semibold text-white mb-2">Groq AI</h4>
                         <p className="text-gray-300 text-sm">
                             <strong>Propósito:</strong> Generar recomendaciones personalizadas de películas basadas en tus preferencias.<br />
@@ -107,6 +115,24 @@ export default function PrivacyPage() {
                             <strong>Propósito:</strong> Alojamiento de la aplicación web y análisis de rendimiento.<br />
                             <strong>Datos compartidos:</strong> Datos de navegación anónimos, métricas de rendimiento.<br />
                             <strong>Política de privacidad:</strong> <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">https://vercel.com/legal/privacy-policy</a>
+                        </p>
+                    </div>
+
+                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                        <h4 className="font-semibold text-white mb-2">Google Analytics</h4>
+                        <p className="text-gray-300 text-sm">
+                            <strong>Propósito:</strong> Análisis del uso del sitio y comportamiento agregado de los visitantes para mejorar el servicio.<br />
+                            <strong>Datos compartidos:</strong> Datos de navegación, identificadores de dispositivo/cookie y ubicación geográfica aproximada. Operamos con el modo de consentimiento de Google: la analítica solo se activa si aceptas las cookies correspondientes.<br />
+                            <strong>Política de privacidad:</strong> <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">https://policies.google.com/privacy</a>
+                        </p>
+                    </div>
+
+                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                        <h4 className="font-semibold text-white mb-2">Adsterra (Red de publicidad)</h4>
+                        <p className="text-gray-300 text-sm">
+                            <strong>Propósito:</strong> Mostrar anuncios que ayudan a financiar el servicio gratuito.<br />
+                            <strong>Datos compartidos:</strong> La red publicitaria puede recibir tu dirección IP, información del navegador/dispositivo e identificadores de cookie para mostrar y medir anuncios.<br />
+                            <strong>Política de privacidad:</strong> <a href="https://adsterra.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">https://adsterra.com/privacy-policy/</a>
                         </p>
                     </div>
 
@@ -182,7 +208,7 @@ export default function PrivacyPage() {
                 <div className="bg-primary/10 p-4 rounded-lg border border-primary/30 mt-4">
                     <p className="font-medium text-primary mb-2">🔒 Compromiso de Privacidad</p>
                     <p className="text-gray-300 text-sm">
-                        <strong>No vendemos, alquilamos ni compartimos tus datos personales con terceros para fines comerciales o publicitarios.</strong> Solo compartimos información con los proveedores de servicios mencionados anteriormente, y únicamente en la medida necesaria para operar la plataforma.
+                        <strong>No vendemos ni alquilamos tus datos personales.</strong> Solo compartimos información con los proveedores de servicios mencionados anteriormente, y únicamente en la medida necesaria para operar la plataforma. Nuestra red de publicidad (Adsterra) puede usar cookies y datos de tu dispositivo para mostrar y medir anuncios; puedes limitar este seguimiento gestionando las cookies en tu navegador.
                     </p>
                 </div>
             </section>
@@ -195,7 +221,8 @@ export default function PrivacyPage() {
                 <ul className="list-disc list-inside space-y-2 ml-4 text-gray-300">
                     <li><strong>Cookies esenciales:</strong> Necesarias para el funcionamiento básico del sitio (autenticación, sesión).</li>
                     <li><strong>Cookies de preferencias:</strong> Recuerdan tus configuraciones y preferencias.</li>
-                    <li><strong>Cookies analíticas:</strong> Nos ayudan a entender cómo se usa la plataforma (Vercel Analytics).</li>
+                    <li><strong>Cookies analíticas:</strong> Nos ayudan a entender cómo se usa la plataforma (Vercel Analytics, Google Analytics).</li>
+                    <li><strong>Cookies publicitarias:</strong> Utilizadas por nuestra red de anuncios (Adsterra) para mostrar y medir publicidad.</li>
                 </ul>
                 <p className="text-gray-300 mt-4">
                     Puedes configurar tu navegador para rechazar cookies, pero esto puede afectar la funcionalidad de la plataforma.
@@ -270,7 +297,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p className="text-gray-300 mt-4">
-                    Para ejercer cualquiera de estos derechos, contáctanos a través del formulario de contacto o envía un correo a <a href="mailto:privacy@filmify.com" className="text-primary hover:underline">privacy@filmify.com</a>.
+                    Para ejercer cualquiera de estos derechos, contáctanos a través del formulario de contacto o envía un correo a <a href="mailto:contacto@filmify.me" className="text-primary hover:underline">contacto@filmify.me</a>.
                 </p>
             </section>
 
@@ -312,7 +339,7 @@ export default function PrivacyPage() {
                 </p>
                 <ul className="list-none space-y-2 ml-4 text-gray-300">
                     <li><strong>Formulario de contacto:</strong> Disponible en <a href="/contact" className="text-primary hover:underline">/contact</a></li>
-                    <li><strong>Email:</strong> <a href="mailto:privacy@filmify.com" className="text-primary hover:underline">privacy@filmify.com</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:contacto@filmify.me" className="text-primary hover:underline">contacto@filmify.me</a></li>
                 </ul>
             </section>
 

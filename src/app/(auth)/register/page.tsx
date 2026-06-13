@@ -79,9 +79,8 @@ export default function RegisterPage() {
 
     const showRegistrationClosed = !checkingSettings && !registrationAllowed;
 
-    const registrationClosedUI = showRegistrationClosed ? (
+    if (showRegistrationClosed) return (
         <div className="relative flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-
             <Link
                 href="/"
                 className="absolute top-0 left-0 inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4 group"
@@ -97,14 +96,11 @@ export default function RegisterPage() {
                 Lo sentimos, el registro de nuevos usuarios está temporalmente deshabilitado.
                 Por favor, intenta más tarde o contacta al administrador.
             </p>
-            <Link
-                href="/"
-                className="px-6 py-3 bg-surface border border-surface-light rounded-xl hover:bg-surface-light transition-colors"
-            >
+            <Link href="/" className="px-6 py-3 bg-surface border border-surface-light rounded-xl hover:bg-surface-light transition-colors">
                 Volver al Inicio
             </Link>
         </div>
-    ) : null;
+    );
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,26 +121,7 @@ export default function RegisterPage() {
 
 
 
-    const displayError =
-        state?.error ||
-        (!isPasswordValid && formData.password.length > 0 ? 'Completa todos los requisitos de contraseña' : '') ||
-        '';
-
-
-    // Modal post-registro: el nickname se completa cuando el usuario empieza a comentar.
-    // Se activa SOLO cuando el usuario quiere comentar y no se detecta nickname.
-    const [showNicknameModal, setShowNicknameModal] = useState(false);
-
-    useEffect(() => {
-        if (isPending) return;
-        if (!state) return;
-        if (state.error) return;
-        if (state.needsEmailConfirmation) return;
-
-        // Para evitar falsas activaciones, el modal se muestra inicialmente después del registro.
-        // Luego se cerrará automáticamente cuando el usuario tenga un nickname.
-        setShowNicknameModal(true);
-    }, [state, isPending]);
+    const displayError = state?.error || '';
 
 
     const canSubmit =
@@ -194,40 +171,6 @@ export default function RegisterPage() {
                         <span className="text-sm font-medium">{displayError}</span>
                     </div>
                 )}
-
-                {showNicknameModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <div
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                            onClick={() => setShowNicknameModal(false)}
-                            aria-hidden
-                        />
-                        <div className="relative w-full max-w-md rounded-3xl border border-surface-light/50 bg-surface/95 backdrop-blur-xl p-6 shadow-2xl">
-                            <h3 className="text-xl font-bold text-white">Falta tu nickname</h3>
-                            <p className="text-text-secondary text-sm mt-2">
-                                Elige tu nickname para empezar a comentar.
-                            </p>
-
-                            <div className="mt-6 flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowNicknameModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-surface-light bg-background/80 hover:bg-background transition-colors text-text-primary font-semibold"
-                                >
-                                    Ahora no
-                                </button>
-                                <Link
-                                    href="/settings"
-                                    onClick={() => setShowNicknameModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-black hover:bg-primary-hover transition-colors font-semibold text-center"
-                                >
-                                    Ir a Ajustes
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
 
                 <form action={handleSubmit} className="space-y-4">
 

@@ -15,14 +15,6 @@ export type ResendSignupConfirmationResult = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function formatAuthError(message: string): string {
-    const m = message.toLowerCase();
-    if (m.includes('captcha')) {
-        return 'La verificación de seguridad falló. Completa el captcha de nuevo e inténtalo otra vez.';
-    }
-    return message || 'No se pudo solicitar el reenvío.';
-}
-
 async function resolveAppOrigin(): Promise<string> {
     const { appUrl } = getOptionalApiKeys();
     const hdrs = await headers();
@@ -39,17 +31,11 @@ async function resolveAppOrigin(): Promise<string> {
  */
 export async function resendSignupConfirmation(input: {
     email: string;
-    captchaToken?: string | null;
 }): Promise<ResendSignupConfirmationResult> {
     const email = input.email.trim().toLowerCase();
-    const captchaToken = input.captchaToken?.trim() ?? '';
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!email || !EMAIL_RE.test(email)) {
         return { error: 'Introduce un correo electrónico válido.' };
-    }
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Completa la verificación “No soy un robot” antes de reenviar.' };
     }
 
     const { url, anonKey } = getSupabaseConfig();
@@ -63,6 +49,7 @@ export async function resendSignupConfirmation(input: {
     const resendFrom =
         process.env.RESEND_FROM_EMAIL ?? 'FilmiFy <onboarding@resend.dev>';
 
+    // Intentar con Resend + Admin (correo propio)
     if (resendApiKey) {
         try {
             const admin = createAdminClient();
@@ -116,6 +103,7 @@ export async function resendSignupConfirmation(input: {
         }
     }
 
+    // Fallback: usar el método nativo de Supabase Auth
     const anon = createClient(url, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -125,12 +113,11 @@ export async function resendSignupConfirmation(input: {
         email,
         options: {
             emailRedirectTo: redirectTo,
-            ...(hcaptchaEnabled && captchaToken ? { captchaToken } : {}),
         },
     });
 
     if (error) {
-        return { error: formatAuthError(error.message) };
+        return { error: error.message || 'No se pudo solicitar el reenvío.' };
     }
 
     return { error: '', ok: true };

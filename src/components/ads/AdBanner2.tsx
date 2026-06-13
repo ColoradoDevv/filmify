@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getConsent, onConsentChange } from '@/lib/cookie-consent';
 
 /**
- * 728×90 leaderboard (highperformanceformat).
+ * 728×90 leaderboard (highperformanceformat / Adsterra).
+ *
+ * CUMPLIMIENTO: solo se carga si el usuario aceptó cookies de marketing.
  *
  * IMPORTANT: this network's invoke.js uses document.write(), which browsers
  * silently block when the script is injected asynchronously into <head>.
@@ -22,9 +25,17 @@ export default function AdBanner2() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [scale, setScale] = useState(1);
+  const [marketingOk, setMarketingOk] = useState(false);
 
-  // Inject the ad once.
+  // Sincroniza con el consentimiento de marketing (inicial + cambios en vivo).
   useEffect(() => {
+    setMarketingOk(getConsent().marketing);
+    return onConsentChange((c) => setMarketingOk(c.marketing));
+  }, []);
+
+  // Inject the ad once (solo con consentimiento de marketing).
+  useEffect(() => {
+    if (!marketingOk) return;
     const iframe = iframeRef.current;
     if (!iframe) return;
 
@@ -49,7 +60,7 @@ export default function AdBanner2() {
 </body>
 </html>`);
     doc.close();
-  }, []);
+  }, [marketingOk]);
 
   // Down-scale to fit the available width (never upscale beyond 1).
   useEffect(() => {
@@ -70,6 +81,9 @@ export default function AdBanner2() {
       window.removeEventListener('resize', update);
     };
   }, []);
+
+  // Sin consentimiento de marketing no renderizamos el anuncio.
+  if (!marketingOk) return null;
 
   return (
     // Reserve the *scaled* height so there's no layout shift and no overflow.

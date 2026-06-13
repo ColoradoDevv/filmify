@@ -244,10 +244,12 @@ export default function Navbar() {
                                     {user ? (
                                         <>
                                             {/* Notification Center */}
-                                            <NotificationCenter user={user} favorites={favorites} />
+                                            <div className="relative z-50">
+                                                <NotificationCenter user={user} favorites={favorites} />
+                                            </div>
 
                                             {/* User Menu */}
-                                            <div className="pl-4 border-l border-white/10">
+                                            <div className="pl-4 border-l border-white/10 z-50">
                                                 <UserMenu onLogoutClick={handleLogoutClick} avatarUrl={user.user_metadata?.avatar_url} />
                                             </div>
                                         </>

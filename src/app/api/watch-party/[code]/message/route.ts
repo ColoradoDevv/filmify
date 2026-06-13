@@ -10,7 +10,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
     // SEC-010: only accept text and reply_to_id from the client — never trust
     // reply_preview or reply_username from the request body.
-    const { text, reply_to_id } = await req.json();
+    // .catch evita un 500 si el body llega vacío o no es JSON válido.
+    const { text, reply_to_id } = await req.json().catch(() => ({}));
     if (!text?.trim() || text.length > 500) {
         return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
     }

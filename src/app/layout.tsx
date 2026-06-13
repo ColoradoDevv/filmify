@@ -9,6 +9,7 @@ import { CookieConsent } from "@/components/ui/CookieConsent";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
+import { DonateFloating } from "@/components/ui/DonateButton";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
@@ -23,7 +24,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const { appUrl, gaId, adsenseClientId } = getOptionalApiKeys();
+const { appUrl, gaId } = getOptionalApiKeys();
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
@@ -159,6 +160,9 @@ export default async function RootLayout({
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
         {children}
+        {/* Botón flotante de donación — en toda la app excepto modo TV.
+            Persistente, descartable por 7 días (recordado en localStorage). */}
+        {!isTV && <DonateFloating />}
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
         <AnalyticsClient />
@@ -175,16 +179,6 @@ export default async function RootLayout({
             });
           `}
         </Script>
-
-        {/* Google AdSense */}
-        {adsenseClientId && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
       </body>
     </html>
   );
