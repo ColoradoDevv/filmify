@@ -14,10 +14,8 @@ import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { isTVDevice } from '@/lib/device-detection';
 import TVDetailsPageTV from './page-tv';
-import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
-import TVSidebar from '@/components/layout/TVSidebar';
+import TVBodySwitch from '@/components/layout/TVBodySwitch';
 
 interface PageProps {
     params: Promise<{
@@ -108,9 +106,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 }
 
-export default async function TVDetailsPage({ params, searchParams }: PageProps) {
+export default async function TVDetailsPage({ params }: PageProps) {
     const { id } = await params;
-    const sp = await searchParams;
     const tvId = parseInt(id);
     if (isNaN(tvId)) notFound();
 
@@ -126,8 +123,14 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
         throw error;
     }
 
-    // Availability gate: only publish pages for series the visitor can watch.
-    const isAvailable = await isSeriesAvailableOnVimeus(tvId);
+    // Availability gate + datos de Vimeus en paralelo: no dependen entre sí ni
+    // de getTVDetails (ya resuelto). Antes iban en cascada (availability →
+    // episodios → recomendaciones), lo que en frío sumaba decenas de segundos.
+    const [isAvailable, episodeMap, recommendations] = await Promise.all([
+        isSeriesAvailableOnVimeus(tvId),
+        getSeriesEpisodeMap(tvId),
+        filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 18)),
+    ]);
     if (!isAvailable) notFound();
 
     const backdropUrl = getBackdropUrl(tvShow.backdrop_path);
@@ -168,7 +171,7 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
 
     // Episodes actually available on Vimeus; fall back to TMDB seasons when
     // the listing has no episode rows for this series.
-    let seasons: SeasonEpisodes[] = await getSeriesEpisodeMap(tvId);
+    let seasons: SeasonEpisodes[] = episodeMap;
     if (seasons.length === 0) {
         seasons = (tvShow.seasons ?? [])
             .filter((s) => s.season_number > 0 && s.episode_count > 0)
@@ -177,11 +180,6 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
                 episodes: Array.from({ length: s.episode_count }, (_, i) => i + 1),
             }));
     }
-
-    // Recommendations — only series that are playable.
-    const recommendations = await filterAvailableSeries(
-        (tvShow.recommendations?.results ?? []).slice(0, 18)
-    );
 
     const appUrl = getOptionalApiKeys().appUrl;
     const tvJsonLd = {
@@ -232,55 +230,20 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
 
     const jsonLd = [tvJsonLd, breadcrumbJsonLd];
 
-    const isGlobalTV = await isTVDevice();
-    const isManualTV = sp.tv === 'true';
-
-    if (isGlobalTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <TVDetailsPageTV
-                    tvShow={tvShow}
-                    trailer={trailer}
-                    cast={cast}
-                    creator={creator}
-                />
-            </>
-        );
-    }
-
-    if (isManualTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <TVLayoutWrapper
-                    forceTVMode={true}
-                    tvLayout={
-                        <div className="flex min-h-screen bg-background text-white">
-                            <TVSidebar />
-                            <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
-                                <TVDetailsPageTV
-                                    tvShow={tvShow}
-                                    trailer={trailer}
-                                    cast={cast}
-                                    creator={creator}
-                                />
-                            </main>
-                        </div>
-                    }>
-                    <div />
-                </TVLayoutWrapper>
-            </>
-        );
-    }
+    // TVBodySwitch decide en CLIENTE entre vista web y vista TV, sin leer
+    // cookies/headers/searchParams en el servidor (evita lecturas de request
+    // redundantes en el render). La latencia venía del waterfall de Vimeus.
+    const tvBody = (
+        <TVDetailsPageTV
+            tvShow={tvShow}
+            trailer={trailer}
+            cast={cast}
+            creator={creator}
+        />
+    );
 
     return (
+        <TVBodySwitch tvBody={tvBody}>
         <>
             <script
                 type="application/ld+json"
@@ -512,5 +475,6 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
                 </div>
             </div>
         </>
+        </TVBodySwitch>
     );
 }

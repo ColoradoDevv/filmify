@@ -120,7 +120,6 @@ export default function CookiesPage() {
                             <strong>Proveedores:</strong>
                         </p>
                         <ul className="list-disc list-inside space-y-1 ml-4 text-gray-300 text-sm">
-                            <li><strong>hCaptcha:</strong> Verifica que eres un humano y no un bot durante el registro y el inicio de sesión.</li>
                         </ul>
                         <p className="text-gray-300 text-sm mt-2">
                             <strong>¿Se pueden desactivar?</strong> No se recomienda, ya que esto puede afectar la seguridad de tu cuenta y la plataforma.
@@ -175,11 +174,6 @@ export default function CookiesPage() {
                             <strong>Vercel:</strong> Cookies analíticas y de rendimiento.
                             <br />
                             <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Política de Cookies de Vercel</a>
-                        </li>
-                        <li>
-                            <strong>hCaptcha:</strong> Cookies de seguridad y verificación.
-                            <br />
-                            <a href="https://www.hcaptcha.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Política de Cookies de hCaptcha</a>
                         </li>
                         <li>
                             <strong>Google (OAuth):</strong> Cookies de autenticación si inicias sesión con Google.

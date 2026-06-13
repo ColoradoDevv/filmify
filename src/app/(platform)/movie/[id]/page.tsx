@@ -11,10 +11,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
-import { isTVDevice } from '@/lib/device-detection';
 import MovieDetailsPageTV from './page-tv';
-import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
-import TVSidebar from '@/components/layout/TVSidebar';
+import TVBodySwitch from '@/components/layout/TVBodySwitch';
 
 interface PageProps {
     params: Promise<{
@@ -136,9 +134,8 @@ async function fetchMovieData(movieId: number) {
     return { movie, recommendations };
 }
 
-export default async function MovieDetailsPage({ params, searchParams }: PageProps) {
+export default async function MovieDetailsPage({ params }: PageProps) {
     const { id } = await params;
-    const sp = await searchParams;
     const movieId = parseInt(id);
     if (isNaN(movieId)) notFound();
 
@@ -267,59 +264,23 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
 
     const jsonLd = [movieJsonLd, breadcrumbJsonLd];
 
-    const isGlobalTV = await isTVDevice();
-    const isManualTV = sp.tv === 'true';
-
-    if (isGlobalTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <MovieDetailsPageTV
-                    movie={movie}
-                    trailer={trailer}
-                    cast={cast}
-                    certification={certification}
-                    director={director}
-                />
-            </>
-        );
-    }
-
-    if (isManualTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <TVLayoutWrapper
-                    forceTVMode={true}
-                    tvLayout={
-                        <div className="flex min-h-screen bg-background text-white">
-                            <TVSidebar />
-                            <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
-                                <MovieDetailsPageTV
-                                    movie={movie}
-                                    trailer={trailer}
-                                    cast={cast}
-                                    certification={certification}
-                                    director={director}
-                                />
-                            </main>
-                        </div>
-                    }
-                >
-                    <div />
-                </TVLayoutWrapper>
-            </>
-        );
-    }
+    // TVBodySwitch decide en CLIENTE entre la vista web y la vista TV, sin leer
+    // cookies/headers/searchParams en el servidor (evita lecturas de request
+    // redundantes en cada render). La latencia alta venía del waterfall de
+    // Vimeus, ya paralelizado — no del dinamismo.
+    const tvBody = (
+        <MovieDetailsPageTV
+            movie={movie}
+            trailer={trailer}
+            cast={cast}
+            certification={certification}
+            director={director}
+        />
+    );
 
     // ── Desktop / mobile layout ──────────────────────────────────
     return (
+        <TVBodySwitch tvBody={tvBody}>
         <>
             <script
                 type="application/ld+json"
@@ -542,7 +503,7 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                     {recommendations.length > 0 && (
                         <section className="mt-10">
                             <div className="flex items-center gap-2 mb-4">
-                                <Film className="w-5 h-5 text-primary" />
+                
                                 <h2 className="text-lg font-bold text-white">
                                     También te puede gustar
                                 </h2>
@@ -585,5 +546,6 @@ export default async function MovieDetailsPage({ params, searchParams }: PagePro
                 </div>
             </div>
         </>
+        </TVBodySwitch>
     );
 }

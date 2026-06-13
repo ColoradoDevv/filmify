@@ -143,13 +143,14 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
         if (!user || submitting) return;
 
         // Verificar que el usuario tenga nickname antes de publicar
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('username')
             .eq('id', user.id)
             .single();
 
-        if (!profile?.username) {
+        // Solo bloquear si la query fue exitosa y el username está vacío
+        if (!profileError && profile !== null && !profile.username) {
             setShowNicknameModal(true);
             return;
         }
@@ -230,7 +231,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <MessageSquare className="w-6 h-6 text-primary" />
+                        
                         Reseñas de la Comunidad
                     </h2>
                     <p className="text-text-secondary text-sm mt-1">
@@ -266,10 +267,10 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
 
                                 {/* Rating */}
                                 <div className="space-y-2">
-                                    <label className="text-sm text-text-secondary">
+                                    <label className="text-sm text-text-secondary block">
                                         Calificación
                                     </label>
-                                    <div className="flex gap-1" role="radiogroup" aria-label="Puntuación de 1 a 10">
+                                    <div className="flex flex-wrap justify-center gap-1.5" role="radiogroup" aria-label="Puntuación de 1 a 10">
                                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                                             <button
                                                 key={star}
@@ -277,7 +278,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                                                 onClick={() => setRating(star)}
                                                 onMouseEnter={() => setHoverRating(star)}
                                                 onMouseLeave={() => setHoverRating(0)}
-                                                className="p-0.5 transition-transform hover:scale-110 focus:outline-none"
+                                                className="p-1 transition-transform hover:scale-110 focus:outline-none"
                                                 aria-label={`${star} estrellas`}
                                                 role="radio"
                                                 aria-checked={rating === star}
@@ -292,7 +293,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                                             </button>
                                         ))}
                                     </div>
-                                    <div className="text-right text-xs text-yellow-400 font-bold h-4">
+                                    <div className="text-center text-xs text-yellow-400 font-bold h-4">
                                         {(hoverRating || rating) > 0
                                             ? `${hoverRating || rating}/10`
                                             : ''}
@@ -301,7 +302,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
 
                                 {/* Contenido */}
                                 <div className="space-y-2">
-                                    <label className="text-sm text-text-secondary">
+                                    <label className="text-sm text-text-secondary block">
                                         Tu opinión
                                     </label>
                                     <textarea

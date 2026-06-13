@@ -19,6 +19,13 @@ export const OG_CONTENT_TYPE = 'image/png';
 const LOGO_SVG = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M120 100 H220 V412 H120 V100 Z" fill="#00c2ff"/><circle cx="170" cy="160" r="18" fill="#0b0e11"/><circle cx="170" cy="256" r="18" fill="#0b0e11"/><circle cx="170" cy="352" r="18" fill="#0b0e11"/><path d="M220 100 H392 C403 100 412 109 412 120 V180 H220 V100 Z" fill="#00c2ff"/><path d="M220 236 H340 C351 236 360 245 360 256 V316 H220 V236 Z" fill="#ff0a16"/></svg>`;
 const LOGO_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(LOGO_SVG)}`;
 
+// Estrella del rating como SVG (no como glifo ★ U+2605): la fuente por defecto
+// de satori no incluye ese carácter, así que ImageResponse intentaba
+// descargar una fuente dinámica para él y fallaba con "Status: 400", rompiendo
+// la imagen OG. Renderizarla como forma vectorial evita cualquier fuente.
+const STAR_SVG = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z" fill="#001f2a"/></svg>`;
+const STAR_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(STAR_SVG)}`;
+
 interface TitleData {
     title: string;
     year: string | null;
@@ -194,7 +201,8 @@ export async function renderTitleOgImage(mediaType: 'movie' | 'tv', id: string) 
                                         marginRight: 16,
                                     }}
                                 >
-                                    {`★ ${data.rating}`}
+                                    <img src={STAR_DATA_URI} width={26} height={26} alt="" style={{ marginRight: 8 }} />
+                                    {data.rating}
                                 </div>
                             )}
                             <div

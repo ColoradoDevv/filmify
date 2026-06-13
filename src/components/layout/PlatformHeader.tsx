@@ -86,21 +86,23 @@ export default function PlatformHeader() {
                         <div className={`flex items-center gap-1 transition-all duration-300 ease-out ${searchFocused ? 'opacity-0 pointer-events-none translate-x-2 lg:opacity-100 lg:pointer-events-auto lg:translate-x-0' : ''}`}>
                             <NotificationCenter user={user} />
 
-                            <button
-                                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                                className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                                aria-label="Menú de usuario"
-                                aria-expanded={profileMenuOpen}
-                            >
-                                {user.user_metadata?.avatar_url ? (
-                                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full bg-primary-container flex items-center justify-center">
-                                        <User className="w-4 h-4 text-on-primary-container" />
-                                    </div>
-                                )}
-                                <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#10b981] rounded-full border border-surface-container-low" />
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                    className="w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    aria-label="Menú de usuario"
+                                    aria-expanded={profileMenuOpen}
+                                >
+                                    {user.user_metadata?.avatar_url ? (
+                                        <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-primary-container flex items-center justify-center">
+                                            <User className="w-4 h-4 text-on-primary-container" />
+                                        </div>
+                                    )}
+                                </button>
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#10b981] rounded-full border-2 border-surface-container-low pointer-events-none" />
+                            </div>
                         </div>
 
                         {/* Dropdown del perfil — fuera del div animado para no ser recortado */}

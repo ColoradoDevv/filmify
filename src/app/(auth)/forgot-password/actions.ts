@@ -16,15 +16,9 @@ export async function forgotPasswordAction(
     formData: FormData
 ): Promise<ForgotPasswordState> {
     const email = String(formData.get('email') ?? '').trim().toLowerCase();
-    const captchaToken = String(formData.get('captchaToken') ?? '');
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!email || !EMAIL_RE.test(email)) {
         return { error: 'Por favor ingresa un email válido' };
-    }
-
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Por favor completa el captcha' };
     }
 
     // Build the redirect URL the user will land on after clicking the link.
@@ -40,7 +34,6 @@ export async function forgotPasswordAction(
     const supabase = await createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/auth/callback?next=/reset-password`,
-        ...(hcaptchaEnabled && captchaToken ? { captchaToken } : {}),
     });
 
     if (error) {

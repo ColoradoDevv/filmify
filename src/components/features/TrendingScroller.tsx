@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import type { Movie } from '@/types/tmdb';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
-import { Star, TrendingUp } from 'lucide-react';
+import { Star } from 'lucide-react';
 import Link from 'next/link';
 
 interface TrendingScrollerProps {
@@ -27,7 +27,6 @@ export default function TrendingScroller({ movies }: TrendingScrollerProps) {
                 <div className="flex items-center justify-between gap-6">
                     <div className="text-left">
                         <div className="inline-flex items-center gap-2 mb-1">
-                            <TrendingUp className="w-4 h-4 text-primary" />
                             <span className="text-xs font-semibold text-primary uppercase tracking-wider">
                                 Tendencias
                             </span>

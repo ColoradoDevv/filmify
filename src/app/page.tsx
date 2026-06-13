@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Play, Info, Flame, Clapperboard } from 'lucide-react';
+import { Play, Info, Flame } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
@@ -308,8 +308,7 @@ export default async function HomePage() {
             {/* ── Catálogo de películas en tendencia ───────────────────── */}
             <section aria-label="Películas en tendencia">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold text-white">
-                  <Clapperboard className="w-7 h-7 text-primary" />
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">
                   Películas en tendencia
                 </h2>
                 <Link

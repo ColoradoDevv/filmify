@@ -70,7 +70,6 @@ export function getOptionalApiKeys() {
         groqApiKey: process.env.GROQ_API_KEY ?? '',
         resendApiKey: process.env.RESEND_API_KEY ?? '',
         cronSecret: process.env.CRON_SECRET ?? '',
-        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
         contactEmail: process.env.CONTACT_EMAIL ?? '',
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',

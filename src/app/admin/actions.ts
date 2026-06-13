@@ -217,10 +217,29 @@ export async function banIp(ip: string, userId?: string) {
 
 export async function updateUserRole(userId: string, newRole: 'admin' | 'user') {
     try {
-        await requireAdmin();
+        const currentAdmin = await requireAdmin();
+
+        // Prevent self-demotion and prevent escalation to super_admin
+        if (userId === currentAdmin.id) {
+            return { success: false, error: 'No puedes cambiar tu propio rol' };
+        }
+        if (!['admin', 'user'].includes(newRole)) {
+            return { success: false, error: 'Rol no válido' };
+        }
+
         const adminSupabase = await createAdminClient();
 
-        // Use Admin Client to perform the update (bypassing RLS if necessary)
+        // Prevent changing super_admin accounts
+        const { data: target } = await adminSupabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+
+        if (target?.role === 'super_admin') {
+            return { success: false, error: 'No se puede modificar un super_admin' };
+        }
+
         const { error } = await adminSupabase
             .from('profiles')
             .update({ role: newRole })
@@ -237,26 +256,27 @@ export async function updateUserRole(userId: string, newRole: 'admin' | 'user') 
 
 export async function banUser(userId: string) {
     try {
-        await requireAdmin();
+        const currentAdmin = await requireAdmin();
+        if (userId === currentAdmin.id) {
+            return { success: false, error: 'No puedes banearte a ti mismo' };
+        }
+
         const adminSupabase = await createAdminClient();
 
-        // Toggle ban status (or set to true)
-        // First get current status
         const { data: targetProfile } = await adminSupabase
             .from('profiles')
-            .select('is_banned')
+            .select('is_banned, role')
             .eq('id', userId)
             .single();
 
+        if (targetProfile?.role === 'super_admin') {
+            return { success: false, error: 'No se puede banear a un super_admin' };
+        }
+
         const newBanStatus = !targetProfile?.is_banned;
 
-        // Update profile status
-        await adminSupabase
-            .from('profiles')
-            .update({ is_banned: newBanStatus })
-            .eq('id', userId);
+        await adminSupabase.from('profiles').update({ is_banned: newBanStatus }).eq('id', userId);
 
-        // If banning, also ban in auth
         if (newBanStatus) {
             await adminSupabase.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
         } else {
@@ -343,16 +363,41 @@ export async function getRecentAuditLogs() {
 
 export async function deleteUser(userId: string) {
     try {
-        await requireAdmin();
+        const currentAdmin = await requireAdmin();
+        if (userId === currentAdmin.id) {
+            return { success: false, error: 'No puedes eliminarte a ti mismo' };
+        }
+
         const adminSupabase = await createAdminClient();
+
+        const { data: target } = await adminSupabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+
+        if (target?.role === 'super_admin') {
+            return { success: false, error: 'No se puede eliminar un super_admin' };
+        }
 
         const { error: deleteError } = await adminSupabase.rpc('delete_user_and_related', {
             user_id: userId,
         });
 
         if (deleteError) {
-            console.error('Error deleting related user data:', deleteError);
-            return { success: false, error: deleteError.message };
+            // Función SQL no existe — hacer los deletes directamente
+            const tables: Array<{ table: string; column: string }> = [
+                { table: 'reviews', column: 'user_id' },
+                { table: 'party_members', column: 'user_id' },
+                { table: 'party_messages', column: 'user_id' },
+                { table: 'parties', column: 'host_id' },
+                { table: 'search_history', column: 'user_id' },
+                { table: 'notifications', column: 'user_id' },
+                { table: 'profiles', column: 'id' },
+            ];
+            for (const { table, column } of tables) {
+                await adminSupabase.from(table).delete().eq(column, userId);
+            }
         }
 
         const { error: authError } = await adminSupabase.auth.admin.deleteUser(userId);

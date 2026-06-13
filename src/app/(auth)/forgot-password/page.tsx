@@ -1,34 +1,15 @@
 'use client';
 
-import { useState, useRef, useActionState, useEffect } from 'react';
+import { useState, useActionState, useEffect } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowLeft, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { forgotPasswordAction, type ForgotPasswordState } from './actions';
 
 const initialState: ForgotPasswordState = { error: '' };
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
-const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
 export default function ForgotPasswordPage() {
     const [state, formAction, isPending] = useActionState(forgotPasswordAction, initialState);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [email, setEmail] = useState('');
-    const captchaRef = useRef<HCaptcha>(null);
-
-    useEffect(() => {
-        if (state?.error) {
-            captchaRef.current?.resetCaptcha();
-            setCaptchaToken(null);
-        }
-    }, [state?.error]);
-
-    const handleSubmit = (fd: FormData) => {
-        if (hcaptchaConfigured && captchaToken) {
-            fd.set('captchaToken', captchaToken);
-        }
-        formAction(fd);
-    };
 
     return (
         <div className="relative">
@@ -80,7 +61,7 @@ export default function ForgotPasswordPage() {
                             </div>
                         )}
 
-                        <form action={handleSubmit} className="space-y-4">
+                        <form action={formAction} className="space-y-4">
                             <div>
                                 <label htmlFor="email" className="block text-sm font-semibold mb-1.5 text-text-primary">
                                     Correo Electrónico
@@ -101,20 +82,9 @@ export default function ForgotPasswordPage() {
                                 </div>
                             </div>
 
-                            {hcaptchaConfigured && (
-                                <div className="flex justify-center py-2">
-                                    <HCaptcha
-                                        sitekey={HCAPTCHA_SITE_KEY}
-                                        onVerify={(token) => setCaptchaToken(token)}
-                                        ref={captchaRef}
-                                        theme="dark"
-                                    />
-                                </div>
-                            )}
-
                             <button
                                 type="submit"
-                                disabled={isPending || !email || (hcaptchaConfigured && !captchaToken)}
+                                disabled={isPending || !email}
                                 className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-5"
                             >
                                 {isPending ? (

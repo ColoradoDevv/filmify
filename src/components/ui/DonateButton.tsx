@@ -5,22 +5,14 @@ import { Coffee, Heart, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 /**
- * Enlace de donación/apoyo, configurable por env var para no hardcodear la
- * cuenta: pon NEXT_PUBLIC_DONATE_URL con tu enlace de Ko-fi / BuyMeACoffee.
- * Mientras no exista, cae a /contact (inofensivo) en vez de un enlace roto.
+ * Enlace de donación/apoyo. Lleva siempre a la página interna /donar (Bre-B),
+ * sin depender de variables de entorno.
  */
-export const DONATE_URL = process.env.NEXT_PUBLIC_DONATE_URL;
+export const DONATE_URL = '/donar';
 
-// Fallback seguro cuando la env var no está definida
-const safeDonateUrl = DONATE_URL ?? '/contact';
-
-const isExternal = /^https?:\/\//i.test(safeDonateUrl);
-
-/** Props comunes: el destino se abre en pestaña nueva si es externo. */
+/** El destino es interno, así que navega en la misma pestaña (Link de Next). */
 function donateLinkProps() {
-    return isExternal
-        ? { href: safeDonateUrl, target: '_blank' as const, rel: 'noopener noreferrer' }
-        : { href: safeDonateUrl };
+    return { href: DONATE_URL };
 }
 
 // ── Variante 1: chip/botón compacto (header, menús) ──────────────────────────
@@ -49,7 +41,7 @@ export function DonateBanner({ className = '' }: { className?: string }) {
             </div>
             <div className="flex-1 min-w-0">
                 <p className="md3-title-small text-on-surface font-semibold">
-                    ¿Te gusta FilmiFy? Apóyanos ☕
+                    ¿Te gusta FilmiFy? Apóyanos 
                 </p>
                 <p className="md3-body-small text-on-surface-variant">
                     Somos un proyecto gratuito. Tu aporte nos ayuda a mantener los servidores y seguir mejorando.

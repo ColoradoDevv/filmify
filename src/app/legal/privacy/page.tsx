@@ -137,15 +137,6 @@ export default function PrivacyPage() {
                     </div>
 
                     <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <h4 className="font-semibold text-white mb-2">hCaptcha (Seguridad)</h4>
-                        <p className="text-gray-300 text-sm">
-                            <strong>Propósito:</strong> Protección contra bots y spam en formularios de registro y login.<br />
-                            <strong>Datos compartidos:</strong> Dirección IP, información del navegador.<br />
-                            <strong>Política de privacidad:</strong> <a href="https://www.hcaptcha.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">https://www.hcaptcha.com/privacy</a>
-                        </p>
-                    </div>
-
-                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
                         <h4 className="font-semibold text-white mb-2">Resend (Servicio de Email)</h4>
                         <p className="text-gray-300 text-sm">
                             <strong>Propósito:</strong> Envío de correos electrónicos transaccionales (confirmación de cuenta, recuperación de contraseña, contacto).<br />
@@ -239,7 +230,6 @@ export default function PrivacyPage() {
                     <li><strong>Autenticación segura:</strong> Soporte para autenticación de dos factores mediante proveedores OAuth.</li>
                     <li><strong>Control de acceso:</strong> Row Level Security (RLS) en la base de datos para garantizar que solo accedas a tus propios datos.</li>
                     <li><strong>Monitoreo:</strong> Supervisión continua de actividades sospechosas.</li>
-                    <li><strong>Protección contra bots:</strong> hCaptcha para prevenir accesos automatizados maliciosos.</li>
                 </ul>
                 <p className="text-gray-300 mt-4">
                     Sin embargo, ningún sistema es 100% seguro. Te recomendamos usar contraseñas fuertes y únicas, y notificarnos inmediatamente si sospechas de un acceso no autorizado a tu cuenta.

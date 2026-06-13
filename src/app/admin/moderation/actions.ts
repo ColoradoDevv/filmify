@@ -1,56 +1,71 @@
 'use server';
 
-// Mock data for reported reviews since we might not have a full reviews system with reports yet
+import { requireAdmin } from '@/app/admin/actions';
+import { createAdminClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+
 export type ReportedReview = {
     id: string;
-    movieId: string;
-    movieTitle: string;
-    userId: string;
+    media_id: number;
+    media_type: string;
+    user_id: string;
     userEmail: string;
+    username: string;
     content: string;
-    reportReason: string;
-    date: string;
-    status: 'pending' | 'resolved' | 'dismissed';
+    rating: number;
+    created_at: string;
 };
 
-const MOCK_REPORTS: ReportedReview[] = [
-    {
-        id: '1',
-        movieId: '123',
-        movieTitle: 'Dune: Part Two',
-        userId: 'u1',
-        userEmail: 'troll@example.com',
-        content: 'Esta película es una basura, odio a todos los actores.',
-        reportReason: 'Lenguaje ofensivo',
-        date: '2024-03-15',
-        status: 'pending'
-    },
-    {
-        id: '2',
-        movieId: '456',
-        movieTitle: 'Kung Fu Panda 4',
-        userId: 'u2',
-        userEmail: 'spoiler@example.com',
-        content: 'Al final Po se convierte en el líder espiritual y...',
-        reportReason: 'Spoiler sin marcar',
-        date: '2024-03-14',
-        status: 'pending'
-    }
-];
+export async function getReportedReviews(): Promise<ReportedReview[]> {
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
 
-export async function getReportedReviews() {
-    // In a real app, fetch from 'reports' or 'reviews' table where status = 'reported'
-    return MOCK_REPORTS;
+        const { data, error } = await supabase
+            .from('reviews')
+            .select('*, profiles:user_id(username, full_name)')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) {
+            console.error('[moderation] getReportedReviews error:', error);
+            return [];
+        }
+
+        return (data ?? []).map((r: any) => ({
+            id: r.id,
+            media_id: r.media_id,
+            media_type: r.media_type,
+            user_id: r.user_id,
+            userEmail: r.profiles?.full_name ?? 'Desconocido',
+            username: r.profiles?.username ?? 'anon',
+            content: r.content,
+            rating: r.rating,
+            created_at: r.created_at,
+        }));
+    } catch {
+        return [];
+    }
 }
 
 export async function deleteReview(reviewId: string) {
-    // In a real app, delete from DB
-    console.log('Deleting review', reviewId);
-    return { success: true };
+    try {
+        await requireAdmin();
+        const supabase = await createAdminClient();
+
+        const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+        if (error) return { success: false, error: error.message };
+
+        revalidatePath('/admin/moderation');
+        return { success: true };
+    } catch {
+        return { success: false, error: 'Unauthorized' };
+    }
 }
 
 export async function dismissReport(reviewId: string) {
-    // In a real app, update report status to 'dismissed'
-    console.log('Dismissing report', reviewId);
+    // Sin tabla de reportes separada, "dismiss" simplemente no elimina la reseña.
+    // Si en el futuro se agrega tabla `reports`, actualizar aquí.
+    await requireAdmin();
     return { success: true };
 }
