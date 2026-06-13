@@ -45,7 +45,7 @@ export default function MobileTabBar() {
 
     const tabs: Tab[] = [
         { name: 'Inicio', icon: Home, href: '/', isActive: (p) => p === '/' },
-        { name: 'Explorar', icon: Clapperboard, href: '/browse', isActive: (p, cat) => (p.startsWith('/browse') && cat !== 'tv') || p.startsWith('/genero') },
+        { name: 'Películas', icon: Clapperboard, href: '/browse', isActive: (p, cat) => (p.startsWith('/browse') && cat !== 'tv') || p.startsWith('/genero') },
         { name: 'Buscar', icon: Search, href: '/search', isActive: (p) => p.startsWith('/search') },
         ...(loggedIn
             ? [

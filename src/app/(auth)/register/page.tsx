@@ -109,9 +109,8 @@ export default function RegisterPage() {
     };
 
 
-    // Form submit handler: injects the captcha + terms into FormData before
-    // handing off to the server action, and does a client-side pre-flight to
-    // give instant feedback.
+    // Form submit handler: injects terms into FormData before
+    // handing off to the server action.
     const handleSubmit = (fd: FormData) => {
         if (!isPasswordValid) return;
         if (!acceptedTerms) return;

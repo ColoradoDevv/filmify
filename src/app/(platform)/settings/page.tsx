@@ -34,8 +34,8 @@ import {
     History
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { clearHistory as clearSearchHistory } from '@/lib/supabase/history';
 import Modal from '@/components/ui/Modal';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
@@ -195,10 +195,10 @@ function PrivacySection({ user }: { user: any }) {
     };
 
     const clearHistory = async () => {
-        if (!confirm('¿Estás seguro de que quieres borrar tu historial de reproducción?')) return;
+        if (!confirm('¿Estás seguro de que quieres borrar tu historial de búsqueda?')) return;
         setLoading(true);
         try {
-            // Logic to clear history in database would go here
+            await clearSearchHistory();
             setMessage({ type: 'success', text: 'Historial borrado correctamente' });
         } catch (err) {
             setMessage({ type: 'error', text: 'Error al borrar el historial' });
@@ -324,8 +324,43 @@ function PrivacySection({ user }: { user: any }) {
                             </div>
                         </div>
                         <button 
-                            onClick={() => alert('Preparando tu archivo de datos... Recibirás un correo cuando esté listo.')}
-                            className="w-full md:w-auto px-6 py-2.5 bg-surface-light hover:bg-surface-hover text-white rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 border border-white/5 hover:border-primary/30"
+                            onClick={async () => {
+                                setLoading(true);
+                                try {
+                                    const supabaseClient = createClient();
+                                    const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
+                                    if (!currentUser) return;
+
+                                    const [{ data: profile }, { data: reviews }, { data: searchHistory }] = await Promise.all([
+                                        supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single(),
+                                        supabaseClient.from('reviews').select('*').eq('user_id', currentUser.id),
+                                        supabaseClient.from('search_history').select('*').eq('user_id', currentUser.id),
+                                    ]);
+
+                                    const exportData = {
+                                        exported_at: new Date().toISOString(),
+                                        account: { email: currentUser.email, created_at: currentUser.created_at },
+                                        profile,
+                                        reviews: reviews ?? [],
+                                        search_history: searchHistory ?? [],
+                                    };
+
+                                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `filmify-datos-${new Date().toISOString().split('T')[0]}.json`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                    setMessage({ type: 'success', text: 'Datos exportados correctamente' });
+                                } catch {
+                                    setMessage({ type: 'error', text: 'Error al exportar los datos' });
+                                } finally {
+                                    setLoading(false);
+                                }
+                            }}
+                            disabled={loading}
+                            className="w-full md:w-auto px-6 py-2.5 bg-surface-light hover:bg-surface-hover text-white rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 border border-white/5 hover:border-primary/30 disabled:opacity-50"
                         >
                             <ExternalLink className="w-3 h-3" />
                             Descargar mis datos
@@ -416,6 +451,25 @@ function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
         bio: user?.user_metadata?.bio || '',
         birthdate: user?.user_metadata?.birthdate || '',
     });
+
+    // Sync username/fullName from profiles table in case user_metadata is stale
+    useEffect(() => {
+        if (!user?.id) return;
+        supabase
+            .from('profiles')
+            .select('username, full_name, bio')
+            .eq('id', user.id)
+            .single()
+            .then(({ data }: { data: { username?: string; full_name?: string; bio?: string } | null }) => {
+                if (!data) return;
+                setFormData(prev => ({
+                    ...prev,
+                    username: data.username || prev.username,
+                    fullName: data.full_name || prev.fullName,
+                    bio: data.bio || prev.bio,
+                }));
+            });
+    }, [user?.id]);
     const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || '');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -995,10 +1049,6 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
     const [passwordStep, setPasswordStep] = useState<'request' | 'verify' | 'update'>('request');
     const [otpToken, setOtpToken] = useState('');
 
-    // Captcha State
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-    const captchaRef = useRef<HCaptcha>(null);
-
     const [newEmail, setNewEmail] = useState('');
     const [passwords, setPasswords] = useState({
         new: '',
@@ -1060,17 +1110,10 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
 
     // Password Flow Handlers
     const handleSendOtp = async () => {
-        if (!captchaToken) {
-            setMessage({ type: 'error', text: 'Por favor, completa el captcha.' });
-            return;
-        }
-
         setLoading(true);
         setMessage(null);
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-                captchaToken
-            });
+            const { error } = await supabase.auth.resetPasswordForEmail(user.email);
             if (error) throw error;
             setPasswordStep('verify');
             setMessage({ type: 'success', text: 'Código enviado a tu correo.' });
@@ -1081,8 +1124,6 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                 errorMessage = `Por seguridad, espera ${seconds} segundos antes de solicitarlo nuevamente.`;
             }
             setMessage({ type: 'error', text: errorMessage });
-            captchaRef.current?.resetCaptcha();
-            setCaptchaToken(null);
         } finally {
             setLoading(false);
         }
@@ -1143,7 +1184,6 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                 setPasswords({ new: '', confirm: '' });
                 setPasswordStep('request');
                 setOtpToken('');
-                setCaptchaToken(null);
                 setMessage(null);
             }, 2000);
         } catch (error: any) {
@@ -1158,14 +1198,15 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
 
         setLoading(true);
         try {
-            // NOTE: Deleting a user in Supabase usually requires a service role
-            // or an Edge Function. For security, we'll log out and show a message.
-            // In a production app, you would call your API endpoint here.
-
+            const res = await fetch('/api/account/delete', { method: 'DELETE' });
+            if (!res.ok) {
+                const body = await res.json();
+                throw new Error(body.error || 'Error al eliminar la cuenta');
+            }
             await supabase.auth.signOut();
             window.location.href = '/login?deleted=true';
         } catch (error: any) {
-            setMessage({ type: 'error', text: 'Error al procesar la solicitud: ' + error.message });
+            setMessage({ type: 'error', text: error.message });
             setLoading(false);
         }
     };
@@ -1237,7 +1278,6 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                                 setPasswordStep('request');
                                 setOtpToken('');
                                 setModalType('password');
-                                setCaptchaToken(null);
                             }}
                             className="px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl text-xs font-medium hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105"
                         >
@@ -1266,7 +1306,7 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                                 </div>
                                 <div>
                                     <p className="text-xs font-medium text-white">Este dispositivo (Sesión actual)</p>
-                                    <p className="text-[10px] text-text-secondary">Windows • Chrome • Activo ahora</p>
+                                    <p className="text-[10px] text-text-secondary">Activo ahora</p>
                                 </div>
                             </div>
                             <span className="text-[10px] font-bold text-primary uppercase tracking-wider">En línea</span>
@@ -1422,20 +1462,9 @@ function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise
                                 <span className="text-white font-medium block mt-1">{user?.email}</span>
                             </p>
 
-                            {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
-                                <div className="flex justify-center mb-6">
-                                    <HCaptcha
-                                        sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
-                                        onVerify={(token) => setCaptchaToken(token)}
-                                        ref={captchaRef}
-                                        theme="dark"
-                                    />
-                                </div>
-                            )}
-
                             <button
                                 onClick={handleSendOtp}
-                                disabled={loading || !captchaToken}
+                                disabled={loading}
                                 className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1578,42 +1607,42 @@ function PreferencesSection({ user }: { user: any }) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (!user?.id) return;
 
-        const savedSettings = localStorage.getItem('filmify_preferences');
-        if (savedSettings) {
-            const parsedSettings = JSON.parse(savedSettings);
+        supabase
+            .from('profiles')
+            .select('preferences')
+            .eq('id', user.id)
+            .single()
+            .then(({ data }: { data: { preferences?: Record<string, any> } | null }) => {
+                const prefs = data?.preferences;
+                if (!prefs) return;
 
-            // Validate adult content setting against current user status
-            if (parsedSettings.adultContent) {
-                const isEmailConfirmed = !!user?.email_confirmed_at;
-                const birthDate = user?.user_metadata?.birthdate ? new Date(user.user_metadata.birthdate) : null;
-
-                let isAgeVerified = false;
-                if (birthDate) {
-                    const today = new Date();
-                    let age = today.getFullYear() - birthDate.getFullYear();
-                    const m = today.getMonth() - birthDate.getMonth();
-                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                        age--;
+                // Merge DB prefs over defaults, then validate adult content
+                const merged = { ...settings, ...prefs };
+                if (merged.adultContent) {
+                    const birthDate = user?.user_metadata?.birthdate ? new Date(user.user_metadata.birthdate) : null;
+                    const isEmailConfirmed = !!user?.email_confirmed_at;
+                    let isAgeVerified = false;
+                    if (birthDate) {
+                        const today = new Date();
+                        let age = today.getFullYear() - birthDate.getFullYear();
+                        const m = today.getMonth() - birthDate.getMonth();
+                        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                        isAgeVerified = age >= 18;
                     }
-                    isAgeVerified = age >= 18;
+                    if (!isEmailConfirmed || !isAgeVerified) merged.adultContent = false;
                 }
 
-                if (!isEmailConfirmed || !isAgeVerified) {
-                    parsedSettings.adultContent = false;
-                    localStorage.setItem('filmify_preferences', JSON.stringify(parsedSettings));
+                setSettings(merged);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('filmify_preferences', JSON.stringify(merged));
                 }
-            }
-
-            setSettings(parsedSettings);
-
-            // Apply reduced motion immediately
-            if (parsedSettings.reducedMotion && typeof document !== 'undefined') {
-                document.documentElement.style.scrollBehavior = 'auto';
-            }
-        }
-    }, [user]);
+                if (merged.reducedMotion && typeof document !== 'undefined') {
+                    document.documentElement.style.scrollBehavior = 'auto';
+                }
+            });
+    }, [user?.id]);
 
     const updateSetting = async (key: keyof typeof settings, value: any) => {
         if (key === 'adultContent' && value === true) {
@@ -1890,10 +1919,20 @@ function NotificationsSection({ user }: { user: any }) {
     });
 
     useEffect(() => {
-        if (user?.user_metadata?.notifications) {
-            setNotifications(user.user_metadata.notifications);
-        }
-    }, [user]);
+        if (!user?.id) return;
+        supabase
+            .from('profiles')
+            .select('preferences')
+            .eq('id', user.id)
+            .single()
+            .then(({ data }: { data: { preferences?: { notifications?: Record<string, any> } } | null }) => {
+                if (data?.preferences?.notifications) {
+                    setNotifications(prev => ({ ...prev, ...data.preferences!.notifications }));
+                } else if (user?.user_metadata?.notifications) {
+                    setNotifications(prev => ({ ...prev, ...user.user_metadata.notifications }));
+                }
+            });
+    }, [user?.id]);
 
     const handleToggle = async (key: keyof typeof notifications) => {
         const newNotifications = { ...notifications, [key]: !notifications[key] };
@@ -1902,15 +1941,23 @@ function NotificationsSection({ user }: { user: any }) {
         setMessage(null);
 
         try {
-            const { error } = await supabase.auth.updateUser({
-                data: { notifications: newNotifications }
-            });
+            // Load current preferences to merge
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('preferences')
+                .eq('id', user.id)
+                .single();
 
-            if (error) throw error;
-            // Silent success or optional message
+            const merged = { ...(profileData?.preferences ?? {}), notifications: newNotifications };
+
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ preferences: merged })
+                .eq('id', user.id);
+
+            if (profileError) throw profileError;
         } catch (error: any) {
             setMessage({ type: 'error', text: 'Error al guardar: ' + error.message });
-            // Revert on error
             setNotifications(notifications);
         } finally {
             setLoading(false);

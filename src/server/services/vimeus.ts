@@ -296,10 +296,17 @@ export async function getSeriesEpisodeMap(
         };
 
         collect(first.items);
-        for (let page = 2; page <= totalPages; page++) {
-            const data = await fetchEpisodesPage(tmdbId, page);
-            if (!data) break;
-            collect(data.items);
+        if (totalPages > 1) {
+            // Páginas 2..N en paralelo: la página 1 ya nos dio el total, así que
+            // no hay dependencia entre ellas. En frío esto evita N×8s en serie.
+            const rest = await Promise.all(
+                Array.from({ length: totalPages - 1 }, (_, i) =>
+                    fetchEpisodesPage(tmdbId, i + 2),
+                ),
+            );
+            rest.forEach((data) => {
+                if (data) collect(data.items);
+            });
         }
     } catch {
         // Fallback silencioso

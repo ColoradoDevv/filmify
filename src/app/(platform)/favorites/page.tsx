@@ -27,14 +27,11 @@ export default function FavoritesPage() {
     return (
         <div className="space-y-8" ref={containerRef}>
             {/* Header */}
-            <div className="flex items-center gap-3">
-                <Heart className="w-8 h-8 text-accent" />
-                <div>
-                    <h1 className="text-3xl sm:text-4xl font-bold">Mis Favoritos</h1>
-                    <p className="text-text-secondary mt-1">
-                        {favorites.length} {favorites.length === 1 ? 'película' : 'películas'} guardadas
-                    </p>
-                </div>
+            <div>
+                <h1 className="text-3xl sm:text-4xl font-bold">Mis Favoritos</h1>
+                <p className="text-text-secondary mt-1">
+                    {favorites.length} {favorites.length === 1 ? 'película' : 'películas'} guardadas
+                </p>
             </div>
 
             {/* Favorites Grid */}

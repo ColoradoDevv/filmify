@@ -1,6 +1,7 @@
 'use server';
 
 import Groq from 'groq-sdk';
+import { unstable_cache } from 'next/cache';
 import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
@@ -254,14 +255,15 @@ export async function generateAIResponse(prompt: string): Promise<string> {
 /**
  * Get AI-generated search correction
  */
-export async function getSearchCorrection(query: string): Promise<string | null> {
-    // La corrección ortográfica es una ayuda ligera de UX: depende solo de que
-    // haya GROQ_API_KEY, no del flag `enableAi` (que regula la IA "pesada" de
-    // recomendaciones). Así sigue funcionando aunque ese flag esté apagado o
-    // la consulta de settings falle.
-    if (!groq) {
-        return null;
-    }
+// Llamada cruda a Groq para corregir una consulta. Se envuelve en
+// unstable_cache (más abajo) para que consultas idénticas NO regasten tokens:
+// los bots tecleando basura agotaban el límite diario (100k tokens/día) porque
+// cada query repetida disparaba una llamada nueva. Devuelve el string
+// "__null__" en vez de null para poder cachear también el "no hay corrección"
+// (unstable_cache no distingue bien null vs. fallo). 30 días de TTL: las
+// correcciones de ortografía no cambian.
+async function fetchSearchCorrection(query: string): Promise<string> {
+    if (!groq) return '__null__';
 
     const prompt = `Act as a movie search assistant.
     The user searched for: "${query}".
@@ -282,15 +284,48 @@ export async function getSearchCorrection(query: string): Promise<string | null>
 
         const text = completion.choices[0]?.message?.content?.trim() || 'null';
         if (text.toLowerCase() === 'null' || text.toLowerCase() === query.toLowerCase()) {
-            return null;
+            return '__null__';
         }
 
         // Remove quotes if present
         return text.replace(/^["']|["']$/g, '');
     } catch (error) {
         // Logueamos el error real de Groq (modelo deprecado, clave inválida,
-        // rate limit…) para poder diagnosticarlo desde los logs del servidor.
+        // rate limit 429…) para poder diagnosticarlo desde los logs del servidor.
         console.error('[getSearchCorrection] Groq error:', error);
+        // En fallo NO cacheamos el resultado: lanzamos para que unstable_cache
+        // no fije un "__null__" rancio durante 30 días tras un 429 transitorio.
+        throw error;
+    }
+}
+
+// Caché por query normalizada. La key incluye la query, así que cada término
+// se cachea por separado y las repeticiones (incluidas las de bots) se sirven
+// sin gastar tokens de Groq.
+const cachedSearchCorrection = unstable_cache(
+    fetchSearchCorrection,
+    ['search-correction'],
+    { revalidate: 60 * 60 * 24 * 30 }, // 30 días
+);
+
+export async function getSearchCorrection(query: string): Promise<string | null> {
+    // La corrección ortográfica es una ayuda ligera de UX: depende solo de que
+    // haya GROQ_API_KEY, no del flag `enableAi` (que regula la IA "pesada" de
+    // recomendaciones). Así sigue funcionando aunque ese flag esté apagado o
+    // la consulta de settings falle.
+    if (!groq) return null;
+
+    // Normalizar para maximizar aciertos de caché (mismo término en distintas
+    // capitalizaciones/espacios = misma entrada).
+    const normalized = query.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!normalized) return null;
+
+    try {
+        const result = await cachedSearchCorrection(normalized);
+        return result === '__null__' ? null : result;
+    } catch {
+        // Groq falló (p. ej. 429 por límite diario) → sin sugerencia, sin romper
+        // la búsqueda. No se cachea el fallo.
         return null;
     }
 }

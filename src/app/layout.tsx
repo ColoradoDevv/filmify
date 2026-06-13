@@ -110,6 +110,14 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Apple touch icons. La convención src/app/apple-icon.png ya emite el
+            <link rel="apple-touch-icon"> estándar; estos cubren los nombres de
+            archivo legados que algunos clientes iOS piden directos (aparecían
+            como 404 en los logs). Los PNG viven en /public. */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/touch-icon-iphone.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/touch-icon-ipad.png" />
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
         {/* Player embeds — connect early so playback starts faster */}
