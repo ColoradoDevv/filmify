@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Home, Clapperboard, Search, Heart, User, Tv, Radio } from 'lucide-react';
+import { Home, Clapperboard, Search, Heart, User, Tv, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { LucideIcon } from 'lucide-react';
@@ -54,7 +54,7 @@ export default function MobileTabBar() {
             ]
             : [
                 { name: 'Series', icon: Tv, href: '/browse?category=tv', isActive: (p: string, cat: string | null) => p.startsWith('/browse') && cat === 'tv' },
-                { name: 'TV en Vivo', icon: Radio, href: '/live-tv', isActive: (p: string) => p.startsWith('/live-tv') },
+                { name: 'Watch Party', icon: Users, href: '/watch-party', isActive: (p: string) => p.startsWith('/watch-party') },
             ]),
     ];
 
