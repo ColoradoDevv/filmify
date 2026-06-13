@@ -1,5 +1,4 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { createClient } from '@/lib/supabase/server';
 import type { Article, NewsItem } from '@/lib/editorial-types';
 import { CATEGORIES } from '@/lib/editorial-types';
 
@@ -7,8 +6,16 @@ import { CATEGORIES } from '@/lib/editorial-types';
 export type { Article, NewsItem };
 export { CATEGORIES };
 
+/**
+ * Las lecturas de contenido PÚBLICO publicado usan el cliente de service role
+ * (sin cookies). Esto es deliberado: el contenido es público de todas formas,
+ * y usar el cliente de sesión (createClient con cookies) marca estas rutas
+ * como dinámicas, rompiendo la generación estática del sitemap y de
+ * generateStaticParams (error "couldn't be rendered statically because it
+ * used cookies"). El service role lee igual sin depender de la sesión.
+ */
 export async function getPublishedArticles(limit = 20): Promise<Article[]> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data, error } = await supabase
         .from('editorial_articles')
         .select('*')
@@ -20,7 +27,7 @@ export async function getPublishedArticles(limit = 20): Promise<Article[]> {
 }
 
 export async function getFeaturedArticle(): Promise<Article | null> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data } = await supabase
         .from('editorial_articles')
         .select('*')
@@ -33,7 +40,7 @@ export async function getFeaturedArticle(): Promise<Article | null> {
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data } = await supabase
         .from('editorial_articles')
         .select('*')
@@ -44,7 +51,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 }
 
 export async function getArticlesByCategory(category: string, limit = 10): Promise<Article[]> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data } = await supabase
         .from('editorial_articles')
         .select('*')
@@ -93,7 +100,7 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
 // ── News feed (external RSS) ─────────────────────────────────────────────────
 
 export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data } = await supabase
         .from('news_feed')
         .select('*')
@@ -103,7 +110,7 @@ export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
 }
 
 export async function getNewsByCategory(category: string, limit = 20): Promise<NewsItem[]> {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const { data } = await supabase
         .from('news_feed')
         .select('*')

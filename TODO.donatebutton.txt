@@ -1,0 +1,7 @@
+Pendiente: diagnosticar y corregir errores de DonateButton.tsx
+
+1) Confirmar el error exacto del build/lint (next build / eslint / tsc) relacionado con DonateButton.
+2) Corregir posible bug: DONATE_URL puede ser undefined -> href inválido.
+3) (Si aplica) Migrar configuración de ESLint para ESLint v9: crear eslint.config.* o adaptar scripts.
+4) Re-ejecutar next build / tsc para validar.
+

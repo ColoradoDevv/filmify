@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Settings, BarChart, Shield, AlertTriangle } from 'lucide-react';
+import { Lock, Settings, BarChart, Shield, AlertTriangle, Megaphone } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -95,6 +95,7 @@ export default function CookiesPage() {
                         <ul className="list-disc list-inside space-y-1 ml-4 text-gray-300 text-sm">
                             <li><strong>Vercel Analytics:</strong> Recopila datos anónimos sobre el rendimiento del sitio y el comportamiento del usuario.</li>
                             <li><strong>Vercel Speed Insights:</strong> Mide la velocidad de carga y el rendimiento de las páginas.</li>
+                            <li><strong>Google Analytics:</strong> Mide el uso del sitio y el comportamiento agregado de los visitantes. Solo se activa con tu consentimiento (modo de consentimiento de Google).</li>
                         </ul>
                         <p className="text-gray-300 text-sm mt-2">
                             <strong>Información recopilada:</strong> Páginas visitadas, tiempo en el sitio, fuente de referencia, tipo de dispositivo, ubicación geográfica aproximada (a nivel de ciudad/país).
@@ -128,6 +129,31 @@ export default function CookiesPage() {
                             <strong>Duración:</strong> Variable, según el proveedor.
                         </p>
                     </div>
+
+                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                            <Megaphone className="w-5 h-5 text-primary" />
+                            Cookies Publicitarias
+                        </h3>
+                        <p className="text-gray-300 text-sm mb-2">
+                            <strong>Propósito:</strong> FilmiFy es un servicio gratuito financiado en parte con publicidad. Estas cookies permiten a las redes de anuncios mostrar publicidad y medir su rendimiento.
+                        </p>
+                        <p className="text-gray-300 text-sm mb-2">
+                            <strong>Proveedores:</strong>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-4 text-gray-300 text-sm">
+                            <li><strong>Adsterra:</strong> Nuestra red de publicidad. Muestra anuncios y mide su rendimiento. <a href="https://adsterra.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Política de privacidad de Adsterra</a></li>
+                        </ul>
+                        <p className="text-gray-300 text-sm mt-2">
+                            <strong>Información recopilada:</strong> Dirección IP, información del navegador/dispositivo e identificadores de cookie para mostrar y medir anuncios.
+                        </p>
+                        <p className="text-gray-300 text-sm mt-2">
+                            <strong>¿Se pueden desactivar?</strong> Sí. Puedes bloquear o eliminar estas cookies desde la configuración de tu navegador o mediante extensiones de privacidad, aunque seguirás viendo anuncios.
+                        </p>
+                        <p className="text-gray-300 text-sm">
+                            <strong>Duración:</strong> Variable, según el proveedor (normalmente hasta 13 meses).
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -159,6 +185,19 @@ export default function CookiesPage() {
                             <strong>Google (OAuth):</strong> Cookies de autenticación si inicias sesión con Google.
                             <br />
                             <a href="https://policies.google.com/technologies/cookies" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Política de Cookies de Google</a>
+                        </li>
+                        <li>
+                            <strong>Adsterra:</strong> Cookies de publicidad.
+                            <br />
+                            <a href="https://adsterra.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Política de privacidad de Adsterra</a>
+                        </li>
+                        <li>
+                            <strong>Google Analytics:</strong> Cookies de análisis de uso.
+                            <br />
+                            <a href="https://policies.google.com/technologies/cookies" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Cómo usa Google las cookies</a>
+                        </li>
+                        <li>
+                            <strong>Reproductores de vídeo embebidos:</strong> Los reproductores de terceros pueden establecer sus propias cookies al cargarse.
                         </li>
                     </ul>
                 </div>
@@ -244,9 +283,11 @@ export default function CookiesPage() {
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-gray-300">
                     <li>Recopilar información sensible sin tu consentimiento.</li>
-                    <li>Compartir tus datos personales con terceros para fines publicitarios.</li>
-                    <li>Rastrear tu actividad en otros sitios web (no utilizamos cookies de seguimiento entre sitios).</li>
+                    <li>Vender o alquilar tus datos personales a terceros.</li>
                 </ul>
+                <p className="text-gray-300 mt-4 text-sm">
+                    Ten en cuenta que nuestra red de publicidad (Adsterra) y las herramientas de análisis de terceros pueden utilizar cookies que rastrean la actividad con fines de medición y entrega de anuncios. Puedes limitar este seguimiento bloqueando las cookies de terceros en tu navegador o usando extensiones de privacidad.
+                </p>
             </section>
 
             <section className="space-y-4">
@@ -266,7 +307,7 @@ export default function CookiesPage() {
                 </p>
                 <ul className="list-none space-y-2 ml-4 text-gray-300">
                     <li><strong>Formulario de contacto:</strong> <a href="/contact" className="text-primary hover:underline">/contact</a></li>
-                    <li><strong>Email:</strong> <a href="mailto:privacy@filmify.com" className="text-primary hover:underline">privacy@filmify.com</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:contacto@filmify.me" className="text-primary hover:underline">contacto@filmify.me</a></li>
                 </ul>
                 <p className="text-gray-300 mt-4">
                     Para más información sobre cookies en general, puedes visitar:

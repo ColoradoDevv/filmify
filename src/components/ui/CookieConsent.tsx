@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Cookie, X, ChevronRight, Shield, BarChart3, Megaphone, Check, ChevronLeft } from 'lucide-react';
+import { emitConsentChange } from '@/lib/cookie-consent';
 
 type ConsentState = {
     analytics: boolean;
@@ -54,10 +55,13 @@ export const CookieConsent = () => {
 
     const savePreferences = (state: ConsentState) => {
         try {
-            applyConsent(state);
             const value = JSON.stringify(state);
             localStorage.setItem('cookie_consent', value);
             setCookie('cookie_consent', value, 365); // Save for 1 year
+            applyConsent(state);
+            // Avisa a los terceros (anuncios/analítica) para que (des)carguen
+            // en vivo según la nueva elección, sin recargar la página.
+            emitConsentChange();
             setIsVisible(false);
         } catch (e) {
             console.error("Error saving cookie preferences:", e);

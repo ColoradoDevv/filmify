@@ -136,9 +136,23 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
         initialFetchDone.current = false;
     }, [mediaId, mediaType]);
 
+    const [showNicknameModal, setShowNicknameModal] = useState(false);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || submitting) return;
+
+        // Verificar que el usuario tenga nickname antes de publicar
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.username) {
+            setShowNicknameModal(true);
+            return;
+        }
 
         if (rating === 0) {
             setError('Selecciona una calificación antes de enviar.');
@@ -211,6 +225,7 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
             : null;
 
     return (
+        <>
         <section className="py-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
@@ -485,5 +500,41 @@ export default function ReviewsSection({ mediaId, mediaType }: ReviewsSectionPro
                 </div>
             </div>
         </section>
+
+        {/* Modal: nickname requerido para publicar reseñas */}
+        {showNicknameModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setShowNicknameModal(false)}
+                    aria-hidden
+                />
+                <div className="relative w-full max-w-sm rounded-2xl border border-surface-light/50 bg-surface/95 backdrop-blur-xl p-6 shadow-2xl">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                        <User className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Necesitas un nickname</h3>
+                    <p className="text-text-secondary text-sm mb-6">
+                        Para publicar una reseña necesitas configurar un nickname en tu perfil. Solo toma un momento.
+                    </p>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowNicknameModal(false)}
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-surface-light hover:bg-surface-light/30 transition-colors text-text-primary font-medium"
+                        >
+                            Ahora no
+                        </button>
+                        <a
+                            href="/settings"
+                            className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-black hover:bg-primary-hover transition-colors font-semibold text-center text-sm"
+                        >
+                            Ir a Ajustes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

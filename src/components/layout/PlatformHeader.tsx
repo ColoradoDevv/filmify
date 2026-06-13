@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, LogOut, Settings } from 'lucide-react';
@@ -10,9 +10,6 @@ import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
 
-// Singleton client — created once per module, not per render.
-// Re-creating the client on every render breaks onAuthStateChange subscriptions
-// and causes the user state to flicker to null on rapid re-renders/reloads.
 const supabase = createClient();
 
 export default function PlatformHeader() {
@@ -20,26 +17,23 @@ export default function PlatformHeader() {
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
 
     useFavoritesSync();
 
     useEffect(() => {
-        // Get the current session immediately — avoids a flash of logged-out UI.
         const fetchUser = async () => {
             const { data } = await supabase.auth.getUser();
             setUser(data.user);
         };
         void fetchUser();
 
-        // Keep in sync with auth state changes (login, logout, token refresh).
-        // No forced redirect on sign-out: the platform is public, so a visitor
-        // whose session ends simply continues browsing anonymously.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
         });
 
         return () => subscription.unsubscribe();
-    }, []); // empty deps — supabase is a stable module-level singleton
+    }, []);
 
     const handleLogoutClick = () => { setShowLogoutConfirm(true); setProfileMenuOpen(false); };
     const confirmLogout = async () => {
@@ -51,29 +45,32 @@ export default function PlatformHeader() {
 
     return (
         <>
-            {/* MD3 Top App Bar — small variant, 56px height */}
             <div
                 style={{ top: 'var(--announcement-height, 0px)' }}
-                className="group/searchbar sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
+                className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Mobile logo — se oculta con una animación al enfocar la búsqueda */}
-                <div className="flex items-center gap-2 lg:hidden shrink-0 overflow-hidden transition-all duration-300 ease-out group-focus-within/searchbar:w-0 group-focus-within/searchbar:opacity-0 group-focus-within/searchbar:-translate-x-2">
-                    <Link href="/" className="flex items-center gap-2" aria-label="Inicio" data-mobile-logo>
+                {/* Logo móvil — se oculta al enfocar el search */}
+                <div className={`flex items-center gap-2 lg:hidden shrink-0 overflow-hidden transition-all duration-300 ease-out ${searchFocused ? 'w-0 opacity-0 -translate-x-2' : ''}`}>
+                    <Link href="/" className="flex items-center gap-2" aria-label="Inicio">
                         <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
                         <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
                     </Link>
                 </div>
 
-                {/* Search — al enfocar en móvil, ocupa todo el ancho disponible */}
-                <div className="flex-1 min-w-0 max-w-sm transition-all duration-300 ease-out max-lg:group-focus-within/searchbar:max-w-full">
+                {/* Search */}
+                <div
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    onFocusCapture={() => setSearchFocused(true)}
+                    onBlurCapture={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            setSearchFocused(false);
+                        }
+                    }}
+                >
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
-
-
-                {/* Actions — login is an optional enhancement, never required.
-                    En móvil el login vive en la tab bar (Cuenta), así que aquí
-                    se oculta para no robar espacio a la búsqueda. */}
+                {/* Actions */}
                 {!user && (
                     <Link
                         href="/login"
@@ -83,38 +80,30 @@ export default function PlatformHeader() {
                     </Link>
                 )}
                 {user && (
-                    <div className="flex items-center gap-1 relative shrink-0 overflow-hidden transition-all duration-300 ease-out group-focus-within/searchbar:w-0 group-focus-within/searchbar:opacity-0 group-focus-within/searchbar:translate-x-2 lg:group-focus-within/searchbar:w-auto lg:group-focus-within/searchbar:opacity-100 lg:group-focus-within/searchbar:translate-x-0">
-                        <NotificationCenter user={user} />
+                    <div className="relative shrink-0 flex items-center gap-1">
+                        {/* Íconos: se ocultan en móvil (<lg) cuando el search está enfocado.
+                            Se usa opacity+pointer-events (NO overflow-hidden) para no recortar los dropdowns. */}
+                        <div className={`flex items-center gap-1 transition-all duration-300 ease-out ${searchFocused ? 'opacity-0 pointer-events-none translate-x-2 lg:opacity-100 lg:pointer-events-auto lg:translate-x-0' : ''}`}>
+                            <NotificationCenter user={user} />
 
-                        {/* Avatar button — MD3 icon button */}
-                        <button
-                            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    setProfileMenuOpen(!profileMenuOpen);
-                                }
-                            }}
-                            className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                            aria-label="Menú de usuario"
-                            aria-expanded={profileMenuOpen}
-                        >
-                            {user.user_metadata?.avatar_url ? (
-                                <img
-                                    src={user.user_metadata.avatar_url}
-                                    alt="Avatar"
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-primary-container flex items-center justify-center">
-                                    <User className="w-4 h-4 text-on-primary-container" />
-                                </div>
-                            )}
-                            {/* Online indicator */}
-                            <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#10b981] rounded-full border border-surface-container-low" />
-                        </button>
+                            <button
+                                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                aria-label="Menú de usuario"
+                                aria-expanded={profileMenuOpen}
+                            >
+                                {user.user_metadata?.avatar_url ? (
+                                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-primary-container flex items-center justify-center">
+                                        <User className="w-4 h-4 text-on-primary-container" />
+                                    </div>
+                                )}
+                                <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#10b981] rounded-full border border-surface-container-low" />
+                            </button>
+                        </div>
 
-                        {/* MD3 Menu */}
+                        {/* Dropdown del perfil — fuera del div animado para no ser recortado */}
                         {profileMenuOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
@@ -152,7 +141,7 @@ export default function PlatformHeader() {
                 )}
             </div>
 
-            {/* MD3 Dialog — logout confirmation */}
+            {/* Diálogo de logout */}
             {showLogoutConfirm && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-surface-container rounded-[var(--radius-xl)] p-6 max-w-xs w-full shadow-[var(--shadow-5)] animate-scale-in">

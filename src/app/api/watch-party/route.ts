@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
+    // .catch evita un 500 si el body llega vacío o no es JSON válido.
+    const body = await req.json().catch(() => ({}));
     const { tmdb_id, title, poster_path, media_type, season, episode, name, is_private, password } = body;
 
     if (!tmdb_id || !title || !media_type) {

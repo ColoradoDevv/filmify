@@ -74,7 +74,7 @@ export default function EditorialAdminPage() {
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-white">Editorial</h1>
-                        <p className="text-xs text-slate-500">Gestión de artículos para AdSense</p>
+                        <p className="text-xs text-slate-500">Gestión de artículos y contenido SEO</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">

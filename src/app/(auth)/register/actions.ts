@@ -184,34 +184,27 @@ export async function registerAction(
 
     const newUserId = newUser.id;
 
-    // --- Explicit profile creation as a safety net. The DB trigger
-    //     handle_new_user() should have already created the profile row.
-    //     We upsert here in case the trigger failed or was absent.
-    //     Username público se completará más tarde.
+    // El trigger handle_new_user() crea el perfil automáticamente.
+    // Solo verificamos que exista (con retry por si el trigger tarda).
     const supabaseAdmin = createAdminClient();
-    const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert(
-            {
-                id: newUserId,
-                username: null,
-                full_name: fullName || null,
-                updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'id' }
-        );
+    let profileExists = false;
+    for (let i = 0; i < 3; i++) {
+        const { data } = await supabaseAdmin.from('profiles').select('id').eq('id', newUserId).single();
+        if (data) { profileExists = true; break; }
+        await new Promise(r => setTimeout(r, 300));
+    }
 
+    if (!profileExists) {
+        // Trigger falló — crear el perfil manualmente como fallback
+        const { error: insertError } = await supabaseAdmin
+            .from('profiles')
+            .insert({ id: newUserId, updated_at: new Date().toISOString() });
 
-
-    if (profileError) {
-        // Profile creation failed — this is a hard error. The user exists in
-        // auth.users but without a profile the app will break on first login.
-        // Roll back by deleting the auth user so they can retry cleanly.
-        console.error('[register] Profile creation failed, rolling back auth user:', profileError);
-        await supabaseAdmin.auth.admin.deleteUser(newUserId);
-        return {
-            error: 'No se pudo completar el registro. Por favor intenta de nuevo.',
-        };
+        if (insertError) {
+            console.error('[register] Profile fallback insert failed, rolling back:', insertError);
+            await supabaseAdmin.auth.admin.deleteUser(newUserId);
+            return { error: 'No se pudo completar el registro. Por favor intenta de nuevo.' };
+        }
     }
 
     // If the response has no session, Supabase is requiring email

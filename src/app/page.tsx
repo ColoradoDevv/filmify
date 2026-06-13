@@ -7,15 +7,16 @@ import Sidebar from '@/components/layout/Sidebar';
 import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
 import MobileTabBar from '@/components/layout/MobileTabBar';
-import Footer from '@/components/layout/Footer';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import MovieGrid from '@/components/features/MovieGrid';
 import HorizontalRow from '@/components/features/HorizontalRow';
 import AdBanner1 from '@/components/ads/AdBanner1';
+import { DonateBanner } from '@/components/ui/DonateButton';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import { GENRE_PAGES } from '@/lib/genres';
 import { filterAvailableMovies, filterAvailableSeries, getRecentlyAddedMovies } from '@/server/services/vimeus';
 import { getOptionalApiKeys } from '@/lib/env';
+import type { Movie, TVShow } from '@/types/tmdb';
 
 /**
  * ISR: the homepage is statically generated and revalidated every 30 min.
@@ -68,20 +69,24 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   // Fetch trending movies (day for hero/scroller, week for the main grid),
   // trending series, and the latest titles synced to the streaming provider.
+  // Cada fetch degrada a vacío si su proveedor (TMDB/Vimeus) falla, para que un
+  // fallo puntual de un tercero NO tumbe toda la home (la peor página para caer).
+  const emptyMoviePage = { results: [] as Movie[], page: 1, total_pages: 0, total_results: 0 };
+  const emptyTVPage = { results: [] as TVShow[], page: 1, total_pages: 0, total_results: 0 };
   const [trendingDay, trendingWeek, trendingTV, recentlyAdded] = await Promise.all([
-    getTrending('movie', 'day', 1),
-    getTrending('movie', 'week', 1),
-    getTrending('tv', 'week', 1),
-    getRecentlyAddedMovies(18),
+    getTrending('movie', 'day', 1).catch(() => emptyMoviePage),
+    getTrending('movie', 'week', 1).catch(() => emptyMoviePage),
+    getTrending('tv', 'week', 1).catch(() => emptyTVPage),
+    getRecentlyAddedMovies(18).catch(() => []),
   ]);
 
   // Only show titles that are actually playable on the streaming provider —
   // we never advertise content the visitor can't watch.
   const [availableDay, availableWeek, availableTV, availableRecentlyAdded] = await Promise.all([
-    filterAvailableMovies(trendingDay.results),
-    filterAvailableMovies(trendingWeek.results),
-    filterAvailableSeries(trendingTV.results),
-    filterAvailableMovies(recentlyAdded.map((m) => ({ id: m.tmdb_id } as any))),
+    filterAvailableMovies(trendingDay.results).catch(() => trendingDay.results),
+    filterAvailableMovies(trendingWeek.results).catch(() => trendingWeek.results),
+    filterAvailableSeries(trendingTV.results).catch(() => trendingTV.results),
+    filterAvailableMovies(recentlyAdded.map((m) => ({ id: m.tmdb_id } as any))).catch(() => [] as { id: number }[]),
   ]);
 
   const heroMovie = availableDay[0];
@@ -296,6 +301,9 @@ export default async function HomePage() {
                 </div>
               </section>
             )}
+
+            {/* ── Banner de apoyo / donación ───────────────────────────── */}
+            <DonateBanner />
 
             {/* ── Catálogo de películas en tendencia ───────────────────── */}
             <section aria-label="Películas en tendencia">

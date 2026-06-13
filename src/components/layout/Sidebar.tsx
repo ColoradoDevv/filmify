@@ -7,12 +7,13 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
-    Home, Film, Tv, BookOpen,
-    Heart, Settings, ChevronLeft, ChevronRight, Users,
+    Home, Film, Tv, Radio, BookOpen,
+    Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee,
 } from 'lucide-react';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import type { LucideIcon } from 'lucide-react';
+import { DONATE_URL } from '@/components/ui/DonateButton';
 
 interface NavItem {
     name: string;
@@ -259,27 +260,30 @@ export default function Sidebar() {
                     ))}
                 </nav>
 
-                {/* Footer (solo expandido) */}
+                {/* Footer (solo expandido): apoyo / donación */}
                 {!isCollapsed && (
                     <div className="p-4 mt-auto">
                         <div className="rounded-[var(--radius-lg)] bg-surface-container p-3 border border-outline-variant">
-                            <div className="flex items-center gap-2 mb-1.5">
-                                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                                    <span className="text-[9px] font-bold text-on-primary">
-                                        PRO
-                                    </span>
+                            <a
+                                href={DONATE_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-center gap-2.5 mb-2.5 rounded-[var(--radius-md)] p-1 -m-1 hover:bg-on-surface/5 transition-colors"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/25 transition-colors">
+                                    <Coffee className="w-4 h-4 text-primary" />
                                 </div>
-                                <div>
-                                    <p className="md3-label-medium text-on-surface">
-                                        FilmiFy Premium
+                                <div className="min-w-0">
+                                    <p className="md3-label-medium text-on-surface group-hover:text-primary transition-colors">
+                                        Apoya FilmiFy
                                     </p>
-                                    <p className="md3-label-small text-on-surface-variant">
-                                        Próximamente
+                                    <p className="md3-label-small text-on-surface-variant truncate">
+                                        Ayúdanos a mantenerlo gratis
                                     </p>
                                 </div>
-                            </div>
+                            </a>
                             <p className="md3-label-small text-on-surface-variant/60 text-center pt-2 border-t border-outline-variant">
-                                © {new Date().getFullYear()} FilmiFy Inc.
+                                © {new Date().getFullYear()} FilmiFy
                             </p>
                         </div>
                     </div>

@@ -39,7 +39,8 @@ export default function TermsPage() {
                     <li>Herramientas para crear listas personalizadas y gestionar tu biblioteca de contenido.</li>
                     <li>Sistema de reseñas y calificaciones de películas y series.</li>
                     <li>Recomendaciones personalizadas mediante inteligencia artificial.</li>
-                    <li>Funcionalidad de "Watch Party" para visualización sincronizada de trailers con otros usuarios.</li>
+                    <li>Acceso a reproductores de vídeo embebidos de terceros, presentados a través de la plataforma.</li>
+                    <li>Funcionalidad de "Watch Party" para ver contenido de forma sincronizada con otros usuarios, con chat y reacciones en tiempo real.</li>
                 </ul>
 
                 <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30 mt-4">
@@ -48,10 +49,13 @@ export default function TermsPage() {
                         AVISO LEGAL IMPORTANTE
                     </p>
                     <p className="text-gray-300 text-sm">
-                        <strong>FilmiFy NO aloja, almacena, transmite ni distribuye archivos de video, películas completas o series de televisión en sus servidores.</strong>
+                        <strong>FilmiFy NO aloja, almacena, sube, transmite ni distribuye archivos de vídeo, películas completas o series de televisión en sus servidores.</strong>
                     </p>
                     <p className="text-gray-300 text-sm mt-2">
-                        Nuestra plataforma funciona exclusivamente como un <strong>índice de información pública</strong> y una herramienta de organización personal. Todo el contenido multimedia (metadatos, imágenes, descripciones, trailers) es proporcionado por servicios de terceros, principalmente The Movie Database (TMDB) y YouTube. FilmiFy no tiene control sobre este contenido y no asume responsabilidad por su exactitud, disponibilidad o legalidad.
+                        Nuestra plataforma funciona como un <strong>índice de información pública</strong> y una herramienta de organización personal. Los metadatos, imágenes, descripciones y trailers son proporcionados por servicios de terceros, principalmente The Movie Database (TMDB) y YouTube.
+                    </p>
+                    <p className="text-gray-300 text-sm mt-2">
+                        Cuando reproduces contenido, FilmiFy únicamente <strong>incrusta (embebe) reproductores de vídeo operados por servicios de terceros</strong> mediante marcos en línea (iframes). FilmiFy no controla, no almacena y no es responsable de los archivos de vídeo servidos por dichos terceros, ni de su exactitud, disponibilidad o legalidad. La relación con esos reproductores se rige por los términos y políticas de sus respectivos operadores.
                     </p>
                 </div>
             </section>
@@ -237,7 +241,17 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">8. Privacidad y Protección de Datos</h2>
+                <h2 className="text-2xl font-semibold text-white">8. Publicidad</h2>
+                <p className="text-gray-300">
+                    El Servicio se financia parcialmente mediante publicidad. Mostramos anuncios proporcionados por redes publicitarias de terceros, principalmente Adsterra. Estas redes pueden utilizar cookies y tecnologías similares para mostrar y medir anuncios; el tratamiento de datos con fines publicitarios se describe en nuestra <a href="/legal/cookies" className="text-primary hover:underline font-semibold">Política de Cookies</a> y nuestra <a href="/legal/privacy" className="text-primary hover:underline font-semibold">Política de Privacidad</a>.
+                </p>
+                <p className="text-gray-300">
+                    No nos hacemos responsables del contenido de los anuncios de terceros ni de los productos o servicios que promocionan. La interacción con cualquier anunciante es exclusivamente entre tú y dicho anunciante.
+                </p>
+            </section>
+
+            <section className="space-y-4">
+                <h2 className="text-2xl font-semibold text-white">9. Privacidad y Protección de Datos</h2>
                 <p className="text-gray-300">
                     Tu privacidad es importante para nosotros. Nuestra recopilación y uso de información personal está regida por nuestra <a href="/legal/privacy" className="text-primary hover:underline font-semibold">Política de Privacidad</a>, que forma parte integral de estos Términos.
                 </p>
@@ -247,7 +261,7 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">9. Exención de Garantías</h2>
+                <h2 className="text-2xl font-semibold text-white">10. Exención de Garantías</h2>
                 <div className="bg-white/5 p-4 rounded-lg border border-white/10">
                     <p className="text-gray-300 uppercase font-semibold mb-2">
                         EL SERVICIO SE PROPORCIONA "TAL CUAL" Y "SEGÚN DISPONIBILIDAD", SIN GARANTÍAS DE NINGÚN TIPO.
@@ -268,7 +282,7 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">10. Limitación de Responsabilidad</h2>
+                <h2 className="text-2xl font-semibold text-white">11. Limitación de Responsabilidad</h2>
                 <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/30">
                     <p className="text-gray-300 uppercase font-semibold mb-2">
                         EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY APLICABLE:
@@ -290,7 +304,7 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">11. Indemnización</h2>
+                <h2 className="text-2xl font-semibold text-white">12. Indemnización</h2>
                 <p className="text-gray-300">
                     Aceptas indemnizar, defender y eximir de responsabilidad a FilmiFy, sus afiliados, directores, empleados, agentes y proveedores de y contra todas las reclamaciones, responsabilidades, daños, pérdidas, costos, gastos y honorarios (incluyendo honorarios razonables de abogados) que surjan de o estén relacionados con:
                 </p>
@@ -303,14 +317,14 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">12. Modificaciones del Servicio y los Términos</h2>
+                <h2 className="text-2xl font-semibold text-white">13. Modificaciones del Servicio y los Términos</h2>
 
-                <h3 className="text-xl font-semibold text-white mt-4">12.1 Modificaciones del Servicio</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">13.1 Modificaciones del Servicio</h3>
                 <p className="text-gray-300">
                     Nos reservamos el derecho de modificar, suspender o descontinuar el Servicio (o cualquier parte del mismo) en cualquier momento, con o sin previo aviso. No seremos responsables ante ti ni ante terceros por cualquier modificación, suspensión o descontinuación del Servicio.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">12.2 Modificaciones de los Términos</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">13.2 Modificaciones de los Términos</h3>
                 <p className="text-gray-300">
                     Podemos actualizar estos Términos ocasionalmente. Te notificaremos sobre cambios significativos mediante:
                 </p>
@@ -325,61 +339,61 @@ export default function TermsPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">13. Resolución de Disputas</h2>
+                <h2 className="text-2xl font-semibold text-white">14. Resolución de Disputas</h2>
 
-                <h3 className="text-xl font-semibold text-white mt-4">13.1 Ley Aplicable</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">14.1 Ley Aplicable</h3>
                 <p className="text-gray-300">
                     Estos Términos se regirán e interpretarán de acuerdo con las leyes del país o jurisdicción donde FilmiFy esté registrado, sin dar efecto a ningún principio de conflicto de leyes.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">13.2 Resolución Informal</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">14.2 Resolución Informal</h3>
                 <p className="text-gray-300">
                     Antes de presentar una reclamación formal, aceptas intentar resolver la disputa de manera informal contactándonos a través de nuestro formulario de contacto. Intentaremos resolver la disputa de buena fe.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">13.3 Arbitraje</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">14.3 Arbitraje</h3>
                 <p className="text-gray-300">
                     Si no podemos resolver una disputa de manera informal, cualquier disputa, controversia o reclamación que surja de o esté relacionada con estos Términos será resuelta mediante arbitraje vinculante, excepto que cualquiera de las partes pueda buscar medidas cautelares en un tribunal competente.
                 </p>
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">14. Disposiciones Generales</h2>
+                <h2 className="text-2xl font-semibold text-white">15. Disposiciones Generales</h2>
 
-                <h3 className="text-xl font-semibold text-white mt-4">14.1 Acuerdo Completo</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">15.1 Acuerdo Completo</h3>
                 <p className="text-gray-300">
                     Estos Términos, junto con nuestra Política de Privacidad, constituyen el acuerdo completo entre tú y FilmiFy con respecto al Servicio y reemplazan todos los acuerdos anteriores.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">14.2 Divisibilidad</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">15.2 Divisibilidad</h3>
                 <p className="text-gray-300">
                     Si alguna disposición de estos Términos se considera inválida o inaplicable, dicha disposición se modificará e interpretará para lograr los objetivos de dicha disposición en la mayor medida posible, y las disposiciones restantes continuarán en pleno vigor y efecto.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">14.3 Renuncia</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">15.3 Renuncia</h3>
                 <p className="text-gray-300">
                     Ninguna renuncia por parte de FilmiFy a cualquier término o condición establecida en estos Términos se considerará una renuncia adicional o continua de dicho término o condición.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">14.4 Cesión</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">15.4 Cesión</h3>
                 <p className="text-gray-300">
                     No puedes ceder o transferir estos Términos, por ley o de otro modo, sin nuestro consentimiento previo por escrito. Podemos ceder estos Términos sin restricciones.
                 </p>
 
-                <h3 className="text-xl font-semibold text-white mt-4">14.5 Supervivencia</h3>
+                <h3 className="text-xl font-semibold text-white mt-4">15.5 Supervivencia</h3>
                 <p className="text-gray-300">
                     Las disposiciones de estos Términos que por su naturaleza deban sobrevivir a la terminación (incluyendo, entre otras, las disposiciones de propiedad, exenciones de garantía, indemnización y limitaciones de responsabilidad) sobrevivirán a la terminación de estos Términos.
                 </p>
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-white">15. Contacto</h2>
+                <h2 className="text-2xl font-semibold text-white">16. Contacto</h2>
                 <p className="text-gray-300">
                     Si tienes preguntas, comentarios o inquietudes sobre estos Términos y Condiciones, puedes contactarnos a través de:
                 </p>
                 <ul className="list-none space-y-2 ml-4 text-gray-300">
                     <li><strong>Formulario de contacto:</strong> Disponible en <a href="/contact" className="text-primary hover:underline">/contact</a></li>
-                    <li><strong>Email:</strong> <a href="mailto:legal@filmify.com" className="text-primary hover:underline">legal@filmify.com</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:contacto@filmify.me" className="text-primary hover:underline">contacto@filmify.me</a></li>
                 </ul>
             </section>
 
