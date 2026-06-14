@@ -205,6 +205,12 @@ export default function VideoPlayer({
                 </div>
             </div>
 
+            {/* Banner de advertencia */}
+            <div className="absolute bottom-4 inset-x-4 z-30 flex items-center gap-2 px-4 py-2.5 bg-orange-500/15 border border-orange-500/30 rounded-lg text-sm text-orange-300 pointer-events-none">
+                <span className="shrink-0">⚠️</span>
+                <span>Algunos reproductores pueden mostrar publicidad externa. Si aparece una ventana emergente, simplemente ciérrala y el video continuará sin problemas.</span>
+            </div>
+
             {/* Player area */}
             <div className="flex-1 relative flex items-center justify-center bg-black">
                 {/* Loading */}
