@@ -119,6 +119,11 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
 
     return (
         <div className="w-full">
+            {/* Banner de advertencia */}
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/15 border border-orange-500/30 rounded-lg mb-2 text-sm text-orange-300">
+                <span className="shrink-0">⚠️</span>
+                <span>Algunos reproductores pueden mostrar publicidad externa. Si aparece una ventana emergente, simplemente ciérrala y el video continuará sin problemas.</span>
+            </div>
             {/* Barra de pestañas y controles */}
             <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-container-low border border-outline-variant border-b-0 rounded-t-xl overflow-x-auto">
                 <button
