@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import dynamic from 'next/dynamic';
+
 import { Geist, Geist_Mono } from "next/font/google";
+
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
@@ -10,11 +12,14 @@ import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
 import { DonateFloating } from "@/components/ui/DonateButton";
-import SocialBar from "@/components/ads/SocialBar";
+
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
-import AdblockSuggestionModal from "@/components/ads/AdblockSuggestionModal";
+import MundialAdsGate from "@/components/ads/MundialAdsGate";
+
+
+
 
 
 const geistSans = Geist({
@@ -106,6 +111,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+
   const isTV = await isTVDevice();
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? undefined;
@@ -113,6 +120,7 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+
         {/* Apple touch icons. La convención src/app/apple-icon.png ya emite el
             <link rel="apple-touch-icon"> estándar; estos cubren los nombres de
             archivo legados que algunos clientes iOS piden directos (aparecían
@@ -170,13 +178,17 @@ export default async function RootLayout({
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
-        {/* Sugerencia de AdBlock (solo móvil y solo si no detectamos bloqueador) */}
-        {!isTV && <AdblockSuggestionModal />}
+        {/* Sugerencia de AdBlock y widget flotante SocialBar generan problemas
+            en móvil para la sección Mundial. Se deshabilitan específicamente
+            en rutas /mundial. */}
+        <MundialAdsGate isTV={isTV} />
         {children}
+
+
         {/* Botón flotante de donación — en toda la app excepto modo TV.
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
-        {!isTV && <SocialBar />}
+
 
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
