@@ -74,20 +74,15 @@ export async function resendSignupConfirmation(input: {
                 const actionLink = linkData?.properties?.action_link;
                 if (!genErr && actionLink) {
                     const resend = new Resend(resendApiKey);
+                    const templateId = process.env.RESEND_CONFIRM_TEMPLATE_ID;
                     const mailResult = await resend.emails.send({
                         from: resendFrom,
                         to: email,
                         subject: 'Tu enlace para continuar en FilmiFy',
-                        html: `
-<p>Hola,</p>
-<p>Usa el siguiente botón para confirmar el acceso a tu cuenta y continuar. Si no solicitaste este correo, puedes ignorarlo.</p>
-<p style="margin:24px 0">
-  <a href="${actionLink}" style="background:#6366f1;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
-    Continuar en FilmiFy
-  </a>
-</p>
-<p style="font-size:12px;color:#666">Si el botón no funciona, copia y pega esta URL en el navegador:<br/>${actionLink}</p>
-`,
+                        ...(templateId
+                            ? { template: { id: templateId, variables: { action_url: actionLink, email } } }
+                            : { html: `<p>Hola,</p><p><a href="${actionLink}" style="background:#6366f1;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Continuar en FilmiFy</a></p>` }
+                        ),
                     });
 
                     if (!mailResult.error) {

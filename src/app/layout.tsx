@@ -10,6 +10,7 @@ import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
 import { DonateFloating } from "@/components/ui/DonateButton";
+import SocialBar from "@/components/ads/SocialBar";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
@@ -171,6 +172,7 @@ export default async function RootLayout({
         {/* Botón flotante de donación — en toda la app excepto modo TV.
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
+        {!isTV && <SocialBar />}
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
         <AnalyticsClient />

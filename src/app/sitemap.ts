@@ -7,6 +7,7 @@ import {
 import { GENRE_PAGES } from '@/lib/genres';
 import { getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
+import { getWorldCupMatches } from '@/services/worldcup';
 
 /**
  * Dynamic Sitemap for FilmiFy
@@ -95,10 +96,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
     ];
 
-    // If TMDB is not configured at build time, emit only static pages.
+    // Mundial NO depende de TMDB: emitimos sus URLs incluso si TMDB no está
+    // configurado (safe-by-default).
+    const mundoStaticPages: MetadataRoute.Sitemap = [
+        {
+            url: `${BASE_URL}/mundial`,
+            lastModified: currentDate,
+            changeFrequency: 'weekly' as const,
+            priority: 0.75,
+        },
+    ];
+
+    // Si la app corre en un entorno cold build sin secretos, igualmente generamos
+    // las URLs del Mundial (vienen de openfootball + fuentes públicas).
+    // Limitar la cantidad para evitar sitemaps gigantes.
+    let worldCupMatchPages: MetadataRoute.Sitemap = [];
+    try {
+        const matches = await getWorldCupMatches();
+        // Orden ya viene por LIVE/SCHEDULED/FINISHED; tomamos un subconjunto.
+        const top = matches.slice(0, 60);
+        worldCupMatchPages = top.map((m) => ({
+            url: `${BASE_URL}/mundial/partido/${encodeURIComponent(m.id)}`,
+            lastModified: currentDate,
+            changeFrequency: 'weekly' as const,
+            priority: m.status === 'LIVE' ? 0.85 : m.status === 'SCHEDULED' ? 0.75 : 0.5,
+        }));
+    } catch (e) {
+        console.warn('[sitemap] worldcup fetch failed, continuing without worldcup match urls', e);
+    }
+
+    // Si TMDB no está configurado, devolvemos estáticos + Mundial.
     if (!hasRequiredEnv()) {
-        console.warn('[sitemap] TMDB not configured — emitting static pages only');
-        return staticPages;
+        console.warn('[sitemap] TMDB not configured — emitting static pages + mundial');
+        return [...staticPages, ...mundoStaticPages, ...worldCupMatchPages];
     }
 
     try {
@@ -168,7 +198,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
 
         // Combine all URLs
-        return [...staticPages, ...genreUrls, ...movieUrls, ...tvUrls, ...articleUrls];
+        return [
+            ...staticPages,
+            ...mundoStaticPages,
+            ...worldCupMatchPages,
+            ...genreUrls,
+            ...movieUrls,
+            ...tvUrls,
+            ...articleUrls,
+        ];
     } catch (error) {
         console.error('Error generating sitemap:', error);
         // Return at least static pages if API fails
