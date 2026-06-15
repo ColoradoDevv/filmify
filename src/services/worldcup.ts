@@ -15,6 +15,11 @@ const OPENFOOTBALL_URL =
     'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json';
 const THESPORTSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const SPORTSRC_BASE = 'https://api.sportsrc.org';
+// API-Football (api-sports.io) — única fuente con el MINUTO REAL en vivo
+// (status.elapsed, descontando el descanso correctamente). Requiere API key
+// gratuita (API_FOOTBALL_KEY). Si falta, esta capa se omite y se usa la
+// estimación por ventana horaria.
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io';
 
 const FETCH_TIMEOUT_MS = 8_000;
 // El status/marcador deben refrescarse seguido; el calendario casi nunca cambia.
@@ -44,7 +49,7 @@ export interface WorldCupMatch {
     status: MatchStatus;
     homeScore: number | null;
     awayScore: number | null;
-    minute: number | null;  // minuto estimado si está en vivo (TheSportsDB free no lo da)
+    minute: number | null;  // minuto REAL de API-Football en vivo; si falta su key, estimado por hora
     /** Id de SportSRC para resolver los servidores de embed; null si no hay match. */
     sportsrcId: string | null;
 }
@@ -384,6 +389,85 @@ async function fetchLiveInfoMap(): Promise<Map<string, LiveInfo>> {
     return map;
 }
 
+// ── API-Football: minuto/estado/marcador REAL en vivo ───────────────────────
+// Es la única fuente que entrega el minuto verdadero (status.elapsed), que
+// respeta el descanso. Tiene prioridad sobre TheSportsDB para los partidos en
+// vivo. Requiere API_FOOTBALL_KEY; sin ella, se omite (falla open).
+
+interface ApiFootballFixture {
+    fixture?: {
+        date?: string; // ISO con zona
+        status?: { short?: string | null; elapsed?: number | null };
+    };
+    teams?: {
+        home?: { name?: string };
+        away?: { name?: string };
+    };
+    goals?: { home?: number | null; away?: number | null };
+}
+interface ApiFootballResponse { response?: ApiFootballFixture[] | null }
+
+/** Mapea el código de estado de API-Football a nuestro MatchStatus. */
+function statusFromApiFootball(short: string | null | undefined): MatchStatus | null {
+    if (!short) return null;
+    const s = short.toUpperCase();
+    if (['NS', 'TBD', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(s)) return 'SCHEDULED';
+    if (['FT', 'AET', 'PEN'].includes(s)) return 'FINISHED';
+    // 1H, HT, 2H, ET, BT, P, LIVE, INT, SUSP → en juego
+    if (['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP'].includes(s)) return 'LIVE';
+    return null;
+}
+
+interface LiveMinuteInfo {
+    status: MatchStatus;
+    homeScore: number | null;
+    awayScore: number | null;
+    /** Minuto real de juego; en HT (descanso) es null. */
+    minute: number | null;
+}
+
+/**
+ * Descarga los partidos EN VIVO de API-Football (?live=all, filtrando World Cup)
+ * y arma un mapa por matchKey con el minuto real. Vacío si no hay key o falla.
+ */
+async function fetchApiFootballLiveMap(): Promise<Map<string, LiveMinuteInfo>> {
+    const map = new Map<string, LiveMinuteInfo>();
+    const key = process.env.API_FOOTBALL_KEY;
+    if (!key) return map; // sin clave → se omite esta capa
+
+    try {
+        const res = await fetch(`${API_FOOTBALL_BASE}/fixtures?live=all`, {
+            headers: { 'x-apisports-key': key },
+            next: { revalidate: LIVE_REVALIDATE_S },
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!res.ok) return map;
+        const data = (await res.json()) as ApiFootballResponse;
+
+        for (const fx of data.response ?? []) {
+            const home = fx.teams?.home?.name;
+            const away = fx.teams?.away?.name;
+            const dateISO = fx.fixture?.date?.slice(0, 10);
+            if (!home || !away || !dateISO) continue;
+            const status = statusFromApiFootball(fx.fixture?.status?.short);
+            if (!status) continue;
+            map.set(matchKey(home, away, dateISO), {
+                status,
+                homeScore: fx.goals?.home ?? null,
+                awayScore: fx.goals?.away ?? null,
+                // elapsed solo es fiable en vivo; en HT viene como 45 pero el
+                // estado HT ya lo refleja, así que respetamos el número crudo.
+                minute: typeof fx.fixture?.status?.elapsed === 'number'
+                    ? fx.fixture.status.elapsed
+                    : null,
+            });
+        }
+    } catch {
+        return map; // falla open
+    }
+    return map;
+}
+
 // ── SportSRC: id del partido para los embeds ────────────────────────────────
 
 interface SportSrcMatch {
@@ -477,12 +561,25 @@ function statusByWindow(kickoff: Date, now: Date): MatchStatus {
     return 'FINISHED';
 }
 
-/** Minuto estimado de juego (TheSportsDB free no expone el minuto real). */
+// Duración del medio tiempo (descanso) en minutos — se descuenta del reloj de
+// pared para no inflar el minuto estimado.
+const HALFTIME_MIN = 15;
+
+/**
+ * Minuto estimado de juego a partir del reloj de pared. Solo es un respaldo
+ * cuando no hay minuto real de API-Football. Descuenta el descanso: a los ~60'
+ * de pared ya empezó el 2º tiempo (45' jugados + 15' descanso), así que el
+ * minuto jugado es ~45, no ~60. Sin este ajuste mostraba 90' cuando iban 60'.
+ */
 function estimateMinute(kickoff: Date, now: Date): number | null {
-    const diffMin = Math.floor((now.getTime() - kickoff.getTime()) / 60_000);
-    if (diffMin < 0 || diffMin > MATCH_WINDOW_MIN) return null;
-    // Cap suave: tras 90' mostramos 90' (descuento/añadido).
-    return Math.min(diffMin, 90);
+    const wallMin = Math.floor((now.getTime() - kickoff.getTime()) / 60_000);
+    if (wallMin < 0 || wallMin > MATCH_WINDOW_MIN) return null;
+    // 1er tiempo (0–45' de pared): el minuto jugado == minuto de pared.
+    if (wallMin <= 45) return wallMin;
+    // Ventana de descanso (45'–60' de pared): se mantiene en 45'.
+    if (wallMin <= 45 + HALFTIME_MIN) return 45;
+    // 2º tiempo: minuto jugado = pared − descanso, capado a 90'.
+    return Math.min(wallMin - HALFTIME_MIN, 90);
 }
 
 function fmtLocalTime(d: Date): string {
@@ -618,8 +715,10 @@ export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
     const teamNames = playable.flatMap((m) => [m.team1, m.team2]);
 
     // Fuentes secundarias en paralelo; si fallan, devuelven mapas vacíos.
-    const [liveMap, srcCandidates, crestMap] = await Promise.all([
+    // apiFootballMap tiene el minuto REAL en vivo (prioritario sobre liveMap).
+    const [liveMap, apiFootballMap, srcCandidates, crestMap] = await Promise.all([
         fetchLiveInfoMap(),
+        fetchApiFootballLiveMap(),
         fetchSportSrcCandidates(),
         buildCrestMap(teamNames),
     ]);
@@ -637,22 +736,32 @@ export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
             const kickoff = parseKickoff(m.date, m.time) ?? new Date(`${m.date}T18:00:00Z`);
             const key = matchKey(m.team1, m.team2, dateISO);
             const live = liveMap.get(key);
+            const apiFb = apiFootballMap.get(key); // minuto/estado real (si hay key)
 
-            const status = live?.status ?? statusByWindow(kickoff, now);
+            // Estado: API-Football manda (es la fuente en vivo más fiable) →
+            // TheSportsDB → estimación por ventana horaria.
+            const status = apiFb?.status ?? live?.status ?? statusByWindow(kickoff, now);
 
-            // Marcador: TheSportsDB manda; si no, openfootball (partidos pasados).
+            // Marcador: API-Football → TheSportsDB → openfootball (partidos pasados).
             const ftHome = m.score?.ft?.[0] ?? null;
             const ftAway = m.score?.ft?.[1] ?? null;
-            let homeScore = live?.homeScore ?? ftHome;
-            let awayScore = live?.awayScore ?? ftAway;
+            let homeScore = apiFb?.homeScore ?? live?.homeScore ?? ftHome;
+            let awayScore = apiFb?.awayScore ?? live?.awayScore ?? ftAway;
 
-            // Un partido EN VIVO siempre tiene marcador (mínimo 0-0). Si TheSportsDB
-            // no lo cruzó (status estimado por ventana horaria), mostramos 0-0 en
-            // lugar de "vs" para no dar la impresión de que aún no empezó.
+            // Un partido EN VIVO siempre tiene marcador (mínimo 0-0). Si ninguna
+            // fuente lo cruzó (status estimado por ventana horaria), mostramos 0-0
+            // en lugar de "vs" para no dar la impresión de que aún no empezó.
             if (status === 'LIVE') {
                 homeScore = homeScore ?? 0;
                 awayScore = awayScore ?? 0;
             }
+
+            // Minuto: el REAL de API-Football si existe; si no, la estimación
+            // (ya corregida para descontar el descanso).
+            const minute =
+                status === 'LIVE'
+                    ? (apiFb?.minute ?? estimateMinute(kickoff, now))
+                    : null;
 
             return {
                 // El id usa el nombre en inglés normalizado → URLs estables y
@@ -669,7 +778,7 @@ export async function getWorldCupMatches(): Promise<WorldCupMatch[]> {
                 status,
                 homeScore: status === 'SCHEDULED' ? null : homeScore,
                 awayScore: status === 'SCHEDULED' ? null : awayScore,
-                minute: status === 'LIVE' ? estimateMinute(kickoff, now) : null,
+                minute,
                 sportsrcId: resolveSportSrcId(srcCandidates, m.team1, m.team2, kickoff),
             };
         });
@@ -941,9 +1050,15 @@ export async function getMatchStreams(
             };
         });
 
-    // Español primero, luego HD, luego por audiencia (más viewers = más estable).
+    // Prioridad "Español HD estricto": primero los que son español Y HD a la vez,
+    // luego cualquier español, luego HD, y por último por audiencia (más viewers =
+    // más estable). Así sources[0] es español-HD cuando existe → es el que el
+    // reproductor autoselecciona.
     const isEs = (l: string) => /espa|spanish|latino|castellano/i.test(l);
     return mapped.sort((a, b) => {
+        const aEsHd = isEs(a.language) && a.hd ? 0 : 1;
+        const bEsHd = isEs(b.language) && b.hd ? 0 : 1;
+        if (aEsHd !== bEsHd) return aEsHd - bEsHd;
         const ae = isEs(a.language) ? 0 : 1;
         const be = isEs(b.language) ? 0 : 1;
         if (ae !== be) return ae - be;
