@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getUsers, banUser, updateUserRole, impersonateUser, deleteUser } from '../actions';
+import { getUsers, banUser, updateUserRole, impersonateUser, deleteUser } from './actions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
