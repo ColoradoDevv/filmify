@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, AlertTriangle, Loader2, RefreshCw, Tv, Trophy } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Loader2, RefreshCw, Tv, Trophy, ChevronDown } from 'lucide-react';
 import type { WorldCupMatch, StreamSource } from '@/services/worldcup';
 import ServerSelector from '@/components/worldcup/ServerSelector';
 
@@ -15,9 +15,16 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
     const [loadingSources, setLoadingSources] = useState(true);
     const [iframeKey, setIframeKey] = useState(0);
     const [iframeLoading, setIframeLoading] = useState(true);
+    // Servidores que fallaron al cargar → se saltan en el fallback automático.
+    const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
+    // El selector de servidores está oculto por defecto (un solo reproductor); el
+    // usuario puede desplegarlo con "Más opciones" si quiere cambiar a mano.
+    const [showServers, setShowServers] = useState(false);
     const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const activeSource = sources.find((s) => s.id === activeId) ?? null;
+    // ¿Quedan servidores no probados a los que saltar automáticamente?
+    const hasFallback = sources.some((s) => s.id !== activeId && !failedIds.has(s.id));
 
     // ── Cargar servidores de transmisión (bajo demanda) ─────────────────────
     useEffect(() => {
@@ -34,6 +41,7 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
                 const seen = new Set<string>();
                 const list = raw.filter((s) => (seen.has(s.id) ? false : seen.add(s.id) && true));
                 setSources(list);
+                setFailedIds(new Set());
                 if (list.length > 0) setActiveId(list[0].id);
             } catch {
                 if (!cancelled) setSources([]);
@@ -62,16 +70,43 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
         return () => clearInterval(timer);
     }, [match.id, match.status]);
 
-    // ── Manejo de carga del iframe (timeout suave) ──────────────────────────
+    // Marca el servidor activo como fallido y salta automáticamente al siguiente
+    // no-probado (orden ya priorizado: español-HD primero). Si no quedan, deja de
+    // intentar y la UI muestra el mensaje de "sin señal".
+    const advanceToNextSource = useCallback(() => {
+        const tried = new Set(failedIds);
+        if (activeId) tried.add(activeId);
+        const candidate = sources.find((s) => !tried.has(s.id));
+        setFailedIds(tried);
+        if (candidate) {
+            setActiveId(candidate.id);
+            setIframeKey((k) => k + 1);
+        }
+    }, [sources, activeId, failedIds]);
+
+    // ── Manejo de carga del iframe (timeout suave → fallback) ───────────────
     useEffect(() => {
         if (!activeSource) return;
         setIframeLoading(true);
         if (loadTimer.current) clearTimeout(loadTimer.current);
-        loadTimer.current = setTimeout(() => setIframeLoading(false), 12_000);
+        // Si el iframe no dispara onLoad en 12s, asumimos que el servidor no carga
+        // y saltamos al siguiente (solo si aún queda alguno por probar).
+        loadTimer.current = setTimeout(() => {
+            setIframeLoading(false);
+            if (hasFallback) advanceToNextSource();
+        }, 12_000);
         return () => { if (loadTimer.current) clearTimeout(loadTimer.current); };
-    }, [activeSource, iframeKey]);
+    }, [activeSource, iframeKey, hasFallback, advanceToNextSource]);
 
+    // Selección manual desde "Más opciones": le damos otra oportunidad aunque
+    // antes hubiera fallado (lo quitamos del set de fallidos).
     const handleSelect = useCallback((src: StreamSource) => {
+        setFailedIds((prev) => {
+            if (!prev.has(src.id)) return prev;
+            const next = new Set(prev);
+            next.delete(src.id);
+            return next;
+        });
         setActiveId(src.id);
         setIframeKey((k) => k + 1);
     }, []);
@@ -80,6 +115,13 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
         if (loadTimer.current) clearTimeout(loadTimer.current);
         setIframeLoading(false);
     }, []);
+
+    // onError del iframe (carga fallida explícita) → saltar de inmediato.
+    const handleIframeError = useCallback(() => {
+        if (loadTimer.current) clearTimeout(loadTimer.current);
+        if (hasFallback) advanceToNextSource();
+        else setIframeLoading(false);
+    }, [hasFallback, advanceToNextSource]);
 
     return (
         <div className="max-w-5xl mx-auto space-y-4">
@@ -99,16 +141,32 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
             </div>
 
             {/* Aviso honesto de publicidad de terceros */}
-            <div className="flex items-start gap-2 px-4 py-3 bg-orange-500/15 border border-orange-500/30 rounded-xl text-sm text-red-300">
+            <div className="flex items-start gap-2 px-4 py-3 bg-orange-500/10 border border-orange-500/25 rounded-xl text-sm text-orange-200/90">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                    Esta funcionalidad actualmente esta bajo desarrollo y depende de servicios de terceros que contienen anuncios agresivos y pop-ups. Te recomendamos usar un bloqueador de anuncios y tener cuidado al interactuar con los reproductores. Estamos trabajando para mejorar esta experiencia lo antes posible. ¡Gracias por tu comprensión!
+                    Transmisión en español y HD cuando está disponible. Si aparece un anuncio emergente, ciérralo: un bloqueador de anuncios en tu navegador mejora la experiencia.
                 </span>
             </div>
 
-            {/* Selector de servidores */}
-            {!loadingSources && sources.length > 0 && (
-                <ServerSelector sources={sources} activeId={activeId} onSelect={handleSelect} />
+            {/* Selector de servidores — oculto tras "Más opciones" (un solo
+                reproductor por defecto; el fallback automático cambia de servidor
+                solo si uno falla). */}
+            {!loadingSources && sources.length > 1 && (
+                <div className="space-y-2">
+                    <button
+                        onClick={() => setShowServers((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-white transition-colors"
+                        aria-expanded={showServers}
+                    >
+                        <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform ${showServers ? 'rotate-180' : ''}`}
+                        />
+                        {showServers ? 'Ocultar opciones' : `Más opciones (${sources.length})`}
+                    </button>
+                    {showServers && (
+                        <ServerSelector sources={sources} activeId={activeId} onSelect={handleSelect} />
+                    )}
+                </div>
             )}
 
             {/* Reproductor */}
@@ -139,6 +197,9 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
                                 <span className="text-xs text-white/50 uppercase tracking-widest">Cargando señal…</span>
                             </div>
                         )}
+                        {/* NO usar `sandbox`: el proveedor lo detecta y bloquea
+                            el reproductor ("Remove sandbox attributes on the
+                            iframe tag"). Se carga el embed directo. */}
                         <iframe
                             key={`${activeSource.id}#${iframeKey}`}
                             src={activeSource.embedUrl}
@@ -148,6 +209,7 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
                             referrerPolicy="no-referrer"
                             title={`${match.homeTeam} vs ${match.awayTeam} — transmisión en vivo`}
                             onLoad={handleIframeLoad}
+                            onError={handleIframeError}
                         />
                     </>
                 )}
@@ -158,7 +220,9 @@ export default function MatchView({ match: initialMatch }: { match: WorldCupMatc
                 <div className="flex items-center justify-between text-xs text-text-secondary px-1">
                     <span className="flex items-center gap-1.5">
                         <Trophy className="w-3.5 h-3.5 text-yellow-400" />
-                        FIFA World Cup 2026 — Transmisión gratuita
+                        FIFA World Cup 2026
+                        <span className="text-text-secondary/60">·</span>
+                        <span className="text-white/80">{activeSource.label}</span>
                     </span>
                     <button
                         onClick={() => setIframeKey((k) => k + 1)}
