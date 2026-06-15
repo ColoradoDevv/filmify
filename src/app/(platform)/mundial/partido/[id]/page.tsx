@@ -12,8 +12,12 @@ export async function generateMetadata(
 ): Promise<Metadata> {
     const { id } = await params;
     const match = await getWorldCupMatchById(id);
+    // noindex explícito si el partido no existe → evita soft-404.
     if (!match) {
-        return { title: 'Partido no encontrado — Mundial 2026 | FilmiFy' };
+        return {
+            title: 'Partido no encontrado — Mundial 2026 | FilmiFy',
+            robots: { index: false, follow: false },
+        };
     }
     const vs = `${match.homeTeam} vs ${match.awayTeam}`;
     // Título/descripción adaptados al estado del partido.

@@ -13,7 +13,10 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params;
     const article = await getArticleBySlug(slug);
-    if (!article) return { title: 'Artículo no encontrado' };
+    // noindex explícito si el artículo no existe → evita soft-404.
+    if (!article) {
+        return { title: 'Artículo no encontrado', robots: { index: false, follow: false } };
+    }
 
     return {
         // Marca corta al final para no robar caracteres a la keyword del título
