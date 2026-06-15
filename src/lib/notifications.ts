@@ -17,7 +17,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
-export type NotificationType = 'newRelease' | 'recommendation' | 'news' | 'system';
+export type NotificationType = 'newRelease' | 'recommendation' | 'news' | 'system' | 'matchReminder';
 
 export interface AppNotification {
     id: string;                              // UUID — siempre string

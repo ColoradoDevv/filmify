@@ -2,14 +2,15 @@
 
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
-    Home, Film, Tv, Radio, BookOpen,
+    Home, Film, Tv, Trophy, BookOpen,
     Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import type { LucideIcon } from 'lucide-react';
@@ -22,6 +23,8 @@ interface NavItem {
     isActive: (pathname: string, category: string | null) => boolean;
     /** Only visible for logged-in users. */
     requiresAuth?: boolean;
+    /** Item destacado con estilo especial */
+    featured?: boolean;
 }
 
 interface NavSection {
@@ -63,6 +66,19 @@ const SECTIONS: NavSection[] = [
                 href: '/editorial',
                 icon: BookOpen,
                 isActive: (p) => p.startsWith('/editorial'),
+            },
+        ],
+    },
+    {
+        title: 'En vivo',
+        items: [
+            {
+                name: 'Mundial 2026',
+                href: '/mundial',
+                // icon reemplazado por imagen dentro del render
+                icon: Home,
+                isActive: (p) => p.startsWith('/mundial'),
+                featured: true,
             },
         ],
     },
@@ -234,19 +250,43 @@ export default function Sidebar() {
                                             isCollapsed
                                                 ? 'justify-center w-full h-10 px-0'
                                                 : 'gap-3 px-4 h-10',
-                                            active
-                                                ? 'bg-secondary-container text-on-secondary-container'
-                                                : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface',
+                                            item.featured
+                                                ? active
+                                                    ? 'bg-gradient-to-r from-blue-500/30 to-blue-300/20 text-blue-300 ring-1 ring-blue-500/40'
+                                                    : 'bg-gradient-to-r from-blue-500/10 to-blue-300/10 text-blue-400 hover:from-blue-500/25 hover:to-blue-300/20 ring-1 ring-blue-500/20 animate-pulse-subtle'
+                                                : active
+                                                    ? 'bg-secondary-container text-on-secondary-container'
+                                                    : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface',
                                         ].join(' ')}
                                     >
-                                        <Icon
-                                            className={[
-                                                'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200',
-                                                active
-                                                    ? ''
-                                                    : 'group-hover:scale-110',
-                                            ].join(' ')}
-                                        />
+                                        {item.name === 'Mundial 2026' ? (
+                                            <div
+                                                className={[
+                                                    'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200 rounded-full overflow-hidden',
+                                                    active
+                                                        ? ''
+                                                        : 'group-hover:scale-110',
+                                                ].join(' ')}
+                                            >
+                                                <Image
+                                                    src="/mundial-2026.png"
+                                                    alt="Mundial 2026"
+                                                    width={18}
+                                                    height={18}
+                                                    priority={false}
+                                                    className="object-cover w-full h-full"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <Icon
+                                                className={[
+                                                    'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200',
+                                                    active
+                                                        ? ''
+                                                        : 'group-hover:scale-110',
+                                                ].join(' ')}
+                                            />
+                                        )}
 
                                         {!isCollapsed && (
                                             <span className="md3-label-large whitespace-nowrap">

@@ -107,7 +107,7 @@ export default function AnnouncementBanner({
             aria-live="polite"
             className={`
                 ${STYLES[type]}
-                px-4 py-2 text-center fixed top-0 left-0 right-0 z-[100]
+                px-4 py-2 text-center fixed top-0 left-0 right-0 z-[100] relative
                 font-medium shadow-md flex items-center justify-center gap-2
                 pr-12 sm:pr-4
                 transition-all duration-300
@@ -124,6 +124,7 @@ export default function AnnouncementBanner({
                 onClick={handleDismiss}
                 className="absolute right-2 sm:right-4 p-1 hover:bg-black/10 rounded-full transition-colors"
                 aria-label={`Cerrar anuncio: ${message}`}
+                type="button"
             >
                 <X className="w-4 h-4" />
             </button>
