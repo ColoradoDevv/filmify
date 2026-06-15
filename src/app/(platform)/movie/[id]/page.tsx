@@ -86,18 +86,35 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
     };
 }
 
+// Metadata de "no encontrada": noindex explícito para que Google NO indexe la
+// página (evita las soft-404 que reportaba Search Console). Sin esto, el layout
+// raíz imponía `index, follow` y la página servía contenido 404 con HTTP 200.
+const NOT_FOUND_METADATA: Metadata = {
+    title: 'Película no encontrada - FilmiFy',
+    robots: { index: false, follow: false },
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const movieId = parseInt(id);
+    if (isNaN(movieId)) return NOT_FOUND_METADATA;
 
     try {
+        // Solo marcamos noindex cuando la peli NO existe en TMDB (404 real e
+        // inequívoco). Deliberadamente NO acoplamos el noindex al probe de
+        // disponibilidad de Vimeus: ese probe puede fallar transitoriamente
+        // (timeout/rate-limit) y des-indexaría contenido válido. El body sí hace
+        // notFound() si no es reproducible (404 con noindex vía not-found.tsx),
+        // pero ahí un fallo solo afecta esa request, no la indexación a largo plazo.
         const movie = await getMovieDetails(movieId);
-        if (!movie) return { title: 'Película no encontrada - FilmiFy' };
+        if (!movie) return NOT_FOUND_METADATA;
         return buildMovieMetadata(movie);
     } catch (error) {
         if (error instanceof TMDBError && error.status === 404) {
-            return { title: 'Película no encontrada - FilmiFy' };
+            return NOT_FOUND_METADATA;
         }
+        // Error transitorio (no un 404): no marcamos noindex para no des-indexar
+        // una peli válida por un fallo puntual de la API.
         return { title: 'Detalles de Película - FilmiFy' };
     }
 }

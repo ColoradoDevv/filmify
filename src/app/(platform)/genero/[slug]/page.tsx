@@ -21,7 +21,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
     const genre = getGenreBySlug(slug);
-    if (!genre) return { title: 'Género no encontrado - FilmiFy' };
+    // noindex explícito si el género no existe → evita soft-404.
+    if (!genre) {
+        return { title: 'Género no encontrado - FilmiFy', robots: { index: false, follow: false } };
+    }
 
     return {
         title: genre.title,

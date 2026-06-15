@@ -88,20 +88,30 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
     };
 }
 
+// Metadata de "no encontrada": noindex explícito → Google no indexa esta página
+// (evita las soft-404). Mismo criterio que el body (notFound si no es reproducible).
+const NOT_FOUND_METADATA: Metadata = {
+    title: 'Serie no encontrada - FilmiFy',
+    robots: { index: false, follow: false },
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const tvId = parseInt(id);
+    if (isNaN(tvId)) return NOT_FOUND_METADATA;
 
     try {
+        // Solo noindex si la serie NO existe en TMDB (404 inequívoco). NO se
+        // acopla al probe de Vimeus: un fallo transitorio des-indexaría una serie
+        // válida. El body sí hace notFound() si no es reproducible.
         const tvShow = await getTVDetails(tvId);
-        if (!tvShow) {
-            return { title: 'Serie no encontrada - FilmiFy' };
-        }
+        if (!tvShow) return NOT_FOUND_METADATA;
         return buildTvMetadata(tvShow);
     } catch (error) {
         if (error instanceof TMDBError && error.status === 404) {
-            return { title: 'Serie no encontrada - FilmiFy' };
+            return NOT_FOUND_METADATA;
         }
+        // Error transitorio: no des-indexamos una serie válida por un fallo puntual.
         return { title: 'Detalles de Serie - FilmiFy' };
     }
 }
