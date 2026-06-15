@@ -28,7 +28,7 @@ de marcadores y streaming en vivo del **Mundial 2026** (`/mundial`).
 - **Estado**: Zustand (`src/lib/store/useStore.ts`), persistido en `localStorage`
 - **Auth/BD**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Datos de contenido**: API de TMDB (The Movie Database)
-- **IA**: Groq SDK para recomendaciones (`@google/generative-ai` también presente)
+- **IA**: Groq SDK para recomendaciones
 - **Otras integraciones**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics, football-data.org (Mundial)
 - **Reproductor**: hls.js + proveedores de embeds de terceros (Vimeus, SuperEmbed, proxy "Latino")
 

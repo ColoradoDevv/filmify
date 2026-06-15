@@ -22,7 +22,7 @@ live-scores/streaming section (`/mundial`).
 - **State**: Zustand (`src/lib/store/useStore.ts`), persisted to localStorage
 - **Auth/DB**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Content data**: TMDB (The Movie Database) API
-- **AI**: Groq SDK (`@google/generative-ai` also present) for recommendations
+- **AI**: Groq SDK for recommendations
 - **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics, football-data.org (World Cup)
 - **Player**: hls.js + third-party embed providers (Vimeus, SuperEmbed, "Latino" proxy)
 
@@ -220,17 +220,6 @@ npm run check-env            # verifies required vars exist in .env.local
   - `/api/cron/rss` — daily at 06:00 (editorial RSS ingestion)
   - Cron routes are protected by `CRON_SECRET`.
 - `poweredByHeader: false` and no framework fingerprinting — keep it that way for SEO/security hygiene.
-
-## Known issues / in-flight work
-
-- `TODO.md`: `src/app/(auth)/register/page.tsx` has a build-blocking ESLint
-  error — React hooks called conditionally (the "registration closed"
-  early-return needs to happen via a rendered variable, not before the hooks
-  run). Fix by keeping all `useState`/`useEffect` calls unconditional and
-  gating only the returned JSX.
-- `TODO.donatebutton.txt`: possible `DONATE_URL` undefined → invalid `href`
-  in `DonateButton.tsx`; falls back to `/contact` per `.env.example` comments
-  but double-check when touching that component.
 
 ## Git workflow
 
