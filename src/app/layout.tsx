@@ -14,6 +14,8 @@ import SocialBar from "@/components/ads/SocialBar";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
+import AdblockSuggestionModal from "@/components/ads/AdblockSuggestionModal";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -168,11 +170,14 @@ export default async function RootLayout({
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
+        {/* Sugerencia de AdBlock (solo móvil y solo si no detectamos bloqueador) */}
+        {!isTV && <AdblockSuggestionModal />}
         {children}
         {/* Botón flotante de donación — en toda la app excepto modo TV.
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
         {!isTV && <SocialBar />}
+
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
         <AnalyticsClient />
