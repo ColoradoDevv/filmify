@@ -16,7 +16,6 @@ import { DonateFloating } from "@/components/ui/DonateButton";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
-import AdblockSuggestionModal from "@/components/ads/AdblockSuggestionModal";
 
 
 
@@ -178,7 +177,6 @@ export default async function RootLayout({
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
-        {!isTV && <AdblockSuggestionModal />}
         {children}
 
 

@@ -4,7 +4,6 @@ import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
 import TVSidebar from '@/components/layout/TVSidebar';
 import MobileTabBar from '@/components/layout/MobileTabBar';
-import AdBanner2 from '@/components/ads/AdBanner2';
 import { isTVDevice } from '@/lib/device-detection';
 
 
@@ -43,12 +42,6 @@ export default async function PlatformLayout({
                 <main className="px-3 py-4 sm:px-6 sm:py-6 lg:p-8">
                     {children}
 
-                    <div className="mt-10 pt-6 border-t border-white/5" role="complementary" aria-label="Publicidad">
-                        <p className="text-[10px] uppercase tracking-widest text-text-muted/50 text-center mb-2 select-none">
-                            Publicidad
-                        </p>
-                        <AdBanner2 />
-                    </div>
                 </main>
             </PlatformContent>
 

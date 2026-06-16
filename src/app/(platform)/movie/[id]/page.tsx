@@ -4,7 +4,6 @@ import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/servic
 import MoviePlayer from '@/components/features/MoviePlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
-import AdBanner2 from '@/components/ads/AdBanner2';
 import Image from 'next/image';
 import { Star, Clock, Calendar, ArrowLeft, Film, User } from 'lucide-react';
 import Link from 'next/link';
@@ -469,10 +468,6 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             </dl>
                         </div>
                     </section>
-
-                    <div className="mt-10">
-                        <AdBanner2 />
-                    </div>
 
                     {/* ── Cast ───────────────────────────────────── */}
                     {cast.length > 0 && (
