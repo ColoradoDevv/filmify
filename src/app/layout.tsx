@@ -16,7 +16,7 @@ import { DonateFloating } from "@/components/ui/DonateButton";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
-import MundialAdsGate from "@/components/ads/MundialAdsGate";
+import AdblockSuggestionModal from "@/components/ads/AdblockSuggestionModal";
 
 
 
@@ -178,10 +178,7 @@ export default async function RootLayout({
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
-        {/* Sugerencia de AdBlock y widget flotante SocialBar generan problemas
-            en móvil para la sección Mundial. Se deshabilitan específicamente
-            en rutas /mundial. */}
-        <MundialAdsGate isTV={isTV} />
+        {!isTV && <AdblockSuggestionModal />}
         {children}
 
 
