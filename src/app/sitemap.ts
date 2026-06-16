@@ -3,6 +3,7 @@ import { getBlacklist } from '@/server/services/tmdb';
 import {
     getVimeusMovieCatalog,
     getVimeusSeriesCatalog,
+    getVimeusAnimeCatalog,
 } from '@/server/services/vimeus';
 import { GENRE_PAGES } from '@/lib/genres';
 import { getPublishedArticles, CATEGORIES } from '@/lib/editorial';
@@ -63,6 +64,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'weekly',
             priority: 0.7,
         },
+        {
+            url: `${BASE_URL}/browse?category=anime`,
+            lastModified: currentDate,
+            changeFrequency: 'daily',
+            priority: 0.8,
+        },
         ...Object.keys(CATEGORIES).map((cat) => ({
             url: `${BASE_URL}/editorial/categoria/${cat}`,
             lastModified: currentDate,
@@ -113,9 +120,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // El catálogo del listing de Vimeus YA son títulos reproducibles, así
         // que se usa directamente — sin verificar embed por embed (eso es lo
         // que provocaba timeouts). Solo unas pocas peticiones paginadas.
-        const [movieCatalog, seriesCatalog] = await Promise.all([
+        const [movieCatalog, seriesCatalog, animeCatalog] = await Promise.all([
             getVimeusMovieCatalog(1000),
             getVimeusSeriesCatalog(500),
+            getVimeusAnimeCatalog(500),
         ]);
 
         const seenMovies = new Set<number>();
@@ -138,6 +146,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             seenShows.add(s.tmdb_id);
             tvUrls.push({
                 url: `${BASE_URL}/tv/${s.tmdb_id}`,
+                lastModified: currentDate,
+                changeFrequency: 'weekly' as const,
+                priority: 0.8,
+            });
+        });
+        // Anime — también viven en /tv/[id] en TMDB; se deduplican con series.
+        animeCatalog.forEach(a => {
+            if (blacklist.has(a.tmdb_id) || seenShows.has(a.tmdb_id)) return;
+            seenShows.add(a.tmdb_id);
+            tvUrls.push({
+                url: `${BASE_URL}/tv/${a.tmdb_id}`,
                 lastModified: currentDate,
                 changeFrequency: 'weekly' as const,
                 priority: 0.8,

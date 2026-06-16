@@ -10,7 +10,7 @@ const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autop
 
 export function buildVimeusUrl(
     mediaId: number,
-    mediaType: 'movie' | 'tv',
+    mediaType: 'movie' | 'tv' | 'anime',
     season = 1,
     episode = 1,
 ): string {
@@ -18,6 +18,9 @@ export function buildVimeusUrl(
     const vk = `view_key=${VIMEUS_VIEW_KEY}`;
     if (mediaType === 'movie') {
         return `${base}/movie?tmdb=${mediaId}&${vk}&${VIMEUS_STYLE}`;
+    }
+    if (mediaType === 'anime') {
+        return `${base}/anime?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}&${VIMEUS_STYLE}`;
     }
     return `${base}/serie?tmdb=${mediaId}&se=${season}&ep=${episode}&${vk}&${VIMEUS_STYLE}`;
 }

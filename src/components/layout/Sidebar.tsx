@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
     Home, Film, Tv, BookOpen,
-    Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee,
+    Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee, Swords,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
@@ -60,6 +60,13 @@ const SECTIONS: NavSection[] = [
                 icon: Tv,
                 isActive: (p, cat) =>
                     p.startsWith('/browse') && cat === 'tv',
+            },
+            {
+                name: 'Anime',
+                href: '/browse?category=anime',
+                icon: Swords,
+                isActive: (p, cat) =>
+                    p.startsWith('/browse') && cat === 'anime',
             },
             {
                 name: 'Editorial',

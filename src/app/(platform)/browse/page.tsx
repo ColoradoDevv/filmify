@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
-import { filterAvailableMovies, filterAvailableSeries } from '@/server/services/vimeus';
+import { filterAvailableMovies, filterAvailableSeries, getQualityMap, getVimeusAnimeCatalog } from '@/server/services/vimeus';
 import type { Movie } from '@/types/tmdb';
 import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
 import HeroPosterCollage from '@/components/features/HeroPosterCollage';
-import { TrendingUp, Tv, Film } from 'lucide-react';
+import { TrendingUp, Tv, Film, Swords } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
@@ -107,7 +107,6 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     // Handle unsupported categories
     const unsupportedTitles: Record<string, string> = {
         novelas: 'Telenovelas',
-        anime: 'Anime',
         'live-tv': 'TV en Vivo',
     };
     if (category in unsupportedTitles) {
@@ -119,37 +118,70 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         );
     }
 
-    const isTV = category === 'tv';
+    const isTV    = category === 'tv';
+    const isAnime = category === 'anime';
 
     // Fetch data with error handling
     let content: (Movie | TVShow)[] = [];
     let genres: any[] = [];
+    let qualityRecord: Record<string, string> = {};
 
-    try {
-        const [contentData, genresData] = await Promise.all([
-            fetchContent(isTV, genre, year, sortBy).catch((err) => {
-                console.error('Error fetching content:', err);
-                return { results: [] };
-            }),
-            isTV ? getTVGenres().catch(() => ({ genres: [] })) : getGenres().catch(() => ({ genres: [] })),
-        ]);
-
-        // Filtrar solo títulos disponibles, con fallback seguro
+    if (isAnime) {
+        // Anime: datos directamente del listing de Vimeus (igual que el sitemap).
+        // El listing ya son títulos sincronizados — no necesitamos probe por ítem,
+        // que sería demasiado lento para 200 títulos en un Server Component.
+        // El probe de disponibilidad individual ocurre en /tv/[id] cuando el usuario
+        // entra al detalle y se intenta reproducir.
         try {
-            content = isTV
-                ? await filterAvailableSeries(contentData.results as TVShow[])
-                : await filterAvailableMovies(contentData.results as Movie[]);
-        } catch {
-            // Si falla el filtro de disponibilidad, devolvemos la lista completa (mejor que página vacía)
-            content = contentData.results || [];
+            const animes = await getVimeusAnimeCatalog(200).catch(() => []);
+            content = animes.map((a) => ({
+                id: a.tmdb_id,
+                name: a.title ?? '',
+                original_name: a.title ?? '',
+                poster_path: a.poster ?? null,
+                backdrop_path: a.backdrop ?? null,
+                vote_average: 0,
+                vote_count: 0,
+                first_air_date: '',
+                overview: '',
+                genre_ids: [],
+                adult: false,
+                original_language: 'ja',
+                popularity: 0,
+                origin_country: ['JP'],
+            } as TVShow));
+        } catch (error) {
+            console.error('Error crítico en BrowsePage (anime):', error);
+            content = [];
         }
-
-        genres = genresData.genres || [];
-    } catch (error) {
-        // Fallback general: página con contenido vacío pero funcional
-        console.error('Error crítico en BrowsePage:', error);
-        content = [];
         genres = [];
+    } else {
+        try {
+            const [contentData, genresData, qMap] = await Promise.all([
+                fetchContent(isTV, genre, year, sortBy).catch((err) => {
+                    console.error('Error fetching content:', err);
+                    return { results: [] };
+                }),
+                isTV ? getTVGenres().catch(() => ({ genres: [] })) : getGenres().catch(() => ({ genres: [] })),
+                getQualityMap(isTV ? 'serie' : 'movie', 4).catch(() => new Map<number, string>()),
+            ]);
+            qualityRecord = Object.fromEntries(qMap);
+
+            // Filtrar solo títulos disponibles, con fallback seguro
+            try {
+                content = isTV
+                    ? await filterAvailableSeries(contentData.results as TVShow[])
+                    : await filterAvailableMovies(contentData.results as Movie[]);
+            } catch {
+                content = contentData.results || [];
+            }
+
+            genres = genresData.genres || [];
+        } catch (error) {
+            console.error('Error crítico en BrowsePage:', error);
+            content = [];
+            genres = [];
+        }
     }
 
     return (
@@ -163,26 +195,30 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                     <div className="max-w-2xl">
                         {/* Etiqueta de categoría */}
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
-                            {isTV ? (
+                            {isAnime ? (
+                                <Swords className="w-4 h-4 text-orange-400" />
+                            ) : isTV ? (
                                 <Tv className="w-4 h-4 text-primary" />
                             ) : (
                                 <TrendingUp className="w-4 h-4 text-primary" />
                             )}
                             <span className="text-xs font-medium text-white/90">
-                                {isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
+                                {isAnime ? 'Catálogo de Anime' : isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
                             </span>
                         </div>
 
                         <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3 drop-shadow-lg">
                             Explora{' '}
                             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                                {isTV ? 'Series' : 'Películas'}
+                                {isAnime ? 'Anime' : isTV ? 'Series' : 'Películas'}
                             </span>
                         </h1>
                         <p className="text-white/80 text-sm sm:text-lg leading-relaxed drop-shadow">
-                            {isTV
-                                ? 'Descubre las series más populares y aclamadas del momento.'
-                                : 'Explora las películas que están definiendo la conversación cinematográfica.'}
+                            {isAnime
+                                ? 'Catálogo completo de anime disponible para ver online, actualizado a diario.'
+                                : isTV
+                                    ? 'Descubre las series más populares y aclamadas del momento.'
+                                    : 'Explora las películas que están definiendo la conversación cinematográfica.'}
                         </p>
                     </div>
                 </div>
@@ -190,7 +226,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
             {/* Filtros y contenido */}
             <FilterBar genres={genres} />
-            <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
+            <MovieGrid initialMovies={content} mediaType={isAnime || isTV ? 'tv' : 'movie'} qualityMap={qualityRecord} />
 
         </div>
     );

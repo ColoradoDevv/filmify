@@ -3,6 +3,7 @@ import { getYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
 import {
     isSeriesAvailableOnVimeus,
+    isAnimeAvailableOnVimeus,
     filterAvailableSeries,
     getSeriesEpisodeMap,
 } from '@/server/services/vimeus';
@@ -133,15 +134,17 @@ export default async function TVDetailsPage({ params }: PageProps) {
         throw error;
     }
 
-    // Availability gate + datos de Vimeus en paralelo: no dependen entre sí ni
-    // de getTVDetails (ya resuelto). Antes iban en cascada (availability →
-    // episodios → recomendaciones), lo que en frío sumaba decenas de segundos.
-    const [isAvailable, episodeMap, recommendations] = await Promise.all([
+    // Availability gate + datos de Vimeus en paralelo.
+    // Algunos títulos están en Vimeus solo como anime (/e/anime), no como serie
+    // (/e/serie) — si el probe de serie falla, intentamos el de anime.
+    const [seriesAvail, animeAvail, episodeMap, recommendations] = await Promise.all([
         isSeriesAvailableOnVimeus(tvId),
+        isAnimeAvailableOnVimeus(tvId),
         getSeriesEpisodeMap(tvId),
         filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 18)),
     ]);
-    if (!isAvailable) notFound();
+    const isAnime = !seriesAvail && animeAvail;
+    if (!seriesAvail && !animeAvail) notFound();
 
     const backdropUrl = getBackdropUrl(tvShow.backdrop_path);
     const posterUrl = getPosterUrl(tvShow.poster_path);
@@ -296,6 +299,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         backdropUrl={backdropUrl}
                         trailerKey={trailer?.key ?? null}
                         seasons={seasons}
+                        isAnime={isAnime}
                     />
 
                     {/* Mobile quick facts */}

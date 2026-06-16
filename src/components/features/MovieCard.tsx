@@ -16,9 +16,22 @@ interface MovieCardProps {
     movie: Movie | TVShow;
     mediaType?: 'movie' | 'tv';
     priority?: boolean;
+    quality?: string;
 }
 
-export default function MovieCard({ movie, mediaType = 'movie', priority = false }: MovieCardProps) {
+// Valores de calidad que merecen badge (en orden de prioridad visual).
+// Valores desconocidos o de baja calidad (CAM, TS) no se muestran.
+const QUALITY_CONFIG: Record<string, { label: string; className: string }> = {
+    '4K':     { label: '4K',  className: 'bg-violet-500/90 text-white' },
+    'UHD':    { label: '4K',  className: 'bg-violet-500/90 text-white' },
+    'HD':     { label: 'HD',  className: 'bg-primary/90 text-on-primary' },
+    'FHD':    { label: 'HD',  className: 'bg-primary/90 text-on-primary' },
+    '1080p':  { label: 'HD',  className: 'bg-primary/90 text-on-primary' },
+    '720p':   { label: 'HD',  className: 'bg-primary/90 text-on-primary' },
+    'BluRay': { label: 'BD',  className: 'bg-blue-500/90 text-white' },
+};
+
+export default function MovieCard({ movie, mediaType = 'movie', priority = false, quality }: MovieCardProps) {
     const router = useRouter();
     const { isTV } = useTVDetection();
     const cardRef = useRef<HTMLDivElement>(null);
@@ -156,13 +169,27 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
                 {/* Scrim para legibilidad */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
 
-                {/* Rating chip */}
-                <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-                    <Star className="w-2.5 h-2.5 text-primary fill-primary" aria-hidden />
-                    <span className="md3-label-small text-white">
-                        {movie.vote_average ? movie.vote_average.toFixed(1) : '—'}
-                    </span>
-                </div>
+                {/* Rating chip — solo si hay puntuación real */}
+                {!!movie.vote_average && (
+                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+                        <Star className="w-2.5 h-2.5 text-primary fill-primary" aria-hidden />
+                        <span className="md3-label-small text-white">
+                            {movie.vote_average.toFixed(1)}
+                        </span>
+                    </div>
+                )}
+
+                {/* Quality badge — si hay rating sube debajo de él, si no va arriba del todo */}
+                {quality && QUALITY_CONFIG[quality.toUpperCase()] && (
+                    <div className={[
+                        'absolute left-2 z-20 px-1.5 py-0.5 rounded',
+                        movie.vote_average ? 'top-8' : 'top-2',
+                        'text-[10px] font-bold tracking-wider leading-none',
+                        QUALITY_CONFIG[quality.toUpperCase()].className,
+                    ].join(' ')}>
+                        {QUALITY_CONFIG[quality.toUpperCase()].label}
+                    </div>
+                )}
 
                 {/* Botón de favorito */}
                 <button

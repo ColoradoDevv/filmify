@@ -120,7 +120,7 @@ export default function SearchPageClient({
             <div className="mb-6 sm:mb-8">
                 <div className="mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold text-white">Buscar</h1>
-                    <p className="text-white/40 text-sm mt-0.5">Películas y series disponibles</p>
+                    <p className="text-white/40 text-sm mt-0.5">Películas, series y anime disponibles</p>
                 </div>
 
                 {/* ── Input nativo de búsqueda ── */}
@@ -134,8 +134,8 @@ export default function SearchPageClient({
                         enterKeyHint="search"
                         value={query}
                         onChange={(e) => onChange(e.target.value)}
-                        placeholder="Buscar películas y series…"
-                        aria-label="Buscar películas y series"
+                        placeholder="Buscar películas, series y anime…"
+                        aria-label="Buscar películas, series y anime"
                         className="w-full h-12 sm:h-14 pl-12 pr-12 rounded-2xl bg-surface-container border-2 border-outline-variant text-white text-base sm:text-lg placeholder:text-white/30 focus:outline-none focus:border-primary focus:bg-primary/5 transition-all"
                     />
                     {isSearching ? (
@@ -172,7 +172,7 @@ export default function SearchPageClient({
                                 <MovieCard
                                     key={`${item.media_type}-${item.id}`}
                                     movie={item}
-                                    mediaType={item.media_type}
+                                    mediaType={item.media_type === 'movie' ? 'movie' : 'tv'}
                                 />
                             ))}
                         </div>
@@ -182,7 +182,7 @@ export default function SearchPageClient({
                         <Frown className="w-16 h-16 sm:w-20 sm:h-20 mb-4 opacity-20" />
                         <p className="text-xl sm:text-2xl font-medium mb-2">Sin resultados disponibles</p>
                         <p className="text-sm sm:text-base mb-2 max-w-md">
-                            No encontramos nada reproducible para &quot;{query.trim()}&quot;.
+                            No encontramos películas, series ni anime reproducibles para &quot;{query.trim()}&quot;.
                         </p>
 
                         {aiCorrection && (
@@ -203,7 +203,7 @@ export default function SearchPageClient({
                     <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-white/25 text-center px-4">
                         <Search className="w-20 h-20 sm:w-24 sm:h-24 mb-5 opacity-10" />
                         <p className="text-xl sm:text-2xl font-medium">Empieza a escribir</p>
-                        <p className="text-sm sm:text-base mt-2">Encuentra películas y series para ver al instante</p>
+                        <p className="text-sm sm:text-base mt-2">Encuentra películas, series y anime para ver al instante</p>
                     </div>
                 )}
             </div>
