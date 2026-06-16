@@ -51,17 +51,17 @@ export default function PlatformHeader() {
                 style={{ top: 'var(--announcement-height, 0px)' }}
                 className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Logo móvil — se oculta al enfocar el search */}
-                <div className={`flex items-center gap-2 lg:hidden shrink-0 overflow-hidden transition-all duration-300 ease-out ${searchFocused ? 'w-0 opacity-0 -translate-x-2' : ''}`}>
+                {/* Logo móvil — siempre visible (el search está oculto en móvil) */}
+                <div className="flex items-center gap-2 lg:hidden shrink-0">
                     <Link href="/" className="flex items-center gap-2" aria-label="Inicio">
                         <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
                         <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
                     </Link>
                 </div>
 
-                {/* Search — se oculta en móvil en /search (la página ya tiene su propio input) */}
+                {/* Search — solo visible en desktop (lg+); en móvil se accede desde la pestaña de búsqueda */}
                 <div
-                    className={`flex-1 min-w-0 transition-all duration-300 ease-out ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out hidden lg:block ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
                     onFocusCapture={() => setSearchFocused(true)}
                     onBlurCapture={(e) => {
                         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -76,15 +76,14 @@ export default function PlatformHeader() {
                 {!user && (
                     <Link
                         href="/login"
-                        className="hidden sm:inline-flex h-9 px-4 items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
+                        className="inline-flex h-9 px-4 items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
                     >
                         Iniciar sesión
                     </Link>
                 )}
                 {user && (
                     <div className="relative shrink-0 flex items-center gap-1">
-                        {/* Íconos: se ocultan en móvil (<lg) cuando el search está enfocado.
-                            Se usa opacity+pointer-events (NO overflow-hidden) para no recortar los dropdowns. */}
+                        {/* En desktop el search puede animarse; en móvil los iconos siempre son visibles */}
                         <div className={`flex items-center gap-1 transition-all duration-300 ease-out ${searchFocused ? 'opacity-0 pointer-events-none translate-x-2 lg:opacity-100 lg:pointer-events-auto lg:translate-x-0' : ''}`}>
                             <NotificationCenter user={user} />
 
