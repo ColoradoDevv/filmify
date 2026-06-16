@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Home, Clapperboard, Trophy, Heart, User, Tv, Users } from 'lucide-react';
+import { Home, Clapperboard, Heart, User, Tv, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { LucideIcon } from 'lucide-react';
@@ -46,7 +46,6 @@ export default function MobileTabBar() {
     const tabs: Tab[] = [
         { name: 'Inicio', icon: Home, href: '/', isActive: (p) => p === '/' },
         { name: 'Películas', icon: Clapperboard, href: '/browse', isActive: (p, cat) => (p.startsWith('/browse') && cat !== 'tv') || p.startsWith('/genero') },
-        { name: 'Mundial', icon: Trophy, href: '/mundial', isActive: (p) => p.startsWith('/mundial') },
         ...(loggedIn
             ? [
                 { name: 'Favoritos', icon: Heart, href: '/favorites', isActive: (p: string) => p.startsWith('/favorites') },
@@ -84,27 +83,10 @@ export default function MobileTabBar() {
                                         active ? 'text-primary' : 'text-on-surface-variant',
                                     ].join(' ')}
                                 >
-                                    {tab.name === 'Mundial' ? (
-                                        // Imagen en vez de icono (estado activo/controlado por el color del texto)
-                                        <div
-                                            className={[
-                                                'w-[22px] h-[22px] rounded-full overflow-hidden',
-                                                active ? 'ring-2 ring-primary/40' : '',
-                                            ].join(' ')}
-                                        >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src="/mundial-2026.png"
-                                                alt="Mundial 2026"
-                                                className="object-cover w-full h-full"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <Icon
-                                            className={`w-[22px] h-[22px] ${active ? 'fill-primary/15' : ''}`}
-                                            strokeWidth={active ? 2.4 : 2}
-                                        />
-                                    )}
+                                    <Icon
+                                        className={`w-[22px] h-[22px] ${active ? 'fill-primary/15' : ''}`}
+                                        strokeWidth={active ? 2.4 : 2}
+                                    />
                                     <span className={`text-[10px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>
                                         {tab.name}
                                     </span>

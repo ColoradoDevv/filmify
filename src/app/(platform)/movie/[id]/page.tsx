@@ -470,11 +470,6 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         </div>
                     </section>
 
-                    {/* ── Publicidad: banner 728×90 (AdBanner1 ya está arriba;
-                         dos unidades nativas en la misma página no funcionan
-                         porque comparten el id de contenedor) ── */}
-                    {/* AdBanner2 ahora se auto-escala → visible en todas las
-                        resoluciones (móvil, tablet, pc) sin desbordarse. */}
                     <div className="mt-10">
                         <AdBanner2 />
                     </div>

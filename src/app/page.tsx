@@ -10,7 +10,6 @@ import MobileTabBar from '@/components/layout/MobileTabBar';
 import TrendingScroller from '@/components/features/TrendingScroller';
 import MovieGrid from '@/components/features/MovieGrid';
 import HorizontalRow from '@/components/features/HorizontalRow';
-import AdBanner1 from '@/components/ads/AdBanner1';
 import { DonateBanner } from '@/components/ui/DonateButton';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import { GENRE_PAGES } from '@/lib/genres';
@@ -278,9 +277,6 @@ export default async function HomePage() {
                 </div>
               </section>
             )}
-
-            {/* ── Publicidad ────────────────────────────────────────────── */}
-            <AdBanner1 />
 
             {/* ── Series populares (solo disponibles) ──────────────────── */}
             {tvShows.length > 0 && (

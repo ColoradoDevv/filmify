@@ -7,7 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
-    Home, Film, Tv, Trophy, BookOpen,
+    Home, Film, Tv, BookOpen,
     Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -66,19 +66,6 @@ const SECTIONS: NavSection[] = [
                 href: '/editorial',
                 icon: BookOpen,
                 isActive: (p) => p.startsWith('/editorial'),
-            },
-        ],
-    },
-    {
-        title: 'En vivo',
-        items: [
-            {
-                name: 'Mundial 2026',
-                href: '/mundial',
-                // icon reemplazado por imagen dentro del render
-                icon: Home,
-                isActive: (p) => p.startsWith('/mundial'),
-                featured: true,
             },
         ],
     },
@@ -259,34 +246,14 @@ export default function Sidebar() {
                                                     : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface',
                                         ].join(' ')}
                                     >
-                                        {item.name === 'Mundial 2026' ? (
-                                            <div
-                                                className={[
-                                                    'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200 rounded-full overflow-hidden',
-                                                    active
-                                                        ? ''
-                                                        : 'group-hover:scale-110',
-                                                ].join(' ')}
-                                            >
-                                                <Image
-                                                    src="/mundial-2026.png"
-                                                    alt="Mundial 2026"
-                                                    width={18}
-                                                    height={18}
-                                                    priority={false}
-                                                    className="object-cover w-full h-full"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <Icon
-                                                className={[
-                                                    'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200',
-                                                    active
-                                                        ? ''
-                                                        : 'group-hover:scale-110',
-                                                ].join(' ')}
-                                            />
-                                        )}
+                                        <Icon
+                                            className={[
+                                                'w-[1.125rem] h-[1.125rem] shrink-0 transition-transform duration-200',
+                                                active
+                                                    ? ''
+                                                    : 'group-hover:scale-110',
+                                            ].join(' ')}
+                                        />
 
                                         {!isCollapsed && (
                                             <span className="md3-label-large whitespace-nowrap">

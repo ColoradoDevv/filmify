@@ -73,9 +73,6 @@ export function getOptionalApiKeys() {
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
         contactEmail: process.env.CONTACT_EMAIL ?? '',
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-        // API-Football (api-sports.io) — minuto/marcador en vivo REAL del Mundial.
-        // Opcional: sin esta clave, /mundial cae a la estimación por hora.
-        apiFootballKey: process.env.API_FOOTBALL_KEY ?? '',
     };
 }
 

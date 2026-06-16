@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import AdBanner from '@/components/ads/AdBanner1';
 
 /**
  * Hook to check if the current user is a premium subscriber
@@ -74,6 +73,5 @@ export default function AdBannerWrapper({ className }: AdBannerWrapperProps) {
         return null;
     }
 
-    // Show ad to free users (AdBanner renders its own container)
-    return <div className={className}><AdBanner /></div>;
+    return null;
 }
