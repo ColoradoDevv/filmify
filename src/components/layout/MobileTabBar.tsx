@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Home, Clapperboard, Heart, User, Tv, Users } from 'lucide-react';
+import { Home, Clapperboard, Search, Heart, User, Tv, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { LucideIcon } from 'lucide-react';
@@ -46,6 +46,7 @@ export default function MobileTabBar() {
     const tabs: Tab[] = [
         { name: 'Inicio', icon: Home, href: '/', isActive: (p) => p === '/' },
         { name: 'Películas', icon: Clapperboard, href: '/browse', isActive: (p, cat) => (p.startsWith('/browse') && cat !== 'tv') || p.startsWith('/genero') },
+        { name: 'Buscar', icon: Search, href: '/search', isActive: (p) => p.startsWith('/search') },
         ...(loggedIn
             ? [
                 { name: 'Favoritos', icon: Heart, href: '/favorites', isActive: (p: string) => p.startsWith('/favorites') },
