@@ -27,7 +27,8 @@ function toPicked(item: SearchResultItem): PickedTitle {
         id: item.id,
         title: anyItem.title || anyItem.name || 'Sin título',
         poster_path: item.poster_path ?? null,
-        media_type: item.media_type,
+        // 'anime' se trata como 'tv' en Watch Party (misma URL de embed)
+        media_type: item.media_type === 'movie' ? 'movie' : 'tv',
         year: (anyItem.release_date || anyItem.first_air_date || '').slice(0, 4),
     };
 }

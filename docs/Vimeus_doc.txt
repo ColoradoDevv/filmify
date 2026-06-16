@@ -1,0 +1,640 @@
+API Documentation
+Aquí encontrarás una descripción completa de los endpoints disponibles para Vimeus. Incluye detalles sobre los métodos, formatos de solicitud, parámetros requeridos y opcionales.
+
+Nota importante: Todas las peticiones Web Embeds requieren el parámetro view_key, el cual es único por usuario. Puedes obtener tu clave en/settings/general. Tu clave actual es:5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+
+Dominios válidos para inserciones (Embeds)
+
+Usa uno de estos dominios para generar URLs de incrustación seguras:
+
+vimeus.com
+
+Copiar
+Obtener URL de inserción de película
+Endpoint: https://vimeus.com/e/movie?view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+
+Parámetros válidos
+imdb
+o
+tmdb
+requerido
+ID proveniente de imdb.com o themoviedb.org.
+
+view_key
+requerido
+Clave única del usuario necesaria para todas las Web Embeds.
+
+Ejemplos
+Usando ID de IMDb
+
+https://vimeus.com/e/movie?imdb=tt0109830&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Usando ID de TMDb
+
+https://vimeus.com/e/movie?tmdb=13&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Obtener URL de inserción de serie o episodio
+Endpoint: https://vimeus.com/e/serie?view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+
+Parámetros válidos
+imdb
+o
+tmdb
+requerido
+ID proveniente de imdb.com o themoviedb.org.
+
+se
+—
+Número de temporada (opcional)
+Se usa junto con ep para obtener un episodio específico.
+
+ep
+—
+Número de episodio (opcional)
+Usado junto con se para obtener un episodio en específico.
+
+view_key
+requerido
+Clave única del usuario necesaria para todas las Web Embeds.
+
+Ejemplos
+Usando ID de IMDb (serie completa)
+
+https://vimeus.com/e/serie?imdb=tt0159206&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Usando ID de TMDb (serie completa)
+
+https://vimeus.com/e/serie?tmdb=105&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Obtener episodio específico (temporada 1, episodio 1)
+
+https://vimeus.com/e/serie?imdb=tt0159206&se=1&ep=1&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Obtener URL de inserción de anime o episodio
+Endpoint: https://vimeus.com/e/anime?view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+
+Parámetros válidos
+imdb
+o
+tmdb
+requerido
+ID proveniente de imdb.com o themoviedb.org. También puede funcionar con datos de Anilist o MyAnimeList si están enlazados.
+
+se
+—
+Número de temporada o parte (opcional)
+Se usa en animes con múltiples temporadas, partes o arcos.
+
+ep
+—
+Número de episodio (opcional)
+Permite acceder directamente a un episodio específico del anime.
+
+view_key
+requerido
+Clave única del usuario necesaria para todas las Web Embeds.
+
+Ejemplos
+Usando ID de IMDb (anime completo)
+
+https://vimeus.com/e/anime?imdb=tt0423731&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Usando ID de TMDb (anime completo)
+
+https://vimeus.com/e/anime?tmdb=1063&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Obtener episodio específico (temporada 1, episodio 1)
+
+https://vimeus.com/e/anime?tmdb=1063&se=1&ep=1&view_key=5xeeWBd6PTUVkqMDH0GUyge45eqFCSDMvw1alK7UQIw
+Endpoints de Listado
+Autenticación Requerida
+Todos los endpoints de listado requieren autenticación mediante API Key. Debes incluir tu API Key en el header X-API-Key en cada solicitud.
+
+Listar Películas
+Obtiene un listado paginado de películas disponibles en el sistema, ordenadas por fecha de sincronización descendente.
+
+Endpoint: GET https://vimeus.com/api/listing/movies
+
+Query Parameters
+page
+opcional
+integer
+Número de página a recuperar. Por defecto es 1. Cada página contiene hasta 50 resultados.
+Headers Requeridos
+X-API-Key: tu_api_key_aqui
+Respuesta Exitosa
+{
+  "error": false,
+  "message": "Success",
+  "data": {
+    "movies": [
+      {
+        "id": 12345,
+        "content_type": "movie",
+        "tmdb_id": 550,
+        "imdb_id": "tt0137523",
+        "title": "Fight Club",
+        "poster": "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+        "backdrop": "/fCayJrkfRaCRCTh8GqN30f8oyQF.jpg",
+        "synced_at": "2025-01-15T10:30:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 45,
+      "total_results": 2234,
+      "per_page": 50,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}
+Ejemplos de uso:
+
+Primera página (por defecto):
+
+curl -X GET "https://vimeus.com/api/listing/movies" \
+  -H "X-API-Key: tu_api_key_aqui"
+Página específica:
+
+curl -X GET "https://vimeus.com/api/listing/movies?page=5" \
+  -H "X-API-Key: tu_api_key_aqui"
+Listar Series
+Obtiene un listado paginado de series disponibles en el sistema. Retorna series únicas (no episodios individuales), ordenadas por fecha de sincronización.
+
+Endpoint: GET https://vimeus.com/api/listing/series
+
+Query Parameters
+page
+opcional
+integer
+Número de página a recuperar. Por defecto es 1. Cada página contiene hasta 50 series únicas.
+Headers Requeridos
+X-API-Key: tu_api_key_aqui
+Respuesta Exitosa
+{
+  "error": false,
+  "message": "Success",
+  "data": {
+    "series": [
+      {
+        "id": 67890,
+        "content_type": "series",
+        "tmdb_id": 1399,
+        "imdb_id": "tt0944947",
+        "title": "Game of Thrones",
+        "poster": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
+        "backdrop": "/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
+        "total_seasons": 8,
+        "total_episodes": 73,
+        "synced_at": "2025-01-14T15:20:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 32,
+      "total_results": 1587,
+      "per_page": 50,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}
+Ejemplos de uso:
+
+Primera página:
+
+curl -X GET "https://vimeus.com/api/listing/series" \
+  -H "X-API-Key: tu_api_key_aqui"
+Página específica:
+
+curl -X GET "https://vimeus.com/api/listing/series?page=3" \
+  -H "X-API-Key: tu_api_key_aqui"
+Listar Animes
+Obtiene un listado paginado de animes disponibles en el sistema. Similar al endpoint de series pero filtrado específicamente para contenido anime.
+
+Endpoint: GET https://vimeus.com/api/listing/animes
+
+Query Parameters
+page
+opcional
+integer
+Número de página a recuperar. Por defecto es 1. Cada página contiene hasta 50 animes únicos.
+Headers Requeridos
+X-API-Key: tu_api_key_aqui
+Respuesta Exitosa
+{
+  "error": false,
+  "message": "Success",
+  "data": {
+    "animes": [
+      {
+        "id": 11223,
+        "content_type": "anime",
+        "tmdb_id": 46261,
+        "imdb_id": "tt2560140",
+        "title": "Attack on Titan",
+        "poster": "/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg",
+        "backdrop": "/rqbCbjB19amtOtFQbb3K2lgm2zv.jpg",
+        "total_seasons": 4,
+        "total_episodes": 87,
+        "synced_at": "2025-01-13T09:45:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 18,
+      "total_results": 892,
+      "per_page": 50,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}
+Ejemplos de uso:
+
+Primera página:
+
+curl -X GET "https://vimeus.com/api/listing/animes" \
+  -H "X-API-Key: tu_api_key_aqui"
+Página específica:
+
+curl -X GET "https://vimeus.com/api/listing/animes?page=2" \
+  -H "X-API-Key: tu_api_key_aqui"
+Listar Episodios
+Obtiene un listado paginado de episodios de series y animes disponibles en el sistema. Incluye información detallada de temporada y episodio para cada entrada.
+
+Endpoint: GET https://vimeus.com/api/listing/episodes
+
+Query Parameters
+page
+opcional
+integer
+Número de página a recuperar. Por defecto es 1. Cada página contiene hasta 50 episodios.
+tmdb_id
+opcional
+integer
+Filtrar episodios por un ID específico de TMDB. Si se proporciona, solo retorna episodios de la serie/anime correspondiente.
+season
+opcional
+integer
+Filtrar episodios por temporada específica. Requiere que tmdb_id también esté presente.
+Headers Requeridos
+X-API-Key: tu_api_key_aqui
+Respuesta Exitosa
+{
+  "error": false,
+  "message": "Success",
+  "data": {
+    "episodes": [
+      {
+        "id": 44556,
+        "content_type": "series",
+        "tmdb_id": 1399,
+        "imdb_id": "tt0944947",
+        "title": "Game of Thrones",
+        "poster": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
+        "backdrop": "/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
+        "season": 1,
+        "episode": 1,
+        "synced_at": "2025-01-15T12:00:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 150,
+      "total_results": 7489,
+      "per_page": 50,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}
+Ejemplos de uso:
+
+Todos los episodios:
+
+curl -X GET "https://vimeus.com/api/listing/episodes" \
+  -H "X-API-Key: tu_api_key_aqui"
+Episodios de una serie específica:
+
+curl -X GET "https://vimeus.com/api/listing/episodes?tmdb_id=1399" \
+  -H "X-API-Key: tu_api_key_aqui"
+Episodios de una temporada específica:
+
+curl -X GET "https://vimeus.com/api/listing/episodes?tmdb_id=1399&season=1" \
+  -H "X-API-Key: tu_api_key_aqui"
+Con paginación:
+
+curl -X GET "https://vimeus.com/api/listing/episodes?tmdb_id=1399&page=2" \
+  -H "X-API-Key: tu_api_key_aqui"
+Códigos de Error Comunes
+401 Unauthorized
+
+API Key no proporcionada, inválida o inactiva.
+
+{
+  "error": true,
+  "message": "API key is required",
+  "data": null
+}
+400 Bad Request
+
+El número de página o parámetros proporcionados son inválidos.
+
+{
+  "error": true,
+  "message": "Invalid page number",
+  "data": null
+}
+404 Not Found
+
+No se encontró contenido para los parámetros especificados.
+
+{
+  "error": true,
+  "message": "No content found",
+  "data": null
+}
+Notas Técnicas
+•
+Los resultados están ordenados por fecha de sincronización descendente (más recientes primero).
+•
+El límite de resultados por página es fijo en 50 elementos para mantener tiempos de respuesta óptimos.
+•
+Las URLs de imágenes (poster y backdrop) son rutas relativas de TMDB. Deben ser concatenadas con: https://image.tmdb.org/t/p/original
+•
+El uso de la API Key se registra en el sistema para fines de auditoría y estadísticas.
+•
+Las respuestas incluyen un objeto de paginación completo con información útil para implementar navegación en tu aplicación.
+PHP SDK
+Se requiere autenticación
+Todas las solicitudes requieren una API Key a través de X-API-Key. No expongas tu API Key en el código del lado del cliente.
+
+La siguiente Sdk Class encapsula las llamadas HTTP con encabezados consistentes, manejo de errores y valores predeterminados. Es independiente del framework y compatible con PHP moderno.
+
+API Key vs View Key
+API Key: Autenticación para consultar la API y obtener listados/embeds (servidor)
+View Key: Ya incluida en los embed_url retornados. Valida acceso al iframe desde dominios permitidos
+Instalación
+Copia la clase en tu proyecto (e.g., src/VimeusSdk.php) e inclúyelo mediante autoload de Composer o require manual.
+
+PHP SDK
+<?php
+declare(strict_types=1);
+
+/**
+ * Lightweight API SDK for Vimeus.
+ *
+ * - Uses cURL with timeouts and JSON handling.
+ * - Sends X-API-Key header on each request.
+ * - Returns embed_url with view_key already included.
+ * - Throws RuntimeException on transport or HTTP errors.
+ *
+ * Usage:
+ *   $sdk = new VimeusSdk(apiKey: 'your_api_key', baseUrl: 'https://vimeus.com');
+ *   $movies = $sdk->listMovies(page: 1);
+ */
+final class VimeusSdk
+{
+    /** @var string */
+    private $apiKey;
+
+    /** @var string */
+    private $baseUrl;
+
+    /** @var int Timeout in seconds */
+    private $timeout;
+
+    /**
+     * @param string $apiKey  Your API key (X-API-Key header).
+     * @param string $baseUrl API base URL (e.g., https://vimeus.com)
+     * @param int    $timeout Request timeout (seconds).
+     */
+    public function __construct(string $apiKey, string $baseUrl = 'https://vimeus.com', int $timeout = 15)
+    {
+        if ($apiKey === '') {
+            throw new \InvalidArgumentException('API key must not be empty.');
+        }
+        if ($baseUrl === '' || !preg_match('#^https?://#i', $baseUrl)) {
+            throw new \InvalidArgumentException('Base URL must be an absolute HTTP(S) URL.');
+        }
+
+        $this->apiKey = $apiKey;
+        $this->baseUrl = rtrim($baseUrl, '/');
+        $this->timeout = $timeout;
+    }
+
+    /**
+     * Perform an HTTP request and return decoded JSON as array.
+     *
+     * @param string               $method   HTTP method (GET, POST, etc.)
+     * @param string               $path     Absolute or relative path under base URL.
+     * @param array<string, mixed> $query    Query parameters.
+     * @param array<string, mixed>|null $json Optional JSON payload for non-GET.
+     *
+     * @return array<string, mixed>
+     */
+    private function request(string $method, string $path, array $query = [], ?array $json = null): array
+    {
+        $method = strtoupper($method);
+        $url = $this->buildUrl($path, $query);
+
+        $ch = curl_init($url);
+        if ($ch === false) {
+            throw new \RuntimeException('Failed to initialize cURL.');
+        }
+
+        // Common headers.
+        $headers = [
+            'Accept: application/json',
+            'X-API-Key: ' . $this->apiKey,
+            'User-Agent: VimeusSdk-PHP/1.0',
+        ];
+
+        // Configure method and optional body.
+        if ($method !== 'GET') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            if ($json !== null) {
+                $body = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                if ($body === false) {
+                    curl_close($ch);
+                    throw new \RuntimeException('Failed to encode JSON body.');
+                }
+                $headers[] = 'Content-Type: application/json';
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            }
+        }
+
+        // Transport options.
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+        $raw = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $error = curl_error($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        // Transport-level error.
+        if ($errno !== 0) {
+            throw new \RuntimeException(sprintf('Network error (%d): %s', $errno, $error));
+        }
+
+        // Decode JSON; empty body becomes empty array.
+        $decoded = [];
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                throw new \RuntimeException('Invalid JSON response.');
+            }
+        }
+
+        // HTTP-level error handling with message propagation.
+        if ($status < 200 || $status >= 300) {
+            $msg = isset($decoded['message']) ? (string) $decoded['message'] : 'HTTP error';
+            throw new \RuntimeException(sprintf('HTTP %d: %s', $status, $msg));
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
+    }
+
+    /**
+     * Build absolute URL with query string.
+     *
+     * @param string               $path
+     * @param array<string, mixed> $query
+     */
+    private function buildUrl(string $path, array $query): string
+    {
+        $path = '/' . ltrim($path, '/');
+        $url = $this->baseUrl . $path;
+
+        if (!empty($query)) {
+            $filtered = array_filter($query, static function ($v) {
+                return $v !== null;
+            });
+            $qs = http_build_query($filtered, '', '&', PHP_QUERY_RFC3986);
+            if ($qs !== '') {
+                $url .= '?' . $qs;
+            }
+        }
+        return $url;
+    }
+
+    // ---- Listing endpoints (return embed_url with view_key included) ------
+
+    /**
+     * GET /api/listing/movies
+     * Returns array with movies and their embed_url (view_key already included).
+     *
+     * @param int $page Page number (default 1).
+     * @return array<string, mixed>
+     */
+    public function listMovies(int $page = 1): array
+    {
+        return $this->request('GET', '/api/listing/movies', ['page' => $page]);
+    }
+
+    /**
+     * GET /api/listing/series
+     * Returns array with series and their embed_url (view_key already included).
+     *
+     * @param int $page Page number (default 1).
+     * @return array<string, mixed>
+     */
+    public function listSeries(int $page = 1): array
+    {
+        return $this->request('GET', '/api/listing/series', ['page' => $page]);
+    }
+
+    /**
+     * GET /api/listing/animes
+     * Returns array with animes and their embed_url (view_key already included).
+     *
+     * @param int $page Page number (default 1).
+     * @return array<string, mixed>
+     */
+    public function listAnimes(int $page = 1): array
+    {
+        return $this->request('GET', '/api/listing/animes', ['page' => $page]);
+    }
+
+    /**
+     * GET /api/listing/episodes
+     * Returns array with episodes and their embed_url (view_key already included).
+     *
+     * @param int      $page    Page number (default 1).
+     * @param int|null $tmdbId  Optional TMDB series ID filter.
+     * @param int|null $season  Optional season filter (requires tmdbId).
+     * @return array<string, mixed>
+     */
+    public function listEpisodes(int $page = 1, ?int $tmdbId = null, ?int $season = null): array
+    {
+        $query = ['page' => $page, 'tmdb_id' => $tmdbId, 'season' => $season];
+        return $this->request('GET', '/api/listing/episodes', $query);
+    }
+}
+Uso básico
+<?php
+require __DIR__ . '/vendor/autoload.php';
+
+$sdk = new VimeusSdk(apiKey: 'your_api_key', baseUrl: 'https://vimeus.com');
+
+try {
+    // Obtener listado de películas (página 1)
+    $movies = $sdk->listMovies(page: 1);
+    
+    // La respuesta incluye embed_url con view_key ya incluida:
+    // {
+    //   "data": [
+    //     {
+    //       "tmdb_id": 550,
+    //       "title": "Fight Club",
+    //       "embed_url": "/e/movie?tmdb=550&view_key=abc123xyz"
+    //     }
+    //   ]
+    // }
+    
+    foreach ($movies['data'] as $movie) {
+        $embedUrl = $movie['embed_url'];
+        // Usar directamente en iframe
+        echo '<iframe src="' . htmlspecialchars($embedUrl) . '" referrerpolicy="origin"></iframe>';
+    }
+    
+} catch (RuntimeException $e) {
+    error_log($e->getMessage());
+    http_response_code(500);
+    echo 'Request failed.';
+}
+Personalización de player
+Si has configurado personalización en tu player (tema, logos, splash), concatena tus query params al embed_url:
+
+<?php
+// La API retorna: /e/movie?tmdb=550&view_key=abc123xyz
+$embedUrl = $movie['embed_url'];
+
+// Agregar personalización de player
+$customParams = http_build_query([
+    'theme' => 'vimeus',
+    'logo_url' => 'https://tu-web.com/logo.png',
+    'primary_color' => '10b981'
+]);
+
+$finalUrl = $embedUrl . '&' . $customParams;
+// Resultado: /e/movie?tmdb=550&view_key=abc123xyz&theme=vimeus&logo_url=...
+
+echo '<iframe src="' . htmlspecialchars($finalUrl) . '" referrerpolicy="origin"></iframe>';
+Notas técnicas
+•
+API Key: Autentica tus llamadas al servidor. Úsala solo en backend, nunca en frontend.
+•
+View Key: Ya está incluida en el embed_url. Valida que el iframe se use solo en dominios permitidos.
+•
+Referrer Policy: Siempre usa referrerpolicy="origin" en tus iframes para validación correcta.
+•
+Los timeouts HTTP son ajustables mediante el constructor (conexión y totales).
+•
+Los errores lanzan RuntimeException con mensajes descriptivos.
+Flujo completo
+Genera tu API Key desde el dashboard
+Consulta los endpoints de listing (movies, series, animes)
+Obtén el embed_url con view_key incluida
+Opcionalmente, concatena parámetros de personalización de player
+Inserta el iframe en tu web con referrerpolicy="origin"

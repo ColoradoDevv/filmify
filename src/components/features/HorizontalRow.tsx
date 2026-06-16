@@ -11,9 +11,10 @@ interface HorizontalRowProps {
     mediaType?: 'movie' | 'tv';
     onFocus?: () => void;
     icon?: LucideIcon;
+    qualityMap?: Record<string, string>;
 }
 
-export default function HorizontalRow({ title, items, mediaType = 'movie', onFocus, icon: Icon }: HorizontalRowProps) {
+export default function HorizontalRow({ title, items, mediaType = 'movie', onFocus, icon: Icon, qualityMap }: HorizontalRowProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft,  setCanScrollLeft]  = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
@@ -112,7 +113,7 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
                             role="listitem"
                             onKeyDown={(e) => handleKeyDown(e, index)}
                         >
-                            <MovieCard movie={item} mediaType={mediaType} />
+                            <MovieCard movie={item} mediaType={mediaType} quality={qualityMap?.[item.id]} />
                         </div>
                     ))}
                 </div>

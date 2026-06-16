@@ -19,33 +19,34 @@ const getIcon = (type: string) => {
     switch (type) {
         case 'movie':  return <Film className="w-4 h-4" />;
         case 'tv':     return <Tv className="w-4 h-4" />;
+        case 'anime':  return <Tv className="w-4 h-4" />;
         case 'person': return <User className="w-4 h-4" />;
         default:       return <Search className="w-4 h-4" />;
     }
 };
 
-const getImage = (item: MultiSearchResult): string | null => {
+const getImage = (item: SearchResultItem | MultiSearchResult): string | null => {
     if (item.media_type === 'person') return getProfileUrl((item as Person).profile_path);
     return getPosterUrl((item as Movie | TVShow).poster_path);
 };
 
-const getTitle = (item: MultiSearchResult): string => {
+const getTitle = (item: SearchResultItem | MultiSearchResult): string => {
     if (item.media_type === 'movie')  return (item as Movie).title;
-    if (item.media_type === 'tv')     return (item as TVShow).name;
+    if (item.media_type === 'tv' || item.media_type === 'anime') return (item as TVShow).name;
     if (item.media_type === 'person') return (item as Person).name;
     return '';
 };
 
-const getYear = (item: MultiSearchResult): string => {
+const getYear = (item: SearchResultItem | MultiSearchResult): string => {
     if (item.media_type === 'movie')  return (item as Movie).release_date?.split('-')[0] ?? '';
-    if (item.media_type === 'tv')     return (item as TVShow).first_air_date?.split('-')[0] ?? '';
+    if (item.media_type === 'tv' || item.media_type === 'anime') return (item as TVShow).first_air_date?.split('-')[0] ?? '';
     return '';
 };
 
 // ── Tipos para el dropdown ────────────────────────────────────────────
 type DropdownItem =
     | { type: 'history'; item: SearchHistoryItem }
-    | { type: 'suggestion'; item: MultiSearchResult };
+    | { type: 'suggestion'; item: SearchResultItem };
 
 interface SearchInputProps {
     className?: string;
@@ -153,14 +154,14 @@ export default function SearchInput({
     );
 
     const goToItem = useCallback(
-        async (item: MultiSearchResult) => {
+        async (item: SearchResultItem | MultiSearchResult) => {
             const name = getTitle(item);
             if (name) {
                 try { await addToHistory(name); } catch {}
             }
 
             if (item.media_type === 'movie') router.push(`/movie/${item.id}`);
-            else if (item.media_type === 'tv') router.push(`/tv/${item.id}`);
+            else if (item.media_type === 'tv' || item.media_type === 'anime') router.push(`/tv/${item.id}`);
             else if (item.media_type === 'person') router.push(`/search?q=${encodeURIComponent(name)}`);
 
             setShowSuggestions(false);
@@ -200,7 +201,7 @@ export default function SearchInput({
                 if (selected.type === 'history') {
                     goToSearch(selected.item.query);
                 } else {
-                    goToItem(selected.item as MultiSearchResult);
+                    goToItem(selected.item);
                 }
             } else if (query.trim()) {
                 goToSearch(query);

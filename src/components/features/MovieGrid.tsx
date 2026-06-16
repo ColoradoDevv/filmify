@@ -19,6 +19,9 @@ interface MovieGridProps {
      *  inicial suele consumir varias páginas de TMDB para juntar 20+ títulos
      *  disponibles, así que el cliente debe continuar desde donde quedó. */
     initialNextPage?: number;
+    /** Mapa tmdb_id → quality del listing de Vimeus. Objeto plano (serializable
+     *  Server→Client). Solo cubre los ítems del SSR inicial. */
+    qualityMap?: Record<string, string>;
 }
 
 export default function MovieGrid({
@@ -26,6 +29,7 @@ export default function MovieGrid({
     mediaType = 'movie',
     fixedGenre,
     initialNextPage = 2,
+    qualityMap,
 }: MovieGridProps) {
     const searchParams = useSearchParams();
     const genre = fixedGenre != null ? String(fixedGenre) : searchParams.get('genre');
@@ -145,6 +149,7 @@ export default function MovieGrid({
                             movie={movie}
                             mediaType={mediaType}
                             priority={index < 10}
+                            quality={qualityMap?.[movie.id]}
                         />
                     </div>
                 ))}

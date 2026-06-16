@@ -24,6 +24,8 @@ interface SeriesPlayerProps {
      * episode navigation internally.
      */
     seasons: SeasonEpisodes[];
+    /** Usa el endpoint /e/anime en lugar de /e/serie */
+    isAnime?: boolean;
 }
 
 const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
@@ -38,7 +40,7 @@ type Mode = 'idle' | 'serie' | 'trailer';
  * Inline series player, Cuevana-style: embedded in the page, no login.
  * Season/episode pickers reload the embed at the exact episode.
  */
-export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, seasons }: SeriesPlayerProps) {
+export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, seasons, isAnime = false }: SeriesPlayerProps) {
     const [mode, setMode] = useState<Mode>('idle');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(false);
@@ -100,11 +102,10 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     }, [seasons, season]);
 
     const embedUrl = useMemo(() => {
-        const base = `https://vimeus.com/e/serie?tmdb=${tmdbId}&view_key=${VIMEUS_VIEW_KEY}&${VIMEUS_STYLE}`;
-        // With known episodes we deep-link to the selected one; otherwise the
-        // embed shows the whole series with its internal episode picker.
+        const endpoint = isAnime ? 'anime' : 'serie';
+        const base = `https://vimeus.com/e/${endpoint}?tmdb=${tmdbId}&view_key=${VIMEUS_VIEW_KEY}&${VIMEUS_STYLE}`;
         return seasons.length > 0 ? `${base}&se=${season}&ep=${episode}` : base;
-    }, [tmdbId, seasons.length, season, episode]);
+    }, [tmdbId, isAnime, seasons.length, season, episode]);
 
     const trailerUrl = trailerKey
         ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`

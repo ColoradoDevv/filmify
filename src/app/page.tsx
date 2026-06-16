@@ -13,7 +13,10 @@ import HorizontalRow from '@/components/features/HorizontalRow';
 import { DonateBanner } from '@/components/ui/DonateButton';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import { GENRE_PAGES } from '@/lib/genres';
-import { filterAvailableMovies, filterAvailableSeries, getRecentlyAddedMovies } from '@/server/services/vimeus';
+import {
+  filterAvailableMovies, filterAvailableSeries,
+  getRecentlyAddedMovies, getRecentlyAddedAnimes, getQualityMap,
+} from '@/server/services/vimeus';
 import { getOptionalApiKeys } from '@/lib/env';
 import type { Movie, TVShow } from '@/types/tmdb';
 
@@ -72,15 +75,21 @@ export default async function HomePage() {
   // fallo puntual de un tercero NO tumbe toda la home (la peor página para caer).
   const emptyMoviePage = { results: [] as Movie[], page: 1, total_pages: 0, total_results: 0 };
   const emptyTVPage = { results: [] as TVShow[], page: 1, total_pages: 0, total_results: 0 };
-  const [trendingDay, trendingWeek, trendingTV, recentlyAdded] = await Promise.all([
+  const [trendingDay, trendingWeek, trendingTV, recentlyAdded, recentAnimes, movieQualityMap, seriesQualityMap] = await Promise.all([
     getTrending('movie', 'day', 1).catch(() => emptyMoviePage),
     getTrending('movie', 'week', 1).catch(() => emptyMoviePage),
     getTrending('tv', 'week', 1).catch(() => emptyTVPage),
     getRecentlyAddedMovies(18).catch(() => []),
+    getRecentlyAddedAnimes(30).catch(() => []),
+    getQualityMap('movie', 4).catch(() => new Map<number, string>()),
+    getQualityMap('serie', 4).catch(() => new Map<number, string>()),
   ]);
+  const movieQuality = Object.fromEntries(movieQualityMap);
+  const seriesQuality = Object.fromEntries(seriesQualityMap);
 
   // Only show titles that are actually playable on the streaming provider —
   // we never advertise content the visitor can't watch.
+  // Los animes del listing ya son reproducibles — no necesitan probe individual.
   const [availableDay, availableWeek, availableTV, availableRecentlyAdded] = await Promise.all([
     filterAvailableMovies(trendingDay.results).catch(() => trendingDay.results),
     filterAvailableMovies(trendingWeek.results).catch(() => trendingWeek.results),
@@ -92,6 +101,24 @@ export default async function HomePage() {
   const scrollerMovies = availableDay.slice(0, 15);
   const gridMovies = availableWeek;
   const tvShows = availableTV.slice(0, 15);
+
+  // Mapeamos VimeusAnime a la forma mínima que necesita HorizontalRow/MovieCard.
+  const animeShows = recentAnimes.slice(0, 15).map((a) => ({
+    id: a.tmdb_id,
+    name: a.title ?? '',
+    original_name: a.title ?? '',
+    poster_path: a.poster ?? null,
+    backdrop_path: a.backdrop ?? null,
+    vote_average: 0,
+    vote_count: 0,
+    first_air_date: '',
+    overview: '',
+    genre_ids: [] as number[],
+    adult: false,
+    original_language: 'ja',
+    popularity: 0,
+    origin_country: ['JP'] as string[],
+  } as TVShow));
 
   const availableRecentlyAddedIds = new Set(availableRecentlyAdded.map((x: any) => x.id));
   const recentlyAddedFiltered = recentlyAdded.filter((m) => availableRecentlyAddedIds.has(m.tmdb_id));
@@ -286,6 +313,7 @@ export default async function HomePage() {
                   title="Series populares"
                   items={tvShows}
                   mediaType="tv"
+                  qualityMap={seriesQuality}
                 />
                 <div className="mt-3 text-right">
                   <Link
@@ -293,6 +321,25 @@ export default async function HomePage() {
                     className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
                   >
                     Ver todas las series →
+                  </Link>
+                </div>
+              </section>
+            )}
+
+            {/* ── Anime destacado ──────────────────────────────────────── */}
+            {animeShows.length > 0 && (
+              <section aria-label="Anime destacado">
+                <HorizontalRow
+                  title="Anime"
+                  items={animeShows}
+                  mediaType="tv"
+                />
+                <div className="mt-3 text-right">
+                  <Link
+                    href="/browse?category=anime"
+                    className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                  >
+                    Ver todo el anime →
                   </Link>
                 </div>
               </section>
@@ -314,7 +361,7 @@ export default async function HomePage() {
                   Explorar catálogo →
                 </Link>
               </div>
-              <MovieGrid initialMovies={gridMovies} mediaType="movie" />
+              <MovieGrid initialMovies={gridMovies} mediaType="movie" qualityMap={movieQuality} />
             </section>
 
             {/* ── Géneros: enlazado interno crawlable hacia las landing pages ── */}
