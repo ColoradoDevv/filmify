@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { User, LogOut, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
@@ -14,6 +14,8 @@ const supabase = createClient();
 
 export default function PlatformHeader() {
     const router = useRouter();
+    const pathname = usePathname();
+    const isSearchPage = pathname?.startsWith('/search') ?? false;
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -57,9 +59,9 @@ export default function PlatformHeader() {
                     </Link>
                 </div>
 
-                {/* Search */}
+                {/* Search — se oculta en móvil en /search (la página ya tiene su propio input) */}
                 <div
-                    className={`flex-1 min-w-0 transition-all duration-300 ease-out ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
                     onFocusCapture={() => setSearchFocused(true)}
                     onBlurCapture={(e) => {
                         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
