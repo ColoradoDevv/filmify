@@ -1,4 +1,5 @@
 import LiveTVClient from './LiveTVClient';
+import { AdSlot } from '@/components/ads';
 
 import type { Metadata } from 'next';
 
@@ -22,6 +23,10 @@ export const revalidate = 86400;
 export default async function LiveTVPage() {
     return (
         <div className="min-h-screen bg-background">
+            {/* 📢 Banner publicitario */}
+            <div className="px-3 sm:px-6 lg:px-8">
+                <AdSlot />
+            </div>
             <LiveTVClient />
         </div>
     );

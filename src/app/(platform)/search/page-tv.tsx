@@ -6,6 +6,7 @@ import { Search, X } from 'lucide-react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import TVKeyboard from '@/components/tv/TVKeyboard';
 import MovieCard from '@/components/features/MovieCard';
+import { AdSlot } from '@/components/ads';
 import type { Movie } from '@/types/tmdb';
 
 interface SearchPageTVProps {
@@ -104,6 +105,9 @@ export default function SearchPageTV({ initialQuery, initialResults }: SearchPag
                     )}
                 </div>
             </div>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot />
 
             {/* Virtual keyboard */}
             {showKeyboard && (

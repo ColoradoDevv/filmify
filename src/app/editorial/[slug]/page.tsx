@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Tag, Calendar, ArrowRight, BookOpen } from 'lucide-re
 import { getArticleBySlug, getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import ArticleImage from '@/components/editorial/ArticleImage';
 import { getOptionalApiKeys } from '@/lib/env';
+import { AdSlot } from '@/components/ads';
 
 interface Props {
     params: Promise<{ slug: string }>;
@@ -255,10 +256,16 @@ export default async function ArticlePage({ params }: Props) {
                             />
                         </div>
 
+                        {/* 📢 Banner publicitario — antes del cuerpo del artículo */}
+                        <AdSlot />
+
                         {/* Content */}
                         <div className="prose-editorial">
                             {renderContent(article.content)}
                         </div>
+
+                        {/* 📢 Segundo banner — al final del artículo (contenido largo) */}
+                        <AdSlot />
 
                         {/* Tags */}
                         {article.tags.length > 0 && (

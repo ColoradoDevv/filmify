@@ -11,6 +11,7 @@ import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { getMediaDetails } from '@/lib/tmdb/client';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
+import { AdSlot } from '@/components/ads';
 import type { User } from '@supabase/supabase-js';
 import type { Movie as MovieDetails, TVShow as TVDetails } from '@/types/tmdb';
 
@@ -419,6 +420,9 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </section>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot className="my-0" />
 
             <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -837,6 +841,9 @@ export default function ProfilePage() {
                     </section>
                 )}
             </section>
+
+            {/* 📢 Segundo banner — al final del perfil (página con mucho contenido) */}
+            <AdSlot className="my-0" />
         </div>
     );
 }

@@ -7,6 +7,7 @@ import type { Article, NewsItem } from '@/lib/editorial';
 import NewsCard from '@/components/editorial/NewsCard';
 import ArticleImage from '@/components/editorial/ArticleImage';
 import { getOptionalApiKeys } from '@/lib/env';
+import { AdSlot } from '@/components/ads';
 
 interface Props { params: Promise<{ cat: string }> }
 
@@ -156,6 +157,9 @@ export default async function CategoryPage({ params }: Props) {
                         </section>
                     )}
 
+                    {/* 📢 Banner publicitario */}
+                    <AdSlot className="my-0" />
+
                     {/* External news */}
                     {news.length > 0 && (
                         <section>
@@ -178,6 +182,9 @@ export default async function CategoryPage({ params }: Props) {
                             </div>
                         </section>
                     )}
+
+                    {/* 📢 Segundo banner — al final de la columna principal */}
+                    {(articles.length > 0 || news.length > 0) && <AdSlot className="my-0" />}
 
                     {articles.length === 0 && news.length === 0 && (
                         <div className="text-center py-20 text-on-surface-variant">

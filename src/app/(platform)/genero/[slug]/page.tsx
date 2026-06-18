@@ -8,6 +8,7 @@ import { GENRE_PAGES, getGenreBySlug } from '@/lib/genres';
 import { getOptionalApiKeys } from '@/lib/env';
 import MovieGrid from '@/components/features/MovieGrid';
 import HeroPosterCollage from '@/components/features/HeroPosterCollage';
+import { AdSlot } from '@/components/ads';
 import type { Movie } from '@/types/tmdb';
 
 interface PageProps {
@@ -111,8 +112,14 @@ export default async function GenrePage({ params }: PageProps) {
                     </div>
                 </div>
 
+                {/* 📢 Banner publicitario — entre el hero y la grilla */}
+                <AdSlot className="my-0" />
+
                 {/* Grid del género (solo títulos reproducibles) */}
                 <MovieGrid initialMovies={movies} mediaType="movie" fixedGenre={genre.tmdbId} />
+
+                {/* 📢 Segundo banner — antes del enlazado de otros géneros */}
+                <AdSlot className="my-0" />
 
                 {/* Enlazado interno: otros géneros */}
                 <nav aria-label="Otros géneros" className="pt-4">

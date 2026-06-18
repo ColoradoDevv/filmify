@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, Heart } from 'lucide-react';
 import DonateMethods from './DonateMethods';
+import { AdSlot } from '@/components/ads';
 
 export const metadata: Metadata = {
     title: { absolute: 'Apoya FilmiFy · Donaciones' },
@@ -46,6 +47,9 @@ export default function DonatePage() {
                         compartiendo <strong className="text-white">FilmiFy</strong> con tus amigos.
                     </p>
                 </div>
+
+                {/* 📢 Banner publicitario */}
+                <AdSlot />
             </div>
         </div>
     );

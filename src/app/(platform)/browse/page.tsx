@@ -13,6 +13,10 @@ import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
 import { isTVDevice } from '@/lib/device-detection';
 import { headers } from 'next/headers';
+import dynamic from 'next/dynamic';
+
+// Importar AdBanner2 dinámicamente (client component)
+const AdBanner2 = dynamic(() => import('@/components/ads/AdBanner2'));
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -226,6 +230,12 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
             {/* Filtros y contenido */}
             <FilterBar genres={genres} />
+
+            {/* 📢 Banner publicitario — discreto, entre filtros y grilla */}
+            <div className="my-8 opacity-90 hover:opacity-100 transition-opacity">
+              <AdBanner2 />
+            </div>
+
             <MovieGrid initialMovies={content} mediaType={isAnime || isTV ? 'tv' : 'movie'} qualityMap={qualityRecord} />
 
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tv, CheckCircle, XCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { AdSlot } from '@/components/ads';
 
 const COOKIE_NAME = 'filmify_tv_mode';
 
@@ -170,6 +171,11 @@ export default function TVActivationPage() {
                     <kbd className="px-1.5 py-0.5 bg-white/10 rounded">OK</kbd>
                     Seleccionar
                 </span>
+            </div>
+
+            {/* 📢 Banner publicitario */}
+            <div className="w-full max-w-lg">
+                <AdSlot />
             </div>
         </div>
     );

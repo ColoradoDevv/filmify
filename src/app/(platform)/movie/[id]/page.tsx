@@ -12,6 +12,10 @@ import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
 import MovieDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
+import dynamic from 'next/dynamic';
+
+// Importar AdBanner2 dinámicamente (client component)
+const AdBanner2 = dynamic(() => import('@/components/ads/AdBanner2'));
 
 interface PageProps {
     params: Promise<{
@@ -545,6 +549,11 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             </div>
                         </section>
                     )}
+
+                    {/* 📢 Banner publicitario — discreto, antes de reviews */}
+                    <div className="mt-12 mb-12 opacity-90 hover:opacity-100 transition-opacity">
+                        <AdBanner2 />
+                    </div>
 
                     {/* ── Reviews ────────────────────────────────── */}
                     <div className="mt-12">
