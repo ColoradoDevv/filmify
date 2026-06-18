@@ -4,7 +4,6 @@ import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/servic
 import MoviePlayer from '@/components/features/MoviePlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
-import AdBanner2 from '@/components/ads/AdBanner2';
 import Image from 'next/image';
 import { Star, Clock, Calendar, ArrowLeft, Film, User } from 'lucide-react';
 import Link from 'next/link';
@@ -13,6 +12,10 @@ import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
 import MovieDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
+import dynamic from 'next/dynamic';
+
+// Importar AdBanner2 dinámicamente (client component)
+const AdBanner2 = dynamic(() => import('@/components/ads/AdBanner2'));
 
 interface PageProps {
     params: Promise<{
@@ -470,10 +473,6 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         </div>
                     </section>
 
-                    <div className="mt-10">
-                        <AdBanner2 />
-                    </div>
-
                     {/* ── Cast ───────────────────────────────────── */}
                     {cast.length > 0 && (
                         <section className="mt-10">
@@ -550,6 +549,11 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             </div>
                         </section>
                     )}
+
+                    {/* 📢 Banner publicitario — discreto, antes de reviews */}
+                    <div className="mt-12 mb-12 opacity-90 hover:opacity-100 transition-opacity">
+                        <AdBanner2 />
+                    </div>
 
                     {/* ── Reviews ────────────────────────────────── */}
                     <div className="mt-12">

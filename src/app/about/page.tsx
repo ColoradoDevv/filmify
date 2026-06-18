@@ -3,6 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Film, Users, Zap, Shield, Heart, Award } from 'lucide-react';
 import Image from 'next/image';
+import { AdSlot } from '@/components/ads';
 
 export const metadata = {
     title: 'Sobre Nosotros - FilmiFy',
@@ -70,6 +71,11 @@ export default function AboutPage() {
                     </div>
                 </section>
 
+                {/* 📢 Banner publicitario */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <AdSlot />
+                </div>
+
                 {/* Content Section */}
                 <section className="py-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="prose prose-invert prose-lg max-w-none space-y-12">
@@ -106,6 +112,11 @@ export default function AboutPage() {
                         </div>
                     </div>
                 </section>
+
+                {/* 📢 Segundo banner — antes del footer (página con mucho contenido) */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+                    <AdSlot />
+                </div>
             </main>
 
             <Footer />

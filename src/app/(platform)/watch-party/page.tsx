@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Users, LogIn } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import WatchPartyLobby from './WatchPartyLobby';
+import { AdSlot } from '@/components/ads';
 
 export const metadata: Metadata = {
     robots: { index: false, follow: false },
@@ -52,10 +53,21 @@ export default async function WatchPartyPage() {
                     <p className="text-xs text-text-muted">
                         Ver películas y series no requiere cuenta — esto solo aplica a Watch Party.
                     </p>
+
+                    {/* 📢 Banner publicitario */}
+                    <AdSlot />
                 </div>
             </div>
         );
     }
 
-    return <WatchPartyLobby />;
+    return (
+        <>
+            {/* 📢 Banner publicitario */}
+            <div className="px-4 sm:px-6 lg:px-8 pt-4">
+                <AdSlot className="my-0" />
+            </div>
+            <WatchPartyLobby />
+        </>
+    );
 }

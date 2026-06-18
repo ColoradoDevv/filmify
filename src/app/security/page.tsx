@@ -3,6 +3,7 @@ import path from 'path';
 import Markdown from 'react-markdown';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { AdSlot } from '@/components/ads';
 
 export default async function SecurityPage() {
     const filePath = path.join(process.cwd(), 'SECURITY.md');
@@ -21,6 +22,9 @@ export default async function SecurityPage() {
                 <div className="prose prose-invert max-w-none">
                     <Markdown>{content}</Markdown>
                 </div>
+
+                {/* 📢 Banner publicitario */}
+                <AdSlot />
             </div>
             <Footer />
         </main>

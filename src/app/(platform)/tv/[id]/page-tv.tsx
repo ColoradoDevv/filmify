@@ -7,6 +7,7 @@ import { Play, Star, Calendar, Heart, ArrowLeft, Layers } from 'lucide-react';
 import Link from 'next/link';
 import HorizontalRow from '@/components/features/HorizontalRow';
 import VideoPlayer from '@/components/features/VideoPlayer';
+import { AdSlot } from '@/components/ads';
 
 interface TVDetailsPageTVProps {
     tvShow: any;
@@ -207,6 +208,9 @@ export default function TVDetailsPageTV({ tvShow, trailer, cast, creator }: TVDe
                         )}
                     </div>
                 </div>
+
+                {/* 📢 Banner publicitario */}
+                <AdSlot />
 
                 {/* Cast Row */}
                 {cast.length > 0 && (

@@ -10,6 +10,7 @@ import {
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
+import { AdSlot } from '@/components/ads';
 import Image from 'next/image';
 import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
 import Link from 'next/link';
@@ -412,6 +413,9 @@ export default async function TVDetailsPage({ params }: PageProps) {
                     </section>
 
 
+                    {/* 📢 Banner publicitario — tras la sinopsis */}
+                    <AdSlot />
+
                     {/* ── Reparto: compact horizontal row ── */}
                     {cast.length > 0 && (
                         <section className="mt-10">
@@ -481,6 +485,9 @@ export default async function TVDetailsPage({ params }: PageProps) {
                             </div>
                         </section>
                     )}
+
+                    {/* 📢 Segundo banner — antes de los comentarios (página con mucho contenido) */}
+                    <AdSlot />
 
                     {/* ── Comentarios (login solo aquí, como mejora opcional) ── */}
                     <div className="mt-12">

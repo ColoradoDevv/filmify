@@ -1,6 +1,7 @@
 import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
 import TVHero from '@/components/tv/TVHero';
 import TVRow from '@/components/tv/TVRow';
+import { AdSlot } from '@/components/ads';
 
 interface BrowsePageTVProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -33,6 +34,9 @@ export default async function BrowsePageTV({ searchParams }: BrowsePageTVProps) 
         <div className="min-h-screen pb-16 space-y-2">
             {/* Hero destacado */}
             <TVHero items={heroItems} mediaType="movie" />
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot />
 
             {/* Filas de contenido — iconName es un string serializable */}
             <div className="space-y-10">
@@ -72,6 +76,10 @@ export default async function BrowsePageTV({ searchParams }: BrowsePageTVProps) 
                     items={comedyMovies.results}
                     mediaType="movie"
                 />
+
+                {/* 📢 Segundo banner — página con mucho contenido */}
+                <AdSlot />
+
                 <TVRow
                     title="Próximos Estrenos"
                     iconName="Clock"

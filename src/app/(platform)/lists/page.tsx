@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft, ListChecks } from 'lucide-react';
+import { AdSlot } from '@/components/ads';
 
 export default function ListsPage() {
     return (
@@ -45,6 +46,9 @@ export default function ListsPage() {
                     <p className="mt-4 text-sm text-text-secondary/80">Estamos preparando una experiencia completa de listas para que puedas guardar, ordenar y compartir tus colecciones favoritas.</p>
                 </div>
             </section>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot />
         </div>
     );
 }

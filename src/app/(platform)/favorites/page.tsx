@@ -7,6 +7,7 @@ import MovieCard from '@/components/features/MovieCard';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import TVFavoritesPage from '@/components/tv/TVFavoritesPage';
+import { AdSlot } from '@/components/ads';
 
 export default function FavoritesPage() {
     const favorites = useFavorites();
@@ -34,8 +35,12 @@ export default function FavoritesPage() {
                 </p>
             </div>
 
+            {/* 📢 Banner publicitario */}
+            <AdSlot className="my-0" />
+
             {/* Favorites Grid */}
             {favorites.length > 0 ? (
+                <>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                     {favorites.map((movie) => (
                         <div key={movie.id} className="tv-focusable rounded-xl transition-transform focus:scale-105">
@@ -43,6 +48,10 @@ export default function FavoritesPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* 📢 Segundo banner — solo cuando hay muchos favoritos */}
+                {favorites.length > 10 && <AdSlot className="my-0" />}
+                </>
             ) : (
                 <div className="text-center py-16">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-surface rounded-full mb-4">

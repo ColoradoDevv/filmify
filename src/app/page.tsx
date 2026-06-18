@@ -11,6 +11,7 @@ import TrendingScroller from '@/components/features/TrendingScroller';
 import MovieGrid from '@/components/features/MovieGrid';
 import HorizontalRow from '@/components/features/HorizontalRow';
 import { DonateBanner } from '@/components/ui/DonateButton';
+import { AdSlot } from '@/components/ads';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import { GENRE_PAGES } from '@/lib/genres';
 import {
@@ -257,6 +258,9 @@ export default async function HomePage() {
               </div>
             </section>
 
+            {/* 📢 Banner publicitario — tras el hero, alta visibilidad */}
+            <AdSlot className="my-0" />
+
             {/* ── Trending scroller (tendencias del día) ───────────────── */}
             <TrendingScroller movies={scrollerMovies} />
 
@@ -363,6 +367,9 @@ export default async function HomePage() {
               </div>
               <MovieGrid initialMovies={gridMovies} mediaType="movie" qualityMap={movieQuality} />
             </section>
+
+            {/* 📢 Segundo banner — página con mucho contenido, antes del footer de géneros */}
+            <AdSlot className="my-0" />
 
             {/* ── Géneros: enlazado interno crawlable hacia las landing pages ── */}
             <nav aria-label="Géneros de películas" className="pt-2">

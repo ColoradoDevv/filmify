@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Heart, Users, Loader2, User } from 'lucide-react';
+import { AdSlot } from '@/components/ads';
 
 interface ProfilePreferences {
     privacy?: {
@@ -251,6 +252,9 @@ export default function FriendProfilePage() {
                     </div>
                 )}
             </section>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot className="my-0" />
         </div>
     );
 }

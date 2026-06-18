@@ -12,6 +12,7 @@ import {
     BookOpen,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { AdSlot } from '@/components/ads';
 
 import type { Metadata } from 'next';
 
@@ -107,6 +108,9 @@ export default async function AdminLayout({
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     {children}
+
+                    {/* 📢 Banner publicitario — común a todo el panel admin */}
+                    <AdSlot />
                 </div>
             </main>
         </div>

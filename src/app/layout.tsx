@@ -16,7 +16,6 @@ import { DonateFloating } from "@/components/ui/DonateButton";
 import { Toaster } from "sonner";
 import { isTVDevice } from "@/lib/device-detection";
 import { headers } from "next/headers";
-import AdblockSuggestionModal from "@/components/ads/AdblockSuggestionModal";
 
 
 
@@ -133,9 +132,6 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
         {/* Player embeds — connect early so playback starts faster */}
         <link rel="preconnect" href="https://vimeus.com" />
-        {/* Ad networks load lazily; a DNS prefetch is enough (cheap, non-blocking) */}
-        <link rel="dns-prefetch" href="https://pl29700108.effectivecpmnetwork.com" />
-        <link rel="dns-prefetch" href="https://www.highperformanceformat.com" />
         {/* Site-wide structured data: WebSite (enables Google sitelinks search
             box) + Organization (brand knowledge panel). */}
         <script
@@ -178,14 +174,11 @@ export default async function RootLayout({
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
-        {!isTV && <AdblockSuggestionModal />}
         {children}
-
 
         {/* Botón flotante de donación — en toda la app excepto modo TV.
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
-
 
         <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />

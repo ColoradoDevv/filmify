@@ -7,6 +7,7 @@ import { getPublishedArticles, getFeaturedArticle, getLatestNews, CATEGORIES } f
 import NewsCard from '@/components/editorial/NewsCard';
 import ArticleImage from '@/components/editorial/ArticleImage';
 import { getOptionalApiKeys } from '@/lib/env';
+import { AdSlot } from '@/components/ads';
 
 export const metadata: Metadata = {
     title: { absolute: 'Noticias, guías y reseñas de cine y series 2026 | FilmiFy Editorial' },
@@ -286,6 +287,9 @@ export default async function EditorialPage() {
                     {/* Divider */}
                     <div className="border-t-2 border-outline-variant" />
 
+                    {/* 📢 Banner publicitario */}
+                    <AdSlot className="my-0" />
+
                     {/* News feed */}
                     {news.length > 0 && (
                         <section>
@@ -313,6 +317,9 @@ export default async function EditorialPage() {
                             </div>
                         </section>
                     )}
+
+                    {/* 📢 Segundo banner — página con mucho contenido */}
+                    <AdSlot className="my-0" />
 
                     {/* More articles grid */}
                     {moreGrid.length > 0 && (
