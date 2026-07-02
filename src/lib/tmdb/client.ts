@@ -1,7 +1,6 @@
 import type {
     Movie,
     TVShow,
-    Person,
     MovieDetails,
     TVDetails,
     MultiSearchResult,

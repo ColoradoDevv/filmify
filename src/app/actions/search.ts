@@ -5,7 +5,7 @@ import {
     filterAvailableMovies,
     filterAvailableSeries,
     filterAvailableAnimes,
-    getVimeusAnimeCatalog,
+    getAnimeIdSet,
 } from '@/server/services/vimeus';
 import type { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
 
@@ -33,12 +33,12 @@ export async function searchTitles(query: string): Promise<SearchResultItem[]> {
     let animeIdSet = new Set<number>();
 
     try {
-        const [tmdbData, animeCatalog] = await Promise.all([
+        const [tmdbData, animeIds] = await Promise.all([
             searchMulti(q),
-            getVimeusAnimeCatalog(1000).catch(() => []),
+            getAnimeIdSet(1000).catch(() => new Set<number>()),
         ]);
         results = tmdbData.results ?? [];
-        animeIdSet = new Set(animeCatalog.map((a) => a.tmdb_id));
+        animeIdSet = animeIds;
     } catch (error) {
         console.error('[searchTitles] TMDB search failed:', error);
         return [];

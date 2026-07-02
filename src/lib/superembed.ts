@@ -6,8 +6,6 @@
 
 import { getExternalIds } from './tmdb/service';
 
-const SUPEREMBED_BASE_URL = 'https://www.superembed.stream/api/embed/video';
-
 export interface SuperEmbedResponse {
     url?: string;
     embed_url?: string; // Legacy support

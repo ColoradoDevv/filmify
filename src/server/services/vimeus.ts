@@ -453,6 +453,38 @@ export async function getVimeusAnimeCatalog(limit = 500): Promise<VimeusAnime[]>
     return items.slice(0, limit);
 }
 
+// ── Anime id-Set memoizado (para clasificar resultados de búsqueda) ───────────
+// La búsqueda cruza cada resultado 'tv' contra el catálogo de anime para
+// distinguir anime de serie. Antes reconstruía el Set (recorriendo el catálogo)
+// en cada búsqueda; ahora se memoiza en proceso 10 min. Las páginas del listing
+// siguen cacheadas 1h en el Data Cache, así que el refresco es barato.
+const ANIME_SET_TTL_MS = 10 * 60 * 1000;
+let _animeIdSet: Set<number> = new Set();
+let _animeIdSetAt = 0;
+let _animeIdSetInflight: Promise<Set<number>> | null = null;
+
+export async function getAnimeIdSet(limit = 1000): Promise<Set<number>> {
+    if (!API_KEY) return new Set();
+    if (Date.now() - _animeIdSetAt < ANIME_SET_TTL_MS && _animeIdSet.size > 0) {
+        return _animeIdSet;
+    }
+    // Coalescer llamadas concurrentes: una sola construcción en vuelo a la vez.
+    if (_animeIdSetInflight) return _animeIdSetInflight;
+    _animeIdSetInflight = (async () => {
+        try {
+            const catalog = await getVimeusAnimeCatalog(limit);
+            if (catalog.length > 0) {
+                _animeIdSet = new Set(catalog.map((a) => a.tmdb_id));
+                _animeIdSetAt = Date.now();
+            }
+            return _animeIdSet;
+        } finally {
+            _animeIdSetInflight = null;
+        }
+    })();
+    return _animeIdSetInflight;
+}
+
 // ── Episodes map ──────────────────────────────────────────────────────────────
 
 export async function getSeriesEpisodeMap(

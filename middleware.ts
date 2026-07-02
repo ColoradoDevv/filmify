@@ -71,6 +71,28 @@ function isMatch(pathname: string, prefixes: string[]): boolean {
     return prefixes.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
 }
 
+// ── IP-ban cache ────────────────────────────────────────────────────────────
+// El chequeo de baneo corría una consulta a Supabase en CADA request de página
+// (incluidas las públicas/anónimas), añadiendo latencia y golpeando el pool en
+// cada pageview. Cacheamos el resultado por IP en memoria del worker durante un
+// tiempo corto: los baneos toleran unos segundos de propagación y esto elimina
+// la mayoría de las consultas repetidas. El caché es por-instancia (Edge), no
+// global, pero suficiente para absorber ráfagas del mismo visitante.
+const IP_BAN_TTL_MS = 60_000;
+const ipBanCache = new Map<string, { banned: boolean; at: number }>();
+
+function getCachedBan(ip: string): boolean | null {
+    const hit = ipBanCache.get(ip);
+    if (hit && Date.now() - hit.at < IP_BAN_TTL_MS) return hit.banned;
+    return null;
+}
+
+function setCachedBan(ip: string, banned: boolean): void {
+    // Poda simple para que el Map no crezca sin límite en workers de larga vida.
+    if (ipBanCache.size > 5_000) ipBanCache.clear();
+    ipBanCache.set(ip, { banned, at: Date.now() });
+}
+
 // ── Security headers ──────────────────────────────────────────────────────────
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -166,16 +188,25 @@ export default async function middleware(request: NextRequest) {
         request.headers.get('x-real-ip') ||
         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         '127.0.0.1';
-    try {
-        const { data: banned } = await supabase
-            .from('ip_bans')
-            .select('id')
-            .eq('ip_address', ip)
-            .single();
-        if (banned) {
-            return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
-        }
-    } catch { /* table may not exist yet */ }
+    const cachedBan = getCachedBan(ip);
+    if (cachedBan === true) {
+        return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
+    }
+    if (cachedBan === null) {
+        try {
+            // maybeSingle() no lanza error cuando no hay fila (el caso normal:
+            // IP no baneada), evitando un PGRST116 en cada request legítimo.
+            const { data: banned } = await supabase
+                .from('ip_bans')
+                .select('id')
+                .eq('ip_address', ip)
+                .maybeSingle();
+            setCachedBan(ip, !!banned);
+            if (banned) {
+                return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
+            }
+        } catch { /* table may not exist yet — no cachear para reintentar luego */ }
+    }
 
     // ── Get current user ──────────────────────────────────────────────────────
     const { data: { user }, error: authError } = await supabase.auth.getUser();

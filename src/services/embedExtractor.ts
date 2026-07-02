@@ -138,7 +138,7 @@ function cleanEmbedUrl(url: string): string {
     // Decodificar si está URL-encoded
     try {
         url = decodeURIComponent(url);
-    } catch (e) {
+    } catch {
         // Ya está decodificado
     }
 
@@ -163,7 +163,7 @@ function cleanEmbedUrl(url: string): string {
 
         urlObj.search = newParams.toString();
         return urlObj.toString();
-    } catch (e) {
+    } catch {
         return url;
     }
 }
@@ -186,7 +186,7 @@ function getServerName(url: string): string {
         if (hostname.includes('streamhub')) return 'Streamhub';
 
         return hostname.split('.')[0];
-    } catch (e) {
+    } catch {
         return 'Unknown';
     }
 }
