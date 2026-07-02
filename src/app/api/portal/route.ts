@@ -195,7 +195,6 @@ async function handleSTBRequest(action: string, mac: string) {
         case 'handshake':
             try {
                 await authenticateDevice(mac);
-                const crypto = require('crypto');
                 return NextResponse.json({
                     js: {
                         token: generateToken(mac),

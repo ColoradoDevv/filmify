@@ -56,6 +56,21 @@ export const getBlacklist = unstable_cache(
     { revalidate: 300 },
 );
 
+// Memoización del Set de blacklist: unstable_cache devuelve el mismo array
+// (misma referencia) mientras la entrada esté fresca; cuando cambia,
+// reconstruimos el Set una sola vez en vez de en cada fetch a TMDB.
+let _blacklistArrRef: number[] | null = null;
+let _blacklistSet: Set<number> = new Set();
+
+async function getBlacklistSet(): Promise<Set<number>> {
+    const arr = await getBlacklist();
+    if (arr !== _blacklistArrRef) {
+        _blacklistArrRef = arr;
+        _blacklistSet = new Set(arr);
+    }
+    return _blacklistSet;
+}
+
 // ── Build URL ────────────────────────────────────────────────────────────────
 const getApiKey = (): string => getTmdbApiKey();
 
@@ -123,9 +138,10 @@ async function fetchFromTMDB<T>(
 
     const data = await response.json();
 
-    // Obtener la blacklist (array) y convertirla a Set para búsqueda O(1)
-    const blacklistArray = await getBlacklist();
-    const blacklistSet = new Set(blacklistArray);
+    // Obtener la blacklist (array cacheado) y su Set memoizado para búsqueda
+    // O(1). Reutilizamos el mismo Set mientras el array cacheado no cambie de
+    // referencia, en vez de reconstruirlo en cada llamada a TMDB.
+    const blacklistSet = await getBlacklistSet();
 
     if (data.results && Array.isArray(data.results)) {
         data.results = data.results.filter((item: any) => !blacklistSet.has(item.id));
