@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
-import { filterAvailableMovies, filterAvailableSeries, getQualityMap, getVimeusAnimeCatalog } from '@/server/services/vimeus';
+import { filterAvailableMovies, filterAvailableSeries, filterAvailableAnimes, getQualityMap, getVimeusAnimeCatalog } from '@/server/services/vimeus';
 import type { Movie } from '@/types/tmdb';
 import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
@@ -131,14 +131,14 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     let qualityRecord: Record<string, string> = {};
 
     if (isAnime) {
-        // Anime: datos directamente del listing de Vimeus (igual que el sitemap).
-        // El listing ya son títulos sincronizados — no necesitamos probe por ítem,
-        // que sería demasiado lento para 200 títulos en un Server Component.
-        // El probe de disponibilidad individual ocurre en /tv/[id] cuando el usuario
-        // entra al detalle y se intenta reproducir.
+        // Anime: datos del listing de Vimeus, pero SOLO los que reproducen de
+        // verdad. Antes se mostraba el listado crudo (200 títulos) y muchos no
+        // tenían fuentes → fichas muertas y mala reputación. Ahora sondeamos el
+        // embed (filterAvailableAnimes, cacheado 2h por ítem) y ocultamos lo no
+        // reproducible. Pedimos de más (80) y recortamos a los disponibles.
         try {
-            const animes = await getVimeusAnimeCatalog(200).catch(() => []);
-            content = animes.map((a) => ({
+            const animes = await getVimeusAnimeCatalog(80).catch(() => []);
+            const asShows = animes.map((a) => ({
                 id: a.tmdb_id,
                 name: a.title ?? '',
                 original_name: a.title ?? '',
@@ -154,6 +154,8 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                 popularity: 0,
                 origin_country: ['JP'],
             } as TVShow));
+            // Solo títulos con fuentes reales (fail-open si el filtro peta).
+            content = await filterAvailableAnimes(asShows).catch(() => asShows);
         } catch (error) {
             console.error('Error crítico en BrowsePage (anime):', error);
             content = [];

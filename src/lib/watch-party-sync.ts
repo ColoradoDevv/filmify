@@ -68,15 +68,27 @@ export interface HostPositionEvent {
     at: number;
 }
 
+/** Alguien está escribiendo en el chat (efímero, no se persiste). */
+export interface TypingEvent {
+    user_id: string;
+    username: string;
+}
+
+/** Estado de la suscripción Realtime (para mostrar "reconectando..."). */
+export type ChannelStatus = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR';
+
 export type SyncHandlers = {
     onPlayback?: (state: PlaybackState) => void;
     onMedia?: (media: MediaChange) => void;
     onReaction?: (r: ReactionEvent) => void;
     onHostChange?: (newHostId: string) => void;
     onHostPosition?: (p: HostPositionEvent) => void;
+    onTyping?: (t: TypingEvent) => void;
     onPresenceSync?: (members: PresenceMeta[]) => void;
     /** El host finalizó la sala para todos. */
     onEnded?: () => void;
+    /** Cambios de estado del canal (reconexión, error, etc.). */
+    onStatus?: (status: ChannelStatus) => void;
 };
 
 // ── Codec de persistencia (parties.embed_url) ────────────────────────────────
@@ -114,6 +126,7 @@ export interface RoomChannel {
     sendReaction: (r: ReactionEvent) => void;
     sendHostChange: (newHostId: string) => void;
     sendHostPosition: (p: HostPositionEvent) => void;
+    sendTyping: (t: TypingEvent) => void;
     sendEnded: () => void;
     leave: () => void;
 }
@@ -153,6 +166,9 @@ export function joinRoomChannel(
         .on('broadcast', { event: 'host-pos' }, (msg: BroadcastMsg) => {
             handlers.onHostPosition?.(msg.payload as HostPositionEvent);
         })
+        .on('broadcast', { event: 'typing' }, (msg: BroadcastMsg) => {
+            handlers.onTyping?.(msg.payload as TypingEvent);
+        })
         .on('broadcast', { event: 'ended' }, () => {
             handlers.onEnded?.();
         })
@@ -164,6 +180,7 @@ export function joinRoomChannel(
             handlers.onPresenceSync?.(members);
         })
         .subscribe(async (status: string) => {
+            handlers.onStatus?.(status as ChannelStatus);
             if (status === 'SUBSCRIBED') {
                 await channel.track(self);
             }
@@ -180,6 +197,7 @@ export function joinRoomChannel(
         sendReaction: (r) => send('reaction', r),
         sendHostChange: (hostId) => send('host', { hostId }),
         sendHostPosition: (p) => send('host-pos', p),
+        sendTyping: (t) => send('typing', t),
         sendEnded: () => send('ended', {}),
         leave: () => { supabase.removeChannel(channel); },
     };

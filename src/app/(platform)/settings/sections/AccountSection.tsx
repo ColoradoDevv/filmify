@@ -116,10 +116,14 @@ export function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => 
         }
     };
 
+    // Debe coincidir con validatePassword de register/actions.ts y
+    // reset-password/actions.ts — política única de contraseñas del sitio.
     const checkPasswordRequirements = (password: string) => {
         return {
-            length: password.length >= 6,
-            number: /\d/.test(password),
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
             special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
         };
     };
@@ -131,7 +135,7 @@ export function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => 
         }
 
         const reqs = checkPasswordRequirements(passwords.new);
-        if (!reqs.length || !reqs.number || !reqs.special) {
+        if (!Object.values(reqs).every(Boolean)) {
             setMessage({ type: 'error', text: 'La contraseña no cumple con los requisitos mínimos' });
             return;
         }
@@ -500,7 +504,9 @@ export function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => 
                                     <p className="text-xs text-text-secondary mb-2">La contraseña debe contener:</p>
                                     <div className="grid grid-cols-1 gap-1">
                                         {[
-                                            { key: 'length', label: 'Mínimo 6 caracteres' },
+                                            { key: 'length', label: 'Mínimo 8 caracteres' },
+                                            { key: 'uppercase', label: 'Al menos una mayúscula' },
+                                            { key: 'lowercase', label: 'Al menos una minúscula' },
                                             { key: 'number', label: 'Al menos un número' },
                                             { key: 'special', label: 'Al menos un carácter especial' }
                                         ].map(req => {

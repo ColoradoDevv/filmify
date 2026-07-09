@@ -12,6 +12,8 @@ export * as tmdbService from './services/tmdb';
 export * as aiService from './services/ai';
 export * as embedExtractorService from './services/embed-extractor';
 export * as liveTvService from './services/live-tv';
+export * as anilistService from './services/anilist';
+export * as animeBridgeService from './services/anime-bridge';
 export * as adminSettingsService from './services/admin-settings';
 export * as adminLoggerService from './services/admin-logger';
 

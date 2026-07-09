@@ -33,6 +33,12 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        // Portadas/banners de anime servidos por AniList (apartado /anime).
+        protocol: 'https',
+        hostname: 's4.anilist.co',
+        pathname: '/file/**',
+      },
     ],
     // Anchos que Next usará para generar el srcset (coinciden con los tamaños
     // de TMDB para que el loader mapee 1:1 sin redondeos hacia arriba).

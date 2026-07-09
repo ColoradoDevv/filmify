@@ -53,7 +53,7 @@ export default function MobileTabBar() {
                 { name: 'Cuenta', icon: User, href: '/settings', isActive: (p: string) => p.startsWith('/settings') || p.startsWith('/profile') },
             ]
             : [
-                { name: 'Anime', icon: Swords, href: '/browse?category=anime', isActive: (p: string, cat: string | null) => p.startsWith('/browse') && cat === 'anime' },
+                { name: 'Anime', icon: Swords, href: '/anime', isActive: (p: string) => p.startsWith('/anime') },
                 { name: 'Watch Party', icon: Users, href: '/watch-party', isActive: (p: string) => p.startsWith('/watch-party') },
             ]),
     ];

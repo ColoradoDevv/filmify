@@ -44,6 +44,8 @@ export interface ChatMessage {
     reply_to_id?: string | null;
     reply_preview?: string | null;
     reply_username?: string | null;
+    /** Solo cliente: mensaje optimista aún no confirmado por el servidor. */
+    pending?: boolean;
 }
 
 export interface PartyState {

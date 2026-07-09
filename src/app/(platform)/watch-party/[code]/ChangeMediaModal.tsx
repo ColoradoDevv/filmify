@@ -62,8 +62,8 @@ export default function ChangeMediaModal({ code, current, mode, onClose, onAppli
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-surface rounded-[var(--radius-xl)] shadow-[var(--shadow-5)] flex flex-col overflow-hidden max-h-[85vh]">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-surface rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] shadow-[var(--shadow-5)] flex flex-col overflow-hidden max-h-[88dvh] sm:max-h-[85vh]">
                 <div className="flex items-center gap-2 px-5 pt-5 pb-4 border-b border-outline-variant shrink-0">
                     <p className="md3-title-medium text-on-surface flex-1">
                         {mode === 'episode' ? 'Cambiar episodio' : 'Cambiar película o serie'}
