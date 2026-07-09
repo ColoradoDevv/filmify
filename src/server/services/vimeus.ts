@@ -476,6 +476,7 @@ export async function getAnimeIdSet(limit = 1000): Promise<Set<number>> {
             if (catalog.length > 0) {
                 _animeIdSet = new Set(catalog.map((a) => a.tmdb_id));
                 _animeIdSetAt = Date.now();
+                buildAnimeTitleIndex(catalog);
             }
             return _animeIdSet;
         } finally {
@@ -483,6 +484,44 @@ export async function getAnimeIdSet(limit = 1000): Promise<Set<number>> {
         }
     })();
     return _animeIdSetInflight;
+}
+
+// ── Índice título → tmdb_id del catálogo de anime de Vimeus ───────────────────
+// Permite emparejar animes de AniList contra el catálogo REPRODUCIBLE por
+// título, sin gastar búsquedas de TMDB. Se llena junto al id-Set (misma fuente).
+let _animeTitleIndex = new Map<string, number>();
+
+/** Normaliza un título para el índice (minúsculas, sin signos ni diacríticos). */
+function normalizeAnimeTitle(t: string): string {
+    return t
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
+
+function buildAnimeTitleIndex(catalog: VimeusAnime[]): void {
+    const idx = new Map<string, number>();
+    for (const a of catalog) {
+        if (!a.title) continue;
+        const key = normalizeAnimeTitle(a.title);
+        if (key && !idx.has(key)) idx.set(key, a.tmdb_id);
+    }
+    _animeTitleIndex = idx;
+}
+
+/**
+ * Devuelve el índice título→tmdb_id del catálogo de anime de Vimeus,
+ * asegurándose de que esté construido (comparte TTL con el id-Set).
+ */
+export async function getAnimeTitleIndex(limit = 1000): Promise<Map<string, number>> {
+    if (!API_KEY) return new Map();
+    // getAnimeIdSet reconstruye ambos si el TTL venció.
+    if (Date.now() - _animeIdSetAt >= ANIME_SET_TTL_MS || _animeTitleIndex.size === 0) {
+        await getAnimeIdSet(limit);
+    }
+    return _animeTitleIndex;
 }
 
 // ── Episodes map ──────────────────────────────────────────────────────────────

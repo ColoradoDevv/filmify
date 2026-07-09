@@ -260,7 +260,10 @@ export default async function middleware(request: NextRequest) {
     }
 
     // 3. Authenticated user → auth page: redirect to browse (or ?next param)
-    if (user && isAuthPage && !pathname.startsWith('/confirm-email')) {
+    //    /reset-password se excluye: el flujo de recuperación crea una sesión
+    //    (verifyOtp / exchangeCodeForSession) ANTES de mostrar el formulario,
+    //    así que redirigir aquí rompería el cambio de contraseña.
+    if (user && isAuthPage && !pathname.startsWith('/confirm-email') && !pathname.startsWith('/reset-password')) {
         const next = request.nextUrl.searchParams.get('next') ?? '/browse';
         // SEC-016: validate strictly — /\example.com and similar bypass naive checks
         const isSafe = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') && (() => {

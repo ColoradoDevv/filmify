@@ -47,3 +47,43 @@ export async function forgotPasswordAction(
 
     return { error: '', success: true };
 }
+
+export type VerifyRecoveryCodeState = {
+    error: string;
+    success?: boolean;
+};
+
+/**
+ * Verifica el código de recuperación que llega por correo (plantilla con
+ * {{ .Token }}). Al validarlo, Supabase emite una sesión (cookies vía
+ * @supabase/ssr) con la que /reset-password puede llamar a updateUser.
+ */
+export async function verifyRecoveryCodeAction(
+    _prevState: VerifyRecoveryCodeState,
+    formData: FormData
+): Promise<VerifyRecoveryCodeState> {
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const token = String(formData.get('code') ?? '').replace(/\D/g, '');
+
+    if (!email || !EMAIL_RE.test(email)) {
+        return { error: 'Falta el email. Vuelve a solicitar el código.' };
+    }
+
+    if (token.length < 6 || token.length > 10) {
+        return { error: 'El código no es válido. Revisa el correo que te enviamos.' };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'recovery',
+    });
+
+    if (error) {
+        console.error('[forgot-password] verifyOtp error:', error.message);
+        return { error: 'Código inválido o expirado. Solicita uno nuevo.' };
+    }
+
+    return { error: '', success: true };
+}

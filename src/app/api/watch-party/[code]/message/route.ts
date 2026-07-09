@@ -59,7 +59,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         }
     }
 
-    const { error } = await supabase
+    // Devolver la fila insertada permite al cliente reconciliar su mensaje
+    // optimista con el id real sin esperar al evento de Realtime.
+    const { data: inserted, error } = await supabase
         .from('party_messages')
         .insert({
             party_id:       party.id,
@@ -69,8 +71,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
             reply_to_id:    reply_to_id  ?? null,
             reply_preview:  replyPreview,
             reply_username: replyUsername,
-        });
+        })
+        .select('id, user_id, text, type, created_at, reply_to_id, reply_preview, reply_username')
+        .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, message: inserted });
 }

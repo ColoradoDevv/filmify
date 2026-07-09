@@ -63,10 +63,9 @@ const SECTIONS: NavSection[] = [
             },
             {
                 name: 'Anime',
-                href: '/browse?category=anime',
+                href: '/anime',
                 icon: Swords,
-                isActive: (p, cat) =>
-                    p.startsWith('/browse') && cat === 'anime',
+                isActive: (p) => p.startsWith('/anime'),
             },
             {
                 name: 'Editorial',
