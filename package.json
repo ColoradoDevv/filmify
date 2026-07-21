@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "check-env": "node scripts/check-env.js",
-    "build:worker": "opennextjs-cloudflare",
+    "build:worker": "opennextjs-cloudflare build",
     "preview:worker": "npm run build:worker && wrangler dev",
     "deploy": "npm run build:worker && wrangler deploy"
   },

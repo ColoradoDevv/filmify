@@ -1,67 +1,51 @@
 {
-  "name": "filmify",
-
-  // ── Runtime ────────────────────────────────────────────────────────────────
-  // 2025-04-01+ garantiza que process.env funcione correctamente en Workers.
-  // nodejs_compat habilita las APIs de Node.js emuladas (crypto, buffer, etc.)
-  "compatibility_date": "2025-04-01",
-  "compatibility_flags": ["nodejs_compat"],
-
-  // ── Entry point ────────────────────────────────────────────────────────────
-  // Apunta al custom worker (en vez de .open-next/worker.js directamente)
-  // para poder añadir el handler scheduled() de los cron triggers.
-  // Ref: https://opennext.js.org/cloudflare/howtos/custom-worker
-  "main": "./custom-worker.ts",
-
-  // ── Static assets ──────────────────────────────────────────────────────────
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-
-  // ── Cache ISR — Cloudflare KV ───────────────────────────────────────────────
-  // Requerido porque el proyecto usa `export const revalidate` en múltiples
-  // páginas (anime, editorial, home, live-tv, /api/scrape).
-  //
-  // El binding se llama NEXT_INC_CACHE_KV — es el nombre fijo que espera
-  // @opennextjs/cloudflare (ver kv-incremental-cache.ts en el paquete).
-  //
-  // PASOS MANUALES antes del primer deploy (elige una opción):
-  //
-  //   Opción A — CLI:
-  //     npx wrangler kv namespace create NEXT_INC_CACHE_KV
-  //     npx wrangler kv namespace create NEXT_INC_CACHE_KV --preview
-  //     Copia los IDs que devuelvan y reemplaza los valores de "id" y
-  //     "preview_id" de abajo.
-  //
-  //   Opción B — Dashboard:
-  //     Workers & Pages → KV → Create namespace → nombre: "filmify-isr-cache"
-  //     Copia el ID y ponlo en "id". Crea otro con "--preview" y pon ese en
-  //     "preview_id".
-  "kv_namespaces": [
-    {
-      "binding": "NEXT_INC_CACHE_KV",
-      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID",
-      "preview_id": "REPLACE_WITH_YOUR_KV_PREVIEW_NAMESPACE_ID"
-    }
-  ],
-
-  // ── Cron triggers ──────────────────────────────────────────────────────────
-  // Migrados de vercel.json. El handler scheduled() está en custom-worker.ts.
-  // Horarios en UTC:
-  //   "0 0 * * *"  → 00:00 diario  — /api/cron/cleanup
-  //   "0 9 * * *"  → 09:00 diario  — /api/cron/notifications
-  //   "0 6 * * *"  → 06:00 diario  — /api/cron/rss
-  "triggers": {
-    "crons": [
-      "0 0 * * *",
-      "0 9 * * *",
-      "0 6 * * *"
-    ]
-  },
-
-  // ── Observability ──────────────────────────────────────────────────────────
-  "observability": {
-    "enabled": true
-  }
+	"name": "filmify",
+	// ── Runtime ────────────────────────────────────────────────────────────────
+	// 2025-04-01+ garantiza que process.env funcione correctamente en Workers.
+	// nodejs_compat habilita las APIs de Node.js emuladas (crypto, buffer, etc.)
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// ── Entry point ────────────────────────────────────────────────────────────
+	// Apunta al custom worker (en vez de .open-next/worker.js directamente)
+	// para poder añadir el handler scheduled() de los cron triggers.
+	// Ref: https://opennext.js.org/cloudflare/howtos/custom-worker
+	"main": "./custom-worker.ts",
+	// ── Static assets ──────────────────────────────────────────────────────────
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	// ── Cache ISR — Cloudflare KV ───────────────────────────────────────────────
+	// Requerido porque el proyecto usa `export const revalidate` en múltiples
+	// páginas (anime, editorial, home, live-tv, /api/scrape).
+	// Binding: NEXT_INC_CACHE_KV — nombre fijo que espera @opennextjs/cloudflare.
+	// Namespaces creados el 2026-07-21:
+	//   production: f38aea99d1704c48ad9d2887e162c81e
+	//   preview:    d6a420d03cbc4e8fa8baf1442b282667
+	"kv_namespaces": [
+		{
+			"binding": "NEXT_INC_CACHE_KV",
+			"id": "f38aea99d1704c48ad9d2887e162c81e",
+			"preview_id": "d6a420d03cbc4e8fa8baf1442b282667"
+		}
+	],
+	// ── Cron triggers ──────────────────────────────────────────────────────────
+	// Migrados de vercel.json. El handler scheduled() está en custom-worker.ts.
+	// Horarios en UTC:
+	//   "0 0 * * *"  → 00:00 diario  — /api/cron/cleanup
+	//   "0 9 * * *"  → 09:00 diario  — /api/cron/notifications
+	//   "0 6 * * *"  → 06:00 diario  — /api/cron/rss
+	"triggers": {
+		"crons": [
+			"0 0 * * *",
+			"0 9 * * *",
+			"0 6 * * *"
+		]
+	},
+	// ── Observability ──────────────────────────────────────────────────────────
+	"observability": {
+		"enabled": true
+	}
 }
