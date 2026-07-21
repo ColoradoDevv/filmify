@@ -73,8 +73,8 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
         keywords,
         alternates: { canonical },
         // NOTA: el og:image lo genera opengraph-image.tsx de este segmento
-        // (backdrop + póster + título + logo). No definimos images aquí para
-        // no competir con la imagen generada.
+        // (backdrop + póster + título + logo en SVG). No definimos images aquí
+        // para no competir con la imagen generada.
         openGraph: {
             title,
             description,

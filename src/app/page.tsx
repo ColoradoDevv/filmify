@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: 'FilmiFy - Ver películas y series online | Cine en streaming',
     description: 'Mira películas y series online en FilmiFy sin registrarte. Catálogo actualizado a diario con estrenos, tendencias y clásicos.',
     type: 'website',
-    // og:image: inherits the generated 1200x630 PNG from opengraph-image.tsx
+    // og:image: inherits the generated 1200x630 SVG from opengraph-image.tsx
   },
   twitter: {
     card: 'summary_large_image',
