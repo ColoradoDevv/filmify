@@ -1,16 +1,20 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/cleanup",
-            "schedule": "0 0 * * *"
-        },
-        {
-            "path": "/api/cron/notifications",
-            "schedule": "0 9 * * *"
-        },
-        {
-            "path": "/api/cron/rss",
-            "schedule": "0 6 * * *"
-        }
-    ]
+  "_LEGACY": "Este archivo ya no está activo — el proyecto se despliega en Cloudflare Workers.",
+  "_MIGRATED_TO": "wrangler.jsonc → triggers.crons (mismos schedules) + handler scheduled() en open-next.config.ts",
+  "_DATE": "2026-07-21",
+
+  "crons": [
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/rss",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

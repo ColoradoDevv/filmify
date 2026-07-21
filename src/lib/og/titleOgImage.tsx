@@ -1,30 +1,6 @@
-import { ImageResponse } from 'next/og';
+import { escapeXml, fetchRemoteDataUri, fitText, OG_SIZE, renderFilmifyLogoMarkup, renderStarMarkup, svgResponse } from './shared';
 
-/**
- * Generador compartido de la imagen Open Graph para fichas de título
- * (película o serie). Lo usan:
- *   - src/app/(platform)/movie/[id]/opengraph-image.tsx
- *   - src/app/(platform)/tv/[id]/opengraph-image.tsx
- *
- * Resultado (1200×630, la "vista rápida" de WhatsApp/Telegram/X):
- *   fondo = backdrop de la película · póster a un lado · título + año + rating
- *   · marca "FilmiFy" con su logo. Todo oscurecido para que el texto se lea.
- */
-
-export const OG_SIZE = { width: 1200, height: 630 };
-export const OG_CONTENT_TYPE = 'image/png';
-
-// Ícono de FilmiFy (solo las formas; el texto "FilmiFy" se renderiza aparte
-// con la fuente de satori, ya que resvg no rasteriza <text> sin la fuente).
-const LOGO_SVG = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M120 100 H220 V412 H120 V100 Z" fill="#00c2ff"/><circle cx="170" cy="160" r="18" fill="#0b0e11"/><circle cx="170" cy="256" r="18" fill="#0b0e11"/><circle cx="170" cy="352" r="18" fill="#0b0e11"/><path d="M220 100 H392 C403 100 412 109 412 120 V180 H220 V100 Z" fill="#00c2ff"/><path d="M220 236 H340 C351 236 360 245 360 256 V316 H220 V236 Z" fill="#ff0a16"/></svg>`;
-const LOGO_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(LOGO_SVG)}`;
-
-// Estrella del rating como SVG (no como glifo ★ U+2605): la fuente por defecto
-// de satori no incluye ese carácter, así que ImageResponse intentaba
-// descargar una fuente dinámica para él y fallaba con "Status: 400", rompiendo
-// la imagen OG. Renderizarla como forma vectorial evita cualquier fuente.
-const STAR_SVG = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z" fill="#001f2a"/></svg>`;
-const STAR_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(STAR_SVG)}`;
+export { OG_CONTENT_TYPE, OG_SIZE } from './shared';
 
 interface TitleData {
     title: string;
@@ -38,20 +14,26 @@ interface TitleData {
 async function fetchTitle(mediaType: 'movie' | 'tv', id: string): Promise<TitleData | null> {
     const key = process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY;
     if (!key) return null;
+
     try {
-        const res = await fetch(
+        const response = await fetch(
             `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${key}&language=es-MX`,
             { next: { revalidate: 86_400 } },
         );
-        if (!res.ok) return null;
-        const m = await res.json();
-        const date: string | undefined = mediaType === 'movie' ? m.release_date : m.first_air_date;
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const payload = await response.json();
+        const releaseDate: string | undefined = mediaType === 'movie' ? payload.release_date : payload.first_air_date;
+
         return {
-            title: (mediaType === 'movie' ? m.title : m.name) ?? 'FilmiFy',
-            year: date ? String(new Date(date).getFullYear()) : null,
-            rating: m.vote_average ? Number(m.vote_average).toFixed(1) : null,
-            backdropPath: m.backdrop_path ?? null,
-            posterPath: m.poster_path ?? null,
+            title: (mediaType === 'movie' ? payload.title : payload.name) ?? 'FilmiFy',
+            year: releaseDate ? String(new Date(releaseDate).getFullYear()) : null,
+            rating: payload.vote_average ? Number(payload.vote_average).toFixed(1) : null,
+            backdropPath: payload.backdrop_path ?? null,
+            posterPath: payload.poster_path ?? null,
             typeLabel: mediaType === 'movie' ? 'Película' : 'Serie',
         };
     } catch {
@@ -59,184 +41,144 @@ async function fetchTitle(mediaType: 'movie' | 'tv', id: string): Promise<TitleD
     }
 }
 
-export async function renderTitleOgImage(mediaType: 'movie' | 'tv', id: string) {
+function renderTitleSvg(options: {
+    title: string;
+    year: string | null;
+    rating: string | null;
+    typeLabel: string;
+    posterDataUri: string | null;
+    backdropDataUri: string | null;
+}): string {
+    const { title, year, rating, typeLabel, posterDataUri, backdropDataUri } = options;
+    const usePoster = Boolean(posterDataUri);
+    const textX = usePoster ? 430 : 80;
+    const textMaxWidth = usePoster ? 670 : 1040;
+    const titleFit = fitText(title, {
+        maxWidth: textMaxWidth,
+        maxLines: 3,
+        maxFontSize: 76,
+        minFontSize: 48,
+    });
+    const titleLineHeight = Math.round(titleFit.fontSize * 1.1);
+    const titleTop = 210;
+    const titleBaselineOffset = Math.round(titleFit.fontSize * 0.88);
+    const metaTop = titleTop + titleFit.lines.length * titleLineHeight + 28;
+    const pillTop = metaTop + 72;
+    const badgeWidth = rating ? 128 : 0;
+    const metaLabel = [typeLabel, year].filter(Boolean).join(' · ');
+
+    return `
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${OG_SIZE.width}" height="${OG_SIZE.height}" viewBox="0 0 ${OG_SIZE.width} ${OG_SIZE.height}" fill="none">
+            <defs>
+                <linearGradient id="baseBackground" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#0b0e11" />
+                    <stop offset="65%" stop-color="#0f1318" />
+                    <stop offset="100%" stop-color="#141b24" />
+                </linearGradient>
+                <linearGradient id="darkenLeft" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#0b0e11" stop-opacity="0.96" />
+                    <stop offset="52%" stop-color="#0b0e11" stop-opacity="0.8" />
+                    <stop offset="100%" stop-color="#0b0e11" stop-opacity="0.56" />
+                </linearGradient>
+                <linearGradient id="bottomFade" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stop-color="#0b0e11" stop-opacity="0.86" />
+                    <stop offset="55%" stop-color="#0b0e11" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="posterFallback" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#182433" />
+                    <stop offset="100%" stop-color="#0f172a" />
+                </linearGradient>
+                <clipPath id="posterClip">
+                    <rect x="70" y="90" width="300" height="450" rx="24" />
+                </clipPath>
+            </defs>
+
+            <rect width="1200" height="630" fill="url(#baseBackground)" />
+
+            ${
+                backdropDataUri
+                    ? `<image href="${escapeXml(backdropDataUri)}" x="0" y="0" width="1200" height="630" preserveAspectRatio="xMidYMid slice" opacity="0.92" />`
+                    : ''
+            }
+
+            <rect width="1200" height="630" fill="url(#darkenLeft)" />
+            <rect width="1200" height="630" fill="url(#bottomFade)" />
+
+            <rect x="70" y="90" width="300" height="450" rx="24" fill="${usePoster ? '#0f172a' : 'url(#posterFallback)'}" opacity="0.95" />
+
+            ${
+                usePoster
+                    ? `<image href="${escapeXml(posterDataUri ?? '')}" x="70" y="90" width="300" height="450" preserveAspectRatio="xMidYMid slice" clip-path="url(#posterClip)" />`
+                    : `
+                        <g transform="translate(100 190)">
+                            ${renderFilmifyLogoMarkup(0, 0, 120)}
+                        <text x="60" y="200" text-anchor="middle" fill="#ffffff" fill-opacity="0.84" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">FilmiFy</text>
+                        <text x="60" y="234" text-anchor="middle" fill="#ffffff" fill-opacity="0.6" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="500">Sin póster</text>
+                        </g>
+                    `
+            }
+
+            <rect x="70" y="90" width="300" height="450" rx="24" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2" />
+
+            <g transform="translate(${textX} 116)">
+                ${renderFilmifyLogoMarkup(0, 0, 72)}
+                <text x="88" y="48" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="800" letter-spacing="-2">
+                    <tspan fill="#ffffff">Filmi</tspan>
+                    <tspan fill="#00c2ff">Fy</tspan>
+                </text>
+            </g>
+
+            ${titleFit.lines
+                .map(
+                    (line, index) => `
+                        <text x="${textX}" y="${titleTop + index * titleLineHeight + titleBaselineOffset}" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="${titleFit.fontSize}" font-weight="800" letter-spacing="-1.2">
+                            ${escapeXml(line)}
+                        </text>
+                    `,
+                )
+                .join('')}
+
+            ${
+                rating
+                    ? `
+                        <g transform="translate(${textX} ${metaTop})">
+                            <rect x="0" y="0" width="${badgeWidth}" height="46" rx="9999" fill="#00c2ff" />
+                            ${renderStarMarkup(14, 11, 24)}
+                            <text x="42" y="31" fill="#001f2a" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">${escapeXml(rating)}</text>
+                        </g>
+                    `
+                    : ''
+            }
+
+            <text x="${textX + (rating ? 148 : 0)}" y="${metaTop + 31}" fill="#ffffff" fill-opacity="0.76" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="600">
+                ${escapeXml(metaLabel)}
+            </text>
+
+            <g transform="translate(${textX} ${pillTop})">
+                <rect x="0" y="0" width="220" height="50" rx="9999" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2" />
+                <text x="110" y="33" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Ver gratis en FilmiFy</text>
+            </g>
+        </svg>
+    `;
+}
+
+export async function renderTitleOgImage(mediaType: 'movie' | 'tv', id: string): Promise<Response> {
     const data = await fetchTitle(mediaType, id);
-
-    const title = data?.title ?? 'FilmiFy';
-    const backdrop = data?.backdropPath
-        ? `https://image.tmdb.org/t/p/w1280${data.backdropPath}`
+    const posterDataUri = data?.posterPath
+        ? await fetchRemoteDataUri(`https://image.tmdb.org/t/p/w342${data.posterPath}`)
         : null;
-    const poster = data?.posterPath
-        ? `https://image.tmdb.org/t/p/w342${data.posterPath}`
+    const backdropDataUri = data?.backdropPath
+        ? await fetchRemoteDataUri(`https://image.tmdb.org/t/p/w780${data.backdropPath}`)
         : null;
 
-    return new ImageResponse(
-        (
-            <div
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    position: 'relative',
-                    background: '#0b0e11',
-                }}
-            >
-                {/* Fondo: backdrop de la película */}
-                {backdrop && (
-                    <img
-                        src={backdrop}
-                        width={1200}
-                        height={630}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: 1200,
-                            height: 630,
-                            objectFit: 'cover',
-                        }}
-                        alt=""
-                    />
-                )}
-
-                {/* Overlays de contraste */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: 1200,
-                        height: 630,
-                        background:
-                            'linear-gradient(90deg, rgba(11,14,17,0.96) 0%, rgba(11,14,17,0.8) 52%, rgba(11,14,17,0.55) 100%)',
-                        display: 'flex',
-                    }}
-                />
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: 1200,
-                        height: 630,
-                        background:
-                            'linear-gradient(0deg, rgba(11,14,17,0.9) 0%, rgba(11,14,17,0) 55%)',
-                        display: 'flex',
-                    }}
-                />
-
-                {/* Contenido */}
-                <div
-                    style={{
-                        position: 'relative',
-                        display: 'flex',
-                        width: '100%',
-                        height: '100%',
-                        alignItems: 'center',
-                        padding: '0 70px',
-                    }}
-                >
-                    {/* Póster */}
-                    {poster && (
-                        <img
-                            src={poster}
-                            width={300}
-                            height={450}
-                            style={{
-                                width: 300,
-                                height: 450,
-                                borderRadius: 20,
-                                objectFit: 'cover',
-                                marginRight: 56,
-                            }}
-                            alt=""
-                        />
-                    )}
-
-                    {/* Texto */}
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            flex: 1,
-                        }}
-                    >
-                        {/* Marca FilmiFy — "Filmi" blanco + "Fy" cian */}
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 26 }}>
-                            <img src={LOGO_DATA_URI} width={52} height={52} alt="FilmiFy" />
-                            <div style={{ display: 'flex', fontSize: 40, fontWeight: 800, letterSpacing: -1.5, marginLeft: 4 }}>
-                                <div style={{ display: 'flex', color: '#ffffff' }}>Filmi</div>
-                                <div style={{ display: 'flex', color: '#00c2ff' }}>Fy</div>
-                            </div>
-                        </div>
-
-                        {/* Título de la película */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                fontSize: title.length > 28 ? 56 : 72,
-                                fontWeight: 800,
-                                color: '#ffffff',
-                                lineHeight: 1.05,
-                                letterSpacing: -2,
-                                marginBottom: 22,
-                            }}
-                        >
-                            {title}
-                        </div>
-
-                        {/* Meta: tipo · año · rating */}
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 30 }}>
-                            {data?.rating && (
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        background: '#00c2ff',
-                                        color: '#001f2a',
-                                        fontSize: 26,
-                                        fontWeight: 700,
-                                        padding: '8px 20px',
-                                        borderRadius: 9999,
-                                        marginRight: 16,
-                                    }}
-                                >
-                                    <img src={STAR_DATA_URI} width={26} height={26} alt="" style={{ marginRight: 8 }} />
-                                    {data.rating}
-                                </div>
-                            )}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    fontSize: 30,
-                                    color: 'rgba(255,255,255,0.75)',
-                                }}
-                            >
-                                {[data?.typeLabel, data?.year].filter(Boolean).join('  ·  ')}
-                            </div>
-                        </div>
-
-                        {/* CTA */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                alignSelf: 'flex-start',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '2px solid rgba(255,255,255,0.2)',
-                                color: '#ffffff',
-                                fontSize: 28,
-                                fontWeight: 600,
-                                padding: '12px 30px',
-                                borderRadius: 9999,
-                            }}
-                        >
-                            Ver gratis en FilmiFy
-                        </div>
-                    </div>
-                </div>
-            </div>
-        ),
-        { ...OG_SIZE },
+    return svgResponse(
+        renderTitleSvg({
+            title: data?.title ?? 'FilmiFy',
+            year: data?.year ?? null,
+            rating: data?.rating ?? null,
+            typeLabel: data?.typeLabel ?? (mediaType === 'movie' ? 'Película' : 'Serie'),
+            posterDataUri,
+            backdropDataUri,
+        }),
     );
 }

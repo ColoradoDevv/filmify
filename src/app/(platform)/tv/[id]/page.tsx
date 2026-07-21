@@ -75,7 +75,7 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
         description,
         keywords,
         alternates: { canonical },
-        // El og:image lo genera opengraph-image.tsx de este segmento.
+        // El og:image lo genera opengraph-image.tsx de este segmento (SVG).
         openGraph: {
             title,
             description,
