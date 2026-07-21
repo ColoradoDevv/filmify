@@ -9,7 +9,8 @@ import { ImageResponse } from 'next/og';
  * Los crawlers sociales NO renderizan SVG, por eso se rasteriza a PNG aquí.
  */
 
-export const runtime = 'edge';
+// Note: `export const runtime = 'edge'` has been removed.
+// @opennextjs/cloudflare only supports the Node.js runtime.
 export const alt = 'FilmiFy - Ver películas y series online gratis';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
