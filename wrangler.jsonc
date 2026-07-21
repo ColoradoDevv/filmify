@@ -37,7 +37,21 @@
   },
 
   // ── Observability ─────────────────────────────────────────────────────────
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
 
   // ── Preview environment ───────────────────────────────────────────────────
   // Usado por `wrangler deploy --env preview` en el non-production branch
@@ -58,7 +72,21 @@
       "triggers": {
         "crons": ["0 0 * * *", "0 6 * * *", "0 9 * * *"]
       },
-      "observability": { "enabled": true }
+      "observability": {
+        "enabled": false,
+        "head_sampling_rate": 1,
+        "logs": {
+          "enabled": true,
+          "head_sampling_rate": 1,
+          "persist": true,
+          "invocation_logs": true
+        },
+        "traces": {
+          "enabled": false,
+          "persist": true,
+          "head_sampling_rate": 1
+        }
+      }
     }
   }
 }
