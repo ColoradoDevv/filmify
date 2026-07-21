@@ -2,8 +2,6 @@
   "name": "filmify",
 
   // ── Runtime ────────────────────────────────────────────────────────────────
-  // 2025-04-01+ garantiza que process.env funcione correctamente en Workers.
-  // nodejs_compat habilita las APIs de Node.js emuladas (crypto, buffer, etc.)
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
 
@@ -17,9 +15,6 @@
   },
 
   // ── Cache ISR — Cloudflare KV ─────────────────────────────────────────────
-  // Namespaces creados el 2026-07-21:
-  //   production: f38aea99d1704c48ad9d2887e162c81e
-  //   preview:    d6a420d03cbc4e8fa8baf1442b282667
   "kv_namespaces": [
     {
       "binding": "NEXT_INC_CACHE_KV",
@@ -29,9 +24,6 @@
   ],
 
   // ── Cron triggers ─────────────────────────────────────────────────────────
-  // 00:00 UTC → /api/cron/cleanup
-  // 06:00 UTC → /api/cron/rss
-  // 09:00 UTC → /api/cron/notifications
   "triggers": {
     "crons": ["0 0 * * *", "0 6 * * *", "0 9 * * *"]
   },
@@ -53,12 +45,39 @@
     }
   },
 
-  // ── Preview environment ───────────────────────────────────────────────────
-  // Usado por `wrangler deploy --env preview` en el non-production branch
-  // deploy command del dashboard de Cloudflare Builds.
-  // Los valores reales de las variables viven en el dashboard (Settings →
-  // Variables and Secrets del Worker "filmify-preview"), no aquí, para
-  // evitar commitear secretos al repo.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VARIABLES DE ENTORNO (públicas — se pueden leer en el worker)
+  // Los SECRETOS (API keys, service roles, etc.) NO van aquí.
+  // Subirlos vía: wrangler secret put <NOMBRE>  o  Dashboard → Variables & Secrets
+  // ═══════════════════════════════════════════════════════════════════════════
+  "vars": {
+    // ── TMDB (pública, usada por el frontend para imágenes/listados) ────────
+    "NEXT_PUBLIC_TMDB_API_KEY": "d787e52267da1e31f280c916fed352ca",
+
+    // ── Supabase (públicas) ─────────────────────────────────────────────────
+    "NEXT_PUBLIC_SUPABASE_URL": "https://cyiifumieluunoujaxbs.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_LjrrpSjvSiAICTuCO5kpmQ_CDGHQyU0",
+
+    // ── Vimeus (solo la view key es pública) ────────────────────────────────
+    "NEXT_PUBLIC_VIMEUS_VIEW_KEY": "MdNWs7_Dy4aRxsH1mTIvB-7U-cBzD2_OG6AU_SZCvEw",
+
+    // ── hCaptcha (pública) ──────────────────────────────────────────────────
+    "NEXT_PUBLIC_HCAPTCHA_SITE_KEY": "f308c03a-ec9e-4dfc-8a18-5c20ed52775e",
+
+    // ── Donaciones (pública) ────────────────────────────────────────────────
+    "NEXT_PUBLIC_DONATE_URL": "https://filmify.me/donar",
+
+    // ── Analytics & Ads (públicas, opcionales) ──────────────────────────────
+    "NEXT_PUBLIC_GA_ID": "",
+    "NEXT_PUBLIC_ADSENSE_CLIENT_ID": "",
+
+    // ── Base URL pública de la app ──────────────────────────────────────────
+    "NEXT_PUBLIC_APP_URL": "http://filmify.me"
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PREVIEW ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
   "env": {
     "preview": {
       "name": "filmify-preview",
@@ -86,6 +105,19 @@
           "persist": true,
           "head_sampling_rate": 1
         }
+      },
+
+      // ── Variables de preview (mismas claves, valores de staging/dev) ──────
+      "vars": {
+        "NEXT_PUBLIC_TMDB_API_KEY": "d787e52267da1e31f280c916fed352ca",
+        "NEXT_PUBLIC_SUPABASE_URL": "https://cyiifumieluunoujaxbs.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_LjrrpSjvSiAICTuCO5kpmQ_CDGHQyU0",
+        "NEXT_PUBLIC_VIMEUS_VIEW_KEY": "MdNWs7_Dy4aRxsH1mTIvB-7U-cBzD2_OG6AU_SZCvEw",
+        "NEXT_PUBLIC_HCAPTCHA_SITE_KEY": "f308c03a-ec9e-4dfc-8a18-5c20ed52775e",
+        "NEXT_PUBLIC_DONATE_URL": "https://filmify.jmcolorado1027.workers.dev/donar",
+        "NEXT_PUBLIC_GA_ID": "",
+        "NEXT_PUBLIC_ADSENSE_CLIENT_ID": "",
+        "NEXT_PUBLIC_APP_URL": "https://filmify.jmcolorado1027.workers.dev/"
       }
     }
   }
