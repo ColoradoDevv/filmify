@@ -72,7 +72,7 @@
     "NEXT_PUBLIC_ADSENSE_CLIENT_ID": "",
 
     // ── Base URL pública de la app ──────────────────────────────────────────
-    "NEXT_PUBLIC_APP_URL": "http://filmify.me"
+    "NEXT_PUBLIC_APP_URL": "https://filmify.me"
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
