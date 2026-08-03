@@ -89,37 +89,60 @@ export default async function middleware(request: NextRequest) {
     }
 
     // ── Build Supabase client (refreshes session cookie if needed) ────────────
-    const supabase = createServerClient(url, anonKey, {
-        cookies: {
-            getAll: () => request.cookies.getAll(),
-            setAll: (cookiesToSet) => {
-                response = NextResponse.next({ request: { headers: request.headers } });
-                Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
-                cookiesToSet.forEach(({ name, value, options }) =>
-                    response.cookies.set(name, value, options)
-                );
+    let supabase: any;
+    try {
+        supabase = createServerClient(url, anonKey, {
+            cookies: {
+                getAll: () => request.cookies.getAll(),
+                setAll: (cookiesToSet) => {
+                    // Recreate response so cookies can be set on it
+                    response = NextResponse.next({ request: { headers: request.headers } });
+                    Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
+                },
             },
-        },
-    });
+        });
+    } catch (err) {
+        // If creating the client fails (bad config / runtime), log and continue
+        console.error('[middleware] failed to create Supabase server client', err);
+        // Continue without a supabase client — treat as unauthenticated but do not crash
+        supabase = null;
+    }
 
     // ── IP ban check ──────────────────────────────────────────────────────────
     const ip =
         request.headers.get('x-real-ip') ||
         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         '127.0.0.1';
-    try {
-        const { data: banned } = await supabase
-            .from('ip_bans')
-            .select('id')
-            .eq('ip_address', ip)
-            .single();
-        if (banned) {
-            return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
+    if (supabase) {
+        try {
+            const { data: banned } = await supabase
+                .from('ip_bans')
+                .select('id')
+                .eq('ip_address', ip)
+                .single();
+            if (banned) {
+                return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
+            }
+        } catch (err) {
+            // Table may not exist yet or query failed. Log for observability but don't break the request.
+            console.warn('[middleware] ip_bans check failed (ignoring):', err);
         }
-    } catch { /* table may not exist yet */ }
+    }
 
     // ── Get current user ──────────────────────────────────────────────────────
-    const { data: { user } } = await supabase.auth.getUser();
+    let user: any = null;
+    if (supabase) {
+        try {
+            const result = await supabase.auth.getUser();
+            user = result?.data?.user ?? null;
+        } catch (err) {
+            console.error('[middleware] supabase.auth.getUser failed (treating as unauthenticated):', err);
+            user = null;
+        }
+    }
 
     const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
     const isAdmin     = pathname.startsWith(ADMIN_PREFIX);
@@ -135,14 +158,29 @@ export default async function middleware(request: NextRequest) {
 
     // 2. Admin route: verify role
     if (user && isAdmin) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
+        if (!supabase) {
+            console.error('[middleware] admin check requested but no supabase client available');
+            return NextResponse.redirect(new URL('/browse', request.url));
+        }
 
-        const isAdminRole = profile?.role === 'admin' || profile?.role === 'super_admin';
-        if (!isAdminRole) {
+        try {
+            const { data: profile, error: profileErr } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (profileErr) {
+                console.error('[middleware] failed to fetch profile for admin check', { userId: user.id, profileErr });
+                return NextResponse.redirect(new URL('/browse', request.url));
+            }
+
+            const isAdminRole = profile?.role === 'admin' || profile?.role === 'super_admin';
+            if (!isAdminRole) {
+                return NextResponse.redirect(new URL('/browse', request.url));
+            }
+        } catch (err) {
+            console.error('[middleware] unexpected error during admin role check', err);
             return NextResponse.redirect(new URL('/browse', request.url));
         }
     }

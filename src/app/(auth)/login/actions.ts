@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getOptionalApiKeys } from '@/lib/env';
+import { getOptionalApiKeys, getSupabaseConfig } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
 export type LoginState = {
@@ -69,21 +69,43 @@ export async function loginAction(
         }
     }
 
-    const supabase = await createClient();
+    // Defensive: ensure Supabase config is present (helpful if envs are misconfigured in prod)
+    const { url: _url, anonKey: _anonKey } = getSupabaseConfig();
+    if (!_url || !_anonKey) {
+        console.error('[login] Supabase is not configured (missing URL/ANON_KEY)');
+        return { error: 'El servicio de autenticación no está disponible.' };
+    }
 
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        ...(hcaptchaEnabled && captchaToken
-            ? { options: { captchaToken } }
-            : {}),
-    });
+    let supabase: any;
+    try {
+        supabase = await createClient();
+    } catch (err) {
+        console.error('[login] failed to create Supabase server client', err);
+        return { error: 'Error interno: servicio de autenticación no disponible.' };
+    }
 
-    if (error) {
-        if (error.message?.toLowerCase().includes('email not confirmed')) {
-            return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+            ...(hcaptchaEnabled && captchaToken ? { options: { captchaToken } } : {}),
+        });
+
+        if (error) {
+            // Some Supabase errors include friendly messages (captcha, email not confirmed)
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('email not confirmed') || msg.includes('email not verified')) {
+                console.warn('[login] email not confirmed:', { email });
+                return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
+            }
+
+            console.warn('[login] signInWithPassword returned error', { email, error });
+            return { error: LOGIN_INVALID_CREDENTIALS };
         }
-        return { error: LOGIN_INVALID_CREDENTIALS };
+    } catch (err) {
+        // signInWithPassword may throw in some edge cases — don't let it bubble to the runtime
+        console.error('[login] signInWithPassword threw an exception', { email, err });
+        return { error: 'Error interno al iniciar sesión. Inténtalo más tarde.' };
     }
 
     // Redirect to the originally requested page, or /browse as default.
