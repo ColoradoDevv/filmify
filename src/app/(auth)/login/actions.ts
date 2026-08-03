@@ -2,19 +2,17 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getOptionalApiKeys, getSupabaseConfig } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
 /**
  * SEC-016: Validates that a redirect path is a safe relative URL.
- * Rejects anything that could be interpreted as an absolute URL by browsers,
- * including /\example.com, //%09example.com, /%2F%2Fexample.com, etc.
  */
 function isSafeRedirectPath(path: string): boolean {
     if (!path || !path.startsWith('/')) return false;
     if (path.startsWith('//')) return false;
     if (path.startsWith('/\\')) return false;
     try {
-        // Resolve against a known origin — if the hostname changes, it's unsafe.
         const url = new URL(path, 'https://filmify.me');
         return url.hostname === 'filmify.me';
     } catch {
@@ -28,28 +26,25 @@ export type LoginState = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Mensaje único ante fallo de acceso (no distinguir usuario inexistente vs contraseña incorrecta). */
 const LOGIN_INVALID_CREDENTIALS =
     'El correo o la contraseña son incorrectos o no son válidos. Comprueba tus datos e inténtalo de nuevo.';
 
-export async function loginAction(
-    _prevState: LoginState,
-    formData: FormData
-): Promise<LoginState> {
+export async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
     const identifier = String(formData.get('email') ?? '').trim();
     const password = String(formData.get('password') ?? '');
+    const captchaToken = String(formData.get('captchaToken') ?? '');
+    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!identifier || !password) {
         return { error: 'Por favor completa todos los campos' };
     }
 
+    if (hcaptchaEnabled && !captchaToken) {
+        return { error: 'Por favor completa el captcha' };
+    }
+
     let email = identifier;
 
-    // If the identifier is not an email, resolve it from the username.
-    // This path requires the admin client (service role key). If that's not
-    // configured, we fall back to treating the input as email — which will
-    // fail the signInWithPassword call below with a generic error, so we
-    // don't leak information about whether usernames are resolvable.
     if (!EMAIL_RE.test(identifier)) {
         try {
             const supabaseAdmin = createAdminClient();
@@ -73,29 +68,48 @@ export async function loginAction(
 
             email = userData.user.email;
         } catch (err) {
-            // Service role key missing or admin client exploded — log and
-            // bail out with a generic message (do not leak implementation).
             console.error('[login] admin client error:', err);
             return { error: LOGIN_INVALID_CREDENTIALS };
         }
     }
 
-    const supabase = await createClient();
-
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
-
-    if (error) {
-        if (error.message?.toLowerCase().includes('email not confirmed')) {
-            return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
-        }
-        return { error: LOGIN_INVALID_CREDENTIALS };
+    const { url, anonKey } = getSupabaseConfig();
+    if (!url || !anonKey) {
+        console.error('[login] Supabase is not configured (missing URL/ANON_KEY)');
+        return { error: 'El servicio de autenticación no está disponible.' };
     }
 
-    // SEC-016: validate the redirect target strictly — paths like /\example.com
-    // or /%2F%2Fexample.com can be interpreted as absolute URLs by some browsers.
+    let supabase: any;
+    try {
+        supabase = await createClient();
+    } catch (err) {
+        console.error('[login] failed to create Supabase server client', err);
+        return { error: 'Error interno: servicio de autenticación no disponible.' };
+    }
+
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+            ...(hcaptchaEnabled && captchaToken ? { options: { captchaToken } } : {}),
+        });
+
+        if (error) {
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('email not confirmed') || msg.includes('email not verified')) {
+                console.warn('[login] email not confirmed:', { email });
+                return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
+            }
+
+            console.warn('[login] signInWithPassword returned error', { email, error });
+            return { error: LOGIN_INVALID_CREDENTIALS };
+        }
+    } catch (err) {
+        console.error('[login] signInWithPassword threw an exception', { email, err });
+        return { error: 'Error interno al iniciar sesión. Inténtalo más tarde.' };
+    }
+
     const next = String(formData.get('next') ?? '').trim();
-    return redirect(isSafeRedirectPath(next) ? next : '/browse');
+    const safePath = isSafeRedirectPath(next) ? next : '/browse';
+    return redirect(safePath);
 }

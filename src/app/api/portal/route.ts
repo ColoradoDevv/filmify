@@ -15,7 +15,10 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 // SEC-027: use static top-level imports instead of dynamic require('crypto')
 // inside functions — dynamic require is susceptible to prototype pollution
 // and module injection in compromised environments.
-import { createHash, createHmac, randomBytes } from 'crypto';
+// Note: createHash and createHmac are available via nodejs_compat in Workers.
+// randomBytes is replaced by Web Crypto API (crypto.getRandomValues) for
+// full Cloudflare Workers compatibility without relying on Node.js polyfills.
+import { createHash, createHmac } from 'crypto';
 
 import { getOptionalApiKeys, getPortalDeviceSecret } from '@/lib/env';
 
@@ -198,7 +201,7 @@ async function handleSTBRequest(action: string, mac: string) {
                 return NextResponse.json({
                     js: {
                         token: generateToken(mac),
-                        random: randomBytes(16).toString('hex'),
+                        random: Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join(''),
                         mac: mac,
                         support_token: true
                     }

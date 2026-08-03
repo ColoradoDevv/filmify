@@ -57,4 +57,6 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export const runtime = 'edge';
+// Note: `export const runtime = 'edge'` has been removed.
+// @opennextjs/cloudflare only supports the Node.js runtime.
+// The edge runtime from Next.js is intentionally unsupported by this adapter.

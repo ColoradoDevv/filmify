@@ -79,14 +79,14 @@ export const metadata: Metadata = {
     siteName: "FilmiFy",
     title: "FilmiFy - Dónde ver películas y series online",
     description: "FilmiFy te ayuda a descubrir dónde ver películas y series online, con reseñas, tráileres y proveedores actualizados.",
-    // og:image is generated as a 1200x630 PNG by src/app/opengraph-image.tsx
-    // (file-based metadata) — social crawlers don't render SVG images.
+    // og:image is generated as a 1200x630 SVG by src/app/opengraph-image.tsx
+    // (file-based metadata) — keeps the Worker bundle small.
   },
   twitter: {
     card: "summary_large_image",
     title: "FilmiFy - Dónde ver películas y series online",
     description: "Descubre dónde ver películas y series online, con proveedores de streaming, alquiler y compra.",
-    // twitter:image falls back to the generated og:image PNG.
+    // twitter:image falls back to the generated og:image SVG.
     creator: "@filmify",
   },
   alternates: {

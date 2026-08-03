@@ -42,6 +42,19 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Cloudflare / OpenNext build artifacts — generated at build time, never commit
+.open-next/
+.wrangler/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# open-next build artifacts
+.open-next/
+
+# wrangler state and build
+.wrangler/
+
+# local helper files
+commits.txt

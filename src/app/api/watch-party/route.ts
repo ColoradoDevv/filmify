@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { hashRoomPassword } from '@/lib/watch-party-crypto';
 import { cleanupInactiveParties } from '@/lib/watch-party-cleanup';
-import { randomBytes } from 'crypto';
-
 /** Throttle de la limpieza al listar salas: no más de una vez cada 30s para
  *  todo el proceso (evita correrla en cada request del lobby). */
 let lastCleanupAt = 0;
@@ -11,10 +9,13 @@ const CLEANUP_THROTTLE_MS = 30_000;
 
 /** SEC-019: cryptographically secure room code — avoids Math.random() which is
  *  not a CSPRNG and produces only ~2.1B combinations, brute-forceable in minutes.
- *  Uses an unambiguous alphabet (no 0/O, 1/I/L) for better UX. */
+ *  Uses an unambiguous alphabet (no 0/O, 1/I/L) for better UX.
+ *  Uses Web Crypto API (crypto.getRandomValues) instead of Node.js randomBytes
+ *  for compatibility with Cloudflare Workers runtime. */
 function generateRoomCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const bytes = randomBytes(6);
+    const bytes = new Uint8Array(6);
+    crypto.getRandomValues(bytes);
     return Array.from(bytes).map(b => chars[b % chars.length]).join('');
 }
 
