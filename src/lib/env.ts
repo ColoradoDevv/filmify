@@ -73,6 +73,7 @@ export function getOptionalApiKeys() {
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
         contactEmail: process.env.CONTACT_EMAIL ?? '',
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
     };
 }
 
