@@ -16,16 +16,67 @@ export async function extractEmbedUrls(pageUrl: string): Promise<EmbedServer[]> 
     try {
         console.log(`🔍 Extracting embeds from: ${pageUrl}`);
 
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(pageUrl);
+        } catch {
+            console.log(`🚫 Invalid URL: ${pageUrl}`);
+            return [];
+        }
+
+        const protocol = parsedUrl.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') {
+            console.log(`🚫 Unsupported URL protocol: ${parsedUrl.protocol}`);
+            return [];
+        }
+
+        if (parsedUrl.username || parsedUrl.password) {
+            console.log(`🚫 URL with credentials is not allowed: ${pageUrl}`);
+            return [];
+        }
+
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+        const isPrivateIpv4 = isIpv4 && (
+            hostname.startsWith('10.') ||
+            hostname.startsWith('127.') ||
+            hostname.startsWith('169.254.') ||
+            hostname.startsWith('192.168.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+        );
+        const isLocalHost = hostname === 'localhost' || hostname === '::1' || hostname === '[::1]';
+
+        if (isPrivateIpv4 || isLocalHost) {
+            console.log(`🚫 Local/internal host is not allowed: ${hostname}`);
+            return [];
+        }
+
+        const allowedDomainSuffixes = [
+            'cuevana',
+            'pelisplus',
+            'repelis'
+        ];
+        const isAllowedHost = allowedDomainSuffixes.some((suffix) =>
+            hostname === suffix || hostname.endsWith(`.${suffix}`) || hostname.includes(`${suffix}.`)
+        );
+
+        if (!isAllowedHost) {
+            console.log(`🚫 Host not allowed for embed extraction: ${hostname}`);
+            return [];
+        }
+
+        const sanitizedUrl = parsedUrl.toString();
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
 
-        const response = await fetch(pageUrl, {
+        const response = await fetch(sanitizedUrl, {
             signal: controller.signal,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-                'Referer': new URL(pageUrl).origin,
+                'Referer': parsedUrl.origin,
             },
             cache: 'no-store'
         });
