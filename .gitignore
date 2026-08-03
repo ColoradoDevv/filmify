@@ -45,3 +45,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# open-next build artifacts
+.open-next/
+
+# wrangler state and build
+.wrangler/
+
+# local helper files
+commits.txt
