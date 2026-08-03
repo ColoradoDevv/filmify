@@ -9,6 +9,84 @@ export interface EmbedServer {
 }
 
 /**
+ * Determina si un hostname apunta a una dirección local, privada, reservada
+ * o de otra forma no ruteable públicamente. Cubre IPv4 e IPv6, incluyendo
+ * representaciones alternativas (decimal/hex/octal) e IPv4-mapped IPv6.
+ */
+function isDisallowedHostname(hostname: string): boolean {
+    let h = hostname.toLowerCase();
+
+    // Quitar corchetes de IPv6 literal
+    if (h.startsWith('[') && h.endsWith(']')) {
+        h = h.slice(1, -1);
+    }
+
+    if (h === 'localhost' || h.endsWith('.localhost')) return true;
+
+    // --- IPv6 ---
+    if (h.includes(':')) {
+        if (h === '::1' || h === '::') return true; // loopback / unspecified
+        if (h.startsWith('fe80:') || h.startsWith('fe8') || h.startsWith('fe9') || h.startsWith('fea') || h.startsWith('feb')) return true; // link-local
+        if (h.startsWith('fc') || h.startsWith('fd')) return true; // unique local (fc00::/7)
+        // IPv4-mapped / IPv4-compatible: ::ffff:127.0.0.1, ::127.0.0.1, etc.
+        const v4MappedMatch = h.match(/(?:^|:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+        if (v4MappedMatch) {
+            return isDisallowedHostname(v4MappedMatch[1]);
+        }
+        return false;
+    }
+
+    // --- IPv4 dotted-decimal ---
+    const dotted = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    let octets: number[] | null = null;
+    if (dotted) {
+        octets = [dotted[1], dotted[2], dotted[3], dotted[4]].map(Number);
+    } else if (/^\d+$/.test(h)) {
+        // IPv4 como entero decimal (ej: 2130706433 === 127.0.0.1)
+        const n = Number(h);
+        if (Number.isFinite(n) && n >= 0 && n <= 0xffffffff) {
+            octets = [
+                (n >>> 24) & 0xff,
+                (n >>> 16) & 0xff,
+                (n >>> 8) & 0xff,
+                n & 0xff,
+            ];
+        }
+    } else if (/^0x[0-9a-f]+$/.test(h)) {
+        // IPv4 como hex (ej: 0x7f000001 === 127.0.0.1)
+        const n = Number(h);
+        if (Number.isFinite(n) && n >= 0 && n <= 0xffffffff) {
+            octets = [
+                (n >>> 24) & 0xff,
+                (n >>> 16) & 0xff,
+                (n >>> 8) & 0xff,
+                n & 0xff,
+            ];
+        }
+    }
+
+    if (octets && octets.every((o) => Number.isInteger(o) && o >= 0 && o <= 255)) {
+        const [a, b] = octets;
+        if (a === 0) return true;                                  // 0.0.0.0/8
+        if (a === 10) return true;                                  // 10.0.0.0/8
+        if (a === 127) return true;                                 // 127.0.0.0/8 loopback
+        if (a === 169 && b === 254) return true;                    // 169.254.0.0/16 link-local
+        if (a === 172 && b >= 16 && b <= 31) return true;            // 172.16.0.0/12
+        if (a === 192 && b === 168) return true;                    // 192.168.0.0/16
+        if (a === 100 && b >= 64 && b <= 127) return true;           // 100.64.0.0/10 CGNAT
+        if (a === 192 && b === 0 && octets[2] === 0) return true;    // 192.0.0.0/24 reservado
+        if (a === 192 && b === 0 && octets[2] === 2) return true;    // 192.0.2.0/24 TEST-NET-1
+        if (a === 198 && (b === 18 || b === 19)) return true;        // 198.18.0.0/15 benchmarking
+        if (a === 198 && b === 51 && octets[2] === 100) return true; // 198.51.100.0/24 TEST-NET-2
+        if (a === 203 && b === 0 && octets[2] === 113) return true;  // 203.0.113.0/24 TEST-NET-3
+        if (a >= 224) return true;                                   // multicast + reservado + broadcast
+        return false;
+    }
+
+    return false;
+}
+
+/**
  * Extrae URLs de servidores embed (Filemoon, Doodstream, Streamtape, etc.)
  * desde la página HTML de sitios como Cuevana, Pelisplus, Repelis
  */
@@ -36,17 +114,8 @@ export async function extractEmbedUrls(pageUrl: string): Promise<EmbedServer[]> 
         }
 
         const hostname = parsedUrl.hostname.toLowerCase();
-        const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-        const isPrivateIpv4 = isIpv4 && (
-            hostname.startsWith('10.') ||
-            hostname.startsWith('127.') ||
-            hostname.startsWith('169.254.') ||
-            hostname.startsWith('192.168.') ||
-            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
-        );
-        const isLocalHost = hostname === 'localhost' || hostname === '::1' || hostname === '[::1]';
 
-        if (isPrivateIpv4 || isLocalHost) {
+        if (isDisallowedHostname(hostname)) {
             console.log(`🚫 Local/internal host is not allowed: ${hostname}`);
             return [];
         }
@@ -56,8 +125,10 @@ export async function extractEmbedUrls(pageUrl: string): Promise<EmbedServer[]> 
             'pelisplus',
             'repelis'
         ];
+        // Solo hostname === suffix o hostname.endsWith('.' + suffix).
+        // OJO: nunca usar includes() acá — "cuevana.attacker.com" NO debe pasar.
         const isAllowedHost = allowedDomainSuffixes.some((suffix) =>
-            hostname === suffix || hostname.endsWith(`.${suffix}`) || hostname.includes(`${suffix}.`)
+            hostname === suffix || hostname.endsWith(`.${suffix}`)
         );
 
         if (!isAllowedHost) {
@@ -67,21 +138,75 @@ export async function extractEmbedUrls(pageUrl: string): Promise<EmbedServer[]> 
 
         const sanitizedUrl = parsedUrl.toString();
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        const fetchHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Referer': parsedUrl.origin,
+        };
 
-        const response = await fetch(sanitizedUrl, {
-            signal: controller.signal,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-                'Referer': parsedUrl.origin,
-            },
-            cache: 'no-store'
-        });
+        let response: Response;
+        {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            try {
+                response = await fetch(sanitizedUrl, {
+                    signal: controller.signal,
+                    redirect: 'manual', // no seguir redirects automáticamente: se validan a mano abajo
+                    headers: fetchHeaders,
+                    cache: 'no-store'
+                });
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
 
-        clearTimeout(timeout);
+        // Si el sitio responde con un redirect, lo seguimos manualmente pero
+        // re-validando el destino en cada salto (máx. 3) para evitar que un
+        // host permitido redirija a una IP interna o a un host no permitido.
+        let redirectHops = 0;
+        while (response.status >= 300 && response.status < 400 && redirectHops < 3) {
+            const location = response.headers.get('location');
+            if (!location) break;
+
+            let nextUrl: URL;
+            try {
+                nextUrl = new URL(location, sanitizedUrl);
+            } catch {
+                console.log(`🚫 Invalid redirect location: ${location}`);
+                return [];
+            }
+
+            const nextProtocol = nextUrl.protocol.toLowerCase();
+            const nextHostname = nextUrl.hostname.toLowerCase();
+
+            if (nextProtocol !== 'http:' && nextProtocol !== 'https:') {
+                console.log(`🚫 Redirect to unsupported protocol: ${nextProtocol}`);
+                return [];
+            }
+            if (isDisallowedHostname(nextHostname)) {
+                console.log(`🚫 Redirect to local/internal host blocked: ${nextHostname}`);
+                return [];
+            }
+            if (!allowedDomainSuffixes.some((suffix) => nextHostname === suffix || nextHostname.endsWith(`.${suffix}`))) {
+                console.log(`🚫 Redirect to disallowed host blocked: ${nextHostname}`);
+                return [];
+            }
+
+            redirectHops++;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            try {
+                response = await fetch(nextUrl.toString(), {
+                    signal: controller.signal,
+                    redirect: 'manual',
+                    headers: fetchHeaders,
+                    cache: 'no-store'
+                });
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
 
         if (!response.ok) {
             console.log(`❌ Failed to fetch ${pageUrl}: ${response.status}`);
