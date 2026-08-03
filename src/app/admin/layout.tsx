@@ -8,9 +8,19 @@ import {
     Settings,
     LogOut,
     FileText,
-    Terminal
+    Terminal,
+    BookOpen,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { AdSlot } from '@/components/ads';
+
+import type { Metadata } from 'next';
+
+// Admin dashboard — private, never indexable.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
+
 
 // Force dynamic rendering for all admin routes since they use cookies for auth
 export const dynamic = 'force-dynamic';
@@ -76,6 +86,7 @@ export default async function AdminLayout({
 
                     <div className="px-3 py-2 mt-6 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-mono">System</div>
                     <NavLink href="/admin/settings" icon={<Settings size={18} />} label="Configuration" />
+                    <NavLink href="/admin/editorial" icon={<BookOpen size={18} />} label="Editorial" />
                 </nav>
 
                 <div className="p-4 border-t border-white/5 bg-black/20">
@@ -97,6 +108,9 @@ export default async function AdminLayout({
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     {children}
+
+                    {/* 📢 Banner publicitario — común a todo el panel admin */}
+                    <AdSlot />
                 </div>
             </main>
         </div>

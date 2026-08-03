@@ -1,122 +1,173 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Film, Heart, Search, Zap } from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
+import { Play, Info, Flame } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import PlatformContent from '@/components/layout/PlatformContent';
+import PlatformHeader from '@/components/layout/PlatformHeader';
+import MobileTabBar from '@/components/layout/MobileTabBar';
 import TrendingScroller from '@/components/features/TrendingScroller';
-import { getTrending, getBackdropUrl } from '@/server/services/tmdb';
-import type { Movie } from '@/types/tmdb';
+import MovieGrid from '@/components/features/MovieGrid';
+import HorizontalRow from '@/components/features/HorizontalRow';
+import { DonateBanner } from '@/components/ui/DonateButton';
+import { AdSlot } from '@/components/ads';
+import { getTrending, getImageUrl } from '@/server/services/tmdb';
+import { GENRE_PAGES } from '@/lib/genres';
+import {
+  filterAvailableMovies, filterAvailableSeries,
+  getRecentlyAddedMovies, getRecentlyAddedAnimes, getQualityMap,
+} from '@/server/services/vimeus';
+import { getOptionalApiKeys } from '@/lib/env';
+import type { Movie, TVShow } from '@/types/tmdb';
+
+/**
+ * ISR: the homepage is statically generated and revalidated every 30 min.
+ * No per-request work (headers/cookies) → instant TTFB, great Core Web
+ * Vitals, and crawlers always get fully-rendered HTML.
+ */
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
-  title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
-  description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+  // `absolute` evita que el template "%s | FilmiFy" del layout duplique la marca.
+  // Lidera con la acción + keyword (como Plex/JustWatch) y reserva la marca al final.
+  title: {
+    absolute: 'Ver Películas y Series Online Gratis - FilmiFy | Cine en HD',
+  },
+  description: 'Ver películas y series online gratis y en HD, sin registro. Catálogo actualizado a diario: estrenos, tendencias y clásicos. Reproduce al instante en FilmiFy.',
   keywords: [
     'FilmiFy',
     'filmify',
-    'dónde ver películas',
     'ver películas online',
-    'dónde ver series',
+    'ver películas gratis',
+    'películas online sin registrarse',
+    'ver series online',
     'streaming películas',
     'series online',
     'cine online',
-    'alquilar películas',
-    'comprar películas'
+    'estrenos',
   ],
   openGraph: {
-    title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
-    description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+    title: 'FilmiFy - Ver películas y series online | Cine en streaming',
+    description: 'Mira películas y series online en FilmiFy sin registrarte. Catálogo actualizado a diario con estrenos, tendencias y clásicos.',
     type: 'website',
-    images: [
-      {
-        url: '/logo-icon.svg',
-        alt: 'FilmiFy: dónde ver películas y series online',
-      },
-    ],
+    // og:image: inherits the generated 1200x630 SVG from opengraph-image.tsx
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FilmiFy - Dónde ver películas y series online | Cine en streaming',
-    description: 'FilmiFy te ayuda a encontrar dónde ver películas y series online, con opciones de streaming, alquiler y compra en una sola plataforma.',
+    title: 'FilmiFy - Ver películas y series online | Cine en streaming',
+    description: 'Mira películas y series online en FilmiFy sin registrarte. Catálogo actualizado a diario con estrenos, tendencias y clásicos.',
   },
 };
 
-export default async function LandingPage() {
-  // Fetch trending movies for the day (gracefully degrade if TMDB unavailable).
-  let trendingMovies: Movie[] = [];
-  try {
-    const trendingData = await getTrending('movie', 'day');
-    trendingMovies = trendingData.results;
-  } catch (err) {
-    console.warn('[landing] Failed to fetch trending movies:', err);
-  }
+/**
+ * PUBLIC HOMEPAGE — full catalog, no login required.
+ *
+ * Cuevana-style shell: fixed sidebar with all sections on the left, search
+ * bar in the top header, content grid front and center. Same shell as the
+ * rest of the platform (/browse, /movie, etc.) so navigation is seamless.
+ * Authentication is an optional enhancement (favorites, comments) surfaced
+ * in the header — never a blocker.
+ */
+export default async function HomePage() {
+  // Fetch trending movies (day for hero/scroller, week for the main grid),
+  // trending series, and the latest titles synced to the streaming provider.
+  // Cada fetch degrada a vacío si su proveedor (TMDB/Vimeus) falla, para que un
+  // fallo puntual de un tercero NO tumbe toda la home (la peor página para caer).
+  const emptyMoviePage = { results: [] as Movie[], page: 1, total_pages: 0, total_results: 0 };
+  const emptyTVPage = { results: [] as TVShow[], page: 1, total_pages: 0, total_results: 0 };
+  const [trendingDay, trendingWeek, trendingTV, recentlyAdded, recentAnimes, movieQualityMap, seriesQualityMap] = await Promise.all([
+    getTrending('movie', 'day', 1).catch(() => emptyMoviePage),
+    getTrending('movie', 'week', 1).catch(() => emptyMoviePage),
+    getTrending('tv', 'week', 1).catch(() => emptyTVPage),
+    getRecentlyAddedMovies(18).catch(() => []),
+    getRecentlyAddedAnimes(30).catch(() => []),
+    getQualityMap('movie', 4).catch(() => new Map<number, string>()),
+    getQualityMap('serie', 4).catch(() => new Map<number, string>()),
+  ]);
+  const movieQuality = Object.fromEntries(movieQualityMap);
+  const seriesQuality = Object.fromEntries(seriesQualityMap);
 
-  // Select the top trending movie for the hero
-  const heroMovie = trendingMovies[0];
-  const backdropUrl = getBackdropUrl(heroMovie?.backdrop_path);
+  // Only show titles that are actually playable on the streaming provider —
+  // we never advertise content the visitor can't watch.
+  // Los animes del listing ya son reproducibles — no necesitan probe individual.
+  const [availableDay, availableWeek, availableTV, availableRecentlyAdded] = await Promise.all([
+    filterAvailableMovies(trendingDay.results).catch(() => trendingDay.results),
+    filterAvailableMovies(trendingWeek.results).catch(() => trendingWeek.results),
+    filterAvailableSeries(trendingTV.results).catch(() => trendingTV.results),
+    filterAvailableMovies(recentlyAdded.map((m) => ({ id: m.tmdb_id } as any))).catch(() => [] as { id: number }[]),
+  ]);
 
-  // JSON-LD Structured Data for SEO
+  const heroMovie = availableDay[0];
+  const scrollerMovies = availableDay.slice(0, 15);
+  const gridMovies = availableWeek;
+  const tvShows = availableTV.slice(0, 15);
+
+  // Mapeamos VimeusAnime a la forma mínima que necesita HorizontalRow/MovieCard.
+  const animeShows = recentAnimes.slice(0, 15).map((a) => ({
+    id: a.tmdb_id,
+    name: a.title ?? '',
+    original_name: a.title ?? '',
+    poster_path: a.poster ?? null,
+    backdrop_path: a.backdrop ?? null,
+    vote_average: 0,
+    vote_count: 0,
+    first_air_date: '',
+    overview: '',
+    genre_ids: [] as number[],
+    adult: false,
+    original_language: 'ja',
+    popularity: 0,
+    origin_country: ['JP'] as string[],
+  } as TVShow));
+
+  const availableRecentlyAddedIds = new Set(availableRecentlyAdded.map((x: any) => x.id));
+  const recentlyAddedFiltered = recentlyAdded.filter((m) => availableRecentlyAddedIds.has(m.tmdb_id));
+
+
+  const backdropUrl = heroMovie
+    ? getImageUrl(heroMovie.backdrop_path, 'original')
+    : null;
+
+  // JSON-LD Structured Data for SEO.
+  // Organization + WebSite live in the root layout (site-wide). Here we only
+  // add the WebApplication node, with URLs derived from the configured domain.
+  const appUrl = getOptionalApiKeys().appUrl;
   const structuredData = {
     "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": "https://filmify.com/#organization",
-        name: "FilmiFy",
-        url: "https://filmify.com",
-        logo: {
-          "@type": "ImageObject",
-          url: "https://filmify.com/logo-icon.svg",
-          width: 512,
-          height: 512
-        },
-        description: "Plataforma premium para descubrir, organizar y disfrutar de películas y series",
-        sameAs: [
-          "https://twitter.com/filmify",
-          "https://facebook.com/filmify"
-        ]
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://filmify.com/#website",
-        url: "https://filmify.com",
-        name: "FilmiFy",
-        description: "Tu universo de películas - Descubre, organiza y disfruta",
-        publisher: {
-          "@id": "https://filmify.com/#organization"
-        },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: "https://filmify.com/browse?q={search_term_string}"
-          },
-          "query-input": "required name=search_term_string"
-        },
-        inLanguage: "es-ES"
-      },
-      {
-        "@type": "WebApplication",
-        "@id": "https://filmify.com/#webapp",
-        name: "FilmiFy",
-        url: "https://filmify.com",
-        applicationCategory: "EntertainmentApplication",
-        operatingSystem: "Web Browser",
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD"
-        },
-        description: "Aplicación web para gestionar tu colección de películas con búsqueda inteligente, listas personalizadas y catálogo actualizado",
-        featureList: [
-          "Búsqueda inteligente de películas",
-          "Listas personalizadas",
-          "Catálogo actualizado diariamente",
-          "Sincronización en la nube"
-        ],
-        screenshot: "https://filmify.com/screenshot.jpg"
-      }
-    ]
+    "@type": "WebApplication",
+    "@id": `${appUrl}/#webapp`,
+    name: "FilmiFy",
+    url: appUrl,
+    applicationCategory: "EntertainmentApplication",
+    operatingSystem: "Web Browser",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD"
+    },
+    description: "Plataforma pública para ver películas y series online sin registro, con búsqueda inteligente y catálogo actualizado a diario",
+    featureList: [
+      "Ver películas y series sin registrarse",
+      "Búsqueda inteligente de películas",
+      "Catálogo actualizado diariamente",
+      "Favoritos y listas con cuenta opcional"
+    ],
+    inLanguage: "es-ES"
+  };
+
+  // ItemList: tells Google exactly which titles this page showcases —
+  // strengthens internal linking signals toward the movie pages.
+  const itemListData = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Películas en tendencia en FilmiFy',
+    itemListElement: gridMovies.slice(0, 10).map((m, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: m.title,
+      url: `${appUrl}/movie/${m.id}`,
+    })),
   };
 
   return (
@@ -125,171 +176,224 @@ export default async function LandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c')
+          __html: JSON.stringify([structuredData, itemListData]).replace(/</g, '\\u003c')
         }}
       />
 
-      <main className="min-h-screen bg-background overflow-hidden flex flex-col">
-        <Navbar />
+      <div className="min-h-screen bg-background">
+        {/* Sidebar — all sections, Cuevana style. Suspense: uses useSearchParams. */}
+        <Suspense fallback={null}>
+          <Sidebar />
+        </Suspense>
 
-        {/* Hero Section with Cinematic Background */}
-        <section className="relative overflow-hidden min-h-[90vh] flex items-center" aria-label="Sección principal de bienvenida">
-          {/* Dynamic Backdrop Image */}
-          {heroMovie && backdropUrl && (
-            <div className="absolute inset-0">
-              <Image
-                src={backdropUrl}
-                alt={`Imagen de fondo de la película ${heroMovie.title}`}
-                fill
-                className="object-cover scale-110 animate-[scale_20s_ease-in-out_infinite]"
-                priority
-                quality={100}
-                unoptimized
-              />
-            </div>
-          )}
+        <PlatformContent>
+          {/* Top header: search + optional login */}
+          <PlatformHeader />
 
-          {/* Animated Gradient Overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-transparent to-background/95" />
+          <main className="px-3 py-4 sm:px-6 sm:py-6 lg:p-8 space-y-8 sm:space-y-10 pb-16">
 
-          {/* Animated particles effect */}
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-float" />
-            <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-accent rounded-full animate-float delay-200" />
-            <div className="absolute bottom-1/3 left-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-float delay-300" />
-            <div className="absolute top-2/3 right-1/4 w-1 h-1 bg-accent rounded-full animate-float delay-500" />
-          </div>
-
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 z-10">
-            <div className="text-center">
-              {/* Animated Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 glass-effect rounded-full mb-8 animate-fade-in-up">
-                <Film className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-gray-300">
-                  Película #1 en Tendencias
-                </span>
-              </div>
-
-              {/* Main Heading with Premium Gradient */}
-              <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up delay-100 line-clamp-2 text-white">
-                {heroMovie?.title || (
-                  <>
-                    Tu Universo de{' '}
-                    <span className="text-gradient-premium inline-block">Películas</span>
-                  </>
-                )}
-              </h1>
-
-              <p className="text-xl sm:text-2xl text-gray-300 max-w-3xl mx-auto mb-12 animate-fade-in-up delay-200 line-clamp-3">
-                {heroMovie?.overview || "Descubre, organiza y disfruta de miles de películas. Tu colección personal de películas en un solo lugar."}
-              </p>
-
-              {/* CTA Buttons with Premium Effects */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
-                <Link
-                  href="/login"
-                  className="group relative flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-semibold text-lg overflow-hidden transition-all duration-300 hover:scale-105 glow-primary"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span className="relative z-10">
-                    {heroMovie ? "Ver Detalles" : "Explorar Ahora"}
-                  </span>
-                  <ArrowRight className="relative z-10 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  <div className="absolute inset-0 animate-shimmer" />
-                </Link>
-
-                <Link
-                  href="/register"
-                  className="group px-8 py-4 glass-effect text-text-primary rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 border border-surface-light/50 hover:border-primary/50"
-                >
-                  Crear Cuenta
-                </Link>
-              </div>
-
-              {/* Stats Section - Minimalist Design */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto mt-16 animate-fade-in-up delay-400">
-                <div className="group relative p-6 text-center transition-all duration-300">
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">10K+</div>
-                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Películas</div>
+            {/* ── Hero: #1 trending title, watch instantly ─────────────── */}
+            <section
+              className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[60vh] sm:min-h-[55vh] flex items-end"
+              aria-label="Película destacada"
+            >
+              {heroMovie && backdropUrl && (
+                <div className="absolute inset-0">
+                  <Image
+                    src={backdropUrl}
+                    alt={`Ver ${heroMovie.title} online gratis en FilmiFy — películas y series en streaming HD`}
+                    fill
+                    className="object-cover"
+                    priority
+                    {...({ fetchPriority: 'high' } as any)}
+                    quality={90}
+                    sizes="100vw"
+                  />
                 </div>
+              )}
 
-                <div className="group relative p-6 text-center transition-all duration-300">
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">4K</div>
-                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">En HD</div>
-                </div>
+              {/* Gradient overlays for readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-transparent to-transparent" />
 
-                <div className="group relative p-6 text-center transition-all duration-300">
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-5xl font-bold text-white mb-2 group-hover:text-gradient-premium transition-all duration-300">24/7</div>
-                  <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Actualizado</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Scroll Indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-            <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex items-start justify-center p-2">
-              <div className="w-1 h-2 bg-primary rounded-full animate-pulse" />
-            </div>
-          </div>
-        </section>
-
-        {/* Trending Movies Scroller */}
-        <TrendingScroller movies={trendingMovies} />
-
-        {/* Features Section */}
-        <section className="py-16 relative" aria-label="Características principales de FilmiFy">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-
-            {/* Header */}
-            <div className="text-center mb-10">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-2">
-                ¿Por qué <span className="text-primary">FilmiFy</span>?
-              </h2>
-              <p className="text-sm text-gray-400 max-w-md mx-auto">
-                Todo lo que necesitas para descubrir y organizar tu cine favorito.
-              </p>
-            </div>
-
-            {/* Feature grid — compact, borderless */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-surface-light/20 rounded-2xl overflow-hidden border border-surface-light/20">
-              {[
-                { icon: Search, label: 'Búsqueda',  desc: 'Encuentra cualquier película o serie al instante con filtros avanzados.' },
-                { icon: Heart,  label: 'Favoritos', desc: 'Guarda y organiza tu colección personal sincronizada en la nube.' },
-                { icon: Zap,    label: 'Catálogo',  desc: 'Miles de títulos actualizados diariamente con los últimos estrenos.' },
-              ].map(({ icon: Icon, label, desc }) => (
-                <div key={label} className="bg-surface/60 px-6 py-7 flex flex-col gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-primary" />
+              <div className="relative z-10 w-full p-4 sm:p-10">
+                <div className="max-w-2xl space-y-3 sm:space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10">
+                    <Flame className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-medium text-gray-300">
+                      #1 en tendencias hoy
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white mb-1">{label}</p>
-                    <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
+
+                  <h1 className="text-2xl sm:text-5xl font-bold tracking-tight text-white line-clamp-2">
+                    {heroMovie?.title || 'Ver películas y series online'}
+                  </h1>
+
+                  <p className="text-sm sm:text-lg text-gray-300 line-clamp-2 sm:line-clamp-3">
+                    {heroMovie?.overview ||
+                      'Miles de películas y series para ver al instante, sin registro.'}
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-1 sm:pt-2">
+                    {heroMovie && (
+                      <>
+                        <Link
+                          href={`/movie/${heroMovie.id}`}
+                          className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-primary text-white rounded-xl font-semibold text-base hover:scale-105 transition-all duration-300 glow-primary"
+                        >
+                          <Play className="w-5 h-5 fill-current" />
+                          Ver ahora
+                        </Link>
+                        <Link
+                          href={`/movie/${heroMovie.id}`}
+                          className="inline-flex items-center justify-center gap-2 h-12 px-7 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-semibold text-base backdrop-blur-sm transition-all duration-300"
+                        >
+                          <Info className="w-5 h-5" />
+                          Más información
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            </section>
 
-            {/* Single CTA */}
-            <div className="mt-8 text-center">
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
-              >
-                Comenzar gratis
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
+            {/* 📢 Banner publicitario — tras el hero, alta visibilidad */}
+            <AdSlot className="my-0" />
 
-        {/* Footer Component */}
-        <Footer />
-      </main >
+            {/* ── Trending scroller (tendencias del día) ───────────────── */}
+            <TrendingScroller movies={scrollerMovies} />
+
+            {/* ── Agregadas recientemente (filtradas por disponibilidad) ──── */}
+            {recentlyAddedFiltered.length > 0 && (
+
+              <section aria-label="Películas agregadas recientemente">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">
+                    Agregadas recientemente
+                  </h2>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {recentlyAddedFiltered.map((m) => (
+
+                    <Link
+                      key={m.tmdb_id}
+                      href={`/movie/${m.tmdb_id}`}
+                      className="group flex-shrink-0 w-32"
+                    >
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-surface-container border border-white/5 group-hover:border-primary/50 transition-all">
+                        {m.poster ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w342${m.poster}`}
+                            alt={m.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            sizes="128px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-text-muted text-xs px-2 text-center">
+                            {m.title}
+                          </div>
+                        )}
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-primary text-[9px] font-bold text-white uppercase tracking-wide">
+                          Nuevo
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-white mt-1.5 line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                        {m.title}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Series populares (solo disponibles) ──────────────────── */}
+            {tvShows.length > 0 && (
+              <section aria-label="Series populares">
+                {/* No `icon` prop: component refs can't cross the server→client boundary */}
+                <HorizontalRow
+                  title="Series populares"
+                  items={tvShows}
+                  mediaType="tv"
+                  qualityMap={seriesQuality}
+                />
+                <div className="mt-3 text-right">
+                  <Link
+                    href="/browse?category=tv"
+                    className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                  >
+                    Ver todas las series →
+                  </Link>
+                </div>
+              </section>
+            )}
+
+            {/* ── Anime destacado ──────────────────────────────────────── */}
+            {animeShows.length > 0 && (
+              <section aria-label="Anime destacado">
+                <HorizontalRow
+                  title="Anime"
+                  items={animeShows}
+                  mediaType="tv"
+                />
+                <div className="mt-3 text-right">
+                  <Link
+                    href="/browse?category=anime"
+                    className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                  >
+                    Ver todo el anime →
+                  </Link>
+                </div>
+              </section>
+            )}
+
+            {/* ── Banner de apoyo / donación ───────────────────────────── */}
+            <DonateBanner />
+
+            {/* ── Catálogo de películas en tendencia ───────────────────── */}
+            <section aria-label="Películas en tendencia">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                  Películas en tendencia
+                </h2>
+                <Link
+                  href="/browse"
+                  className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                >
+                  Explorar catálogo →
+                </Link>
+              </div>
+              <MovieGrid initialMovies={gridMovies} mediaType="movie" qualityMap={movieQuality} />
+            </section>
+
+            {/* 📢 Segundo banner — página con mucho contenido, antes del footer de géneros */}
+            <AdSlot className="my-0" />
+
+            {/* ── Géneros: enlazado interno crawlable hacia las landing pages ── */}
+            <nav aria-label="Géneros de películas" className="pt-2">
+              <h2 className="text-lg font-bold text-white mb-3">Películas por género</h2>
+              <div className="flex flex-wrap gap-2">
+                {GENRE_PAGES.map((g) => (
+                  <Link
+                    key={g.slug}
+                    href={`/genero/${g.slug}`}
+                    className="px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant text-sm font-medium text-text-secondary hover:text-white hover:border-primary/40 transition-colors"
+                  >
+                    {g.name}
+                  </Link>
+                ))}
+              </div>
+            </nav>
+          </main>
+        </PlatformContent>
+
+        {/* Navegación inferior — solo móvil/tablet. Suspense: usa useSearchParams. */}
+        <Suspense fallback={null}>
+          <MobileTabBar />
+        </Suspense>
+      </div>
     </>
   );
 }

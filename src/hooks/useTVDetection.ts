@@ -1,67 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
 import { detectTV } from '@/lib/detectTV';
 
+const TV_MODE_COOKIE = 'filmify_tv_mode';
+
+function hasTVCookie(): boolean {
+    if (typeof document === 'undefined') return false;
+    return document.cookie.split('; ').some(c => c === `${TV_MODE_COOKIE}=1`);
+}
+
 /**
- * Hook to detect if the application is running on a TV device
- * Checks user agent and screen characteristics
+ * Hook to detect if the application is running on a TV device.
+ * Checks (in order): manual cookie override, then User-Agent / screen heuristics.
  */
 export function useTVDetection() {
     const [isTV, setIsTV] = useState(false);
     const [isTVBrowser, setIsTVBrowser] = useState(false);
 
     useEffect(() => {
-        const checkTV = () => {
-            const tvDetected = detectTV();
-            setIsTV(tvDetected);
-            setIsTVBrowser(tvDetected);
-
-            // Store in localStorage for persistence
-            if (tvDetected) {
-                localStorage.setItem('filmify_tv_mode', 'true');
-            }
+        const check = () => {
+            const tvActive = hasTVCookie() || detectTV();
+            setIsTV(tvActive);
+            setIsTVBrowser(tvActive);
         };
 
-        checkTV();
-
-        // Re-detect on resize (in case of windowed mode on TV or devtools)
-        window.addEventListener('resize', checkTV);
-        return () => window.removeEventListener('resize', checkTV);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
     }, []);
 
     return { isTV, isTVBrowser };
-}
-
-/**
- * Hook to manually enable/disable TV mode
- */
-export function useTVMode() {
-    const [tvMode, setTVMode] = useState(false);
-
-    useEffect(() => {
-        const stored = localStorage.getItem('filmify_tv_mode');
-        setTVMode(stored === 'true');
-    }, []);
-
-    const enableTVMode = () => {
-        localStorage.setItem('filmify_tv_mode', 'true');
-        setTVMode(true);
-    };
-
-    const disableTVMode = () => {
-        localStorage.removeItem('filmify_tv_mode');
-        setTVMode(false);
-    };
-
-    const toggleTVMode = () => {
-        if (tvMode) {
-            disableTVMode();
-        } else {
-            enableTVMode();
-        }
-    };
-
-    return { tvMode, enableTVMode, disableTVMode, toggleTVMode };
 }

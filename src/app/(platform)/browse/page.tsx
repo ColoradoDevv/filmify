@@ -1,59 +1,82 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
+import { filterAvailableMovies, filterAvailableSeries, filterAvailableAnimes, getQualityMap, getVimeusAnimeCatalog } from '@/server/services/vimeus';
+import type { Movie } from '@/types/tmdb';
+import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
-// import AIRecommendations from '@/components/features/AIRecommendations'; // stand-by
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
-import { TrendingUp, Tv } from 'lucide-react';
+import HeroPosterCollage from '@/components/features/HeroPosterCollage';
+import { TrendingUp, Tv, Film, Swords } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
 import TVSidebar from '@/components/layout/TVSidebar';
 import { isTVDevice } from '@/lib/device-detection';
+import { headers } from 'next/headers';
+import dynamic from 'next/dynamic';
+
+// Importar AdBanner2 dinámicamente (client component)
+const AdBanner2 = dynamic(() => import('@/components/ads/AdBanner2'));
 
 interface BrowsePageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export const metadata: Metadata = {
-    title: 'FilmiFy - Explora dónde ver películas y series online',
-    description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
+    alternates: { canonical: '/browse' },
+    title: 'Explora películas y series online | FilmiFy',
+    description:
+        'Descubre dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores recomendaciones en un solo lugar.',
     keywords: [
         'FilmiFy',
-        'filmify',
-        'dónde ver películas',
         'ver películas online',
-        'dónde ver series',
+        'ver series online',
         'streaming películas',
-        'alquilar películas',
-        'comprar películas',
-        'películas online',
-        'series online',
-        'cine online'
+        'alquiler películas',
+        'dónde ver películas',
+        'dónde ver series',
+        'cine online',
     ],
     openGraph: {
-        title: 'FilmiFy - Explora dónde ver películas y series online',
-        description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
-        type: 'website'
+        title: 'Explora películas y series online | FilmiFy',
+        description:
+            'Descubre dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores recomendaciones en un solo lugar.',
+        type: 'website',
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'FilmiFy - Explora dónde ver películas y series online',
-        description: 'FilmiFy es la plataforma para buscar dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores opciones de cine en un solo lugar.',
-    }
+        title: 'Explora películas y series online | FilmiFy',
+        description:
+            'Descubre dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores recomendaciones en un solo lugar.',
+    },
 };
 
-// ...
+// ── Helpers ───────────────────────────────────────────────────────
+async function fetchContent(
+    isTV: boolean,
+    genre?: number,
+    year?: number,
+    sortBy?: string
+) {
+    if (genre || sortBy || year) {
+        return isTV
+            ? discoverTV({ genre, year, sortBy: sortBy as any, page: 1 })
+            : discoverMovies({ genre, year, sortBy: sortBy as any, page: 1 });
+    }
+    return isTV
+        ? getTrending('tv', 'week', 1)
+        : getTrending('movie', 'week', 1);
+}
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
+
     const params = await searchParams;
 
-    // Check for TV mode via server-side detection or search params
+    // TV mode detection
     const isGlobalTV = await isTVDevice();
     const isManualTV = params.tv === 'true';
 
     if (isGlobalTV) {
-        // PlatformLayout already handles the shell
         return <BrowsePageTV searchParams={searchParams} />;
     }
 
@@ -62,106 +85,161 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <TVLayoutWrapper
                 forceTVMode={true}
                 tvLayout={
-                    <div className="flex min-h-screen bg-background text-white">
+                    <>
                         <TVSidebar />
-                        <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
+                        <main className="ml-16 lg:ml-24 p-4 lg:p-8 min-h-screen overflow-x-hidden">
                             <BrowsePageTV searchParams={searchParams} />
                         </main>
-                    </div>
-                }>
+                    </>
+                }
+            >
                 <div />
             </TVLayoutWrapper>
         );
     }
 
+    // Parse filters
     const category = typeof params.category === 'string' ? params.category : 'movie';
     const genre = params.genre ? Number(params.genre) : undefined;
     const year = params.year ? Number(params.year) : undefined;
-    const sortBy = params.sort_by as "popularity.desc" | "vote_average.desc" | "primary_release_date.desc" | undefined;
+    const sortBy = params.sort_by as
+        | 'popularity.desc'
+        | 'vote_average.desc'
+        | 'primary_release_date.desc'
+        | undefined;
 
     // Handle unsupported categories
-    if (['novelas', 'anime', 'live-tv'].includes(category)) {
-        const titles: Record<string, string> = {
-            novelas: 'Telenovelas',
-            anime: 'Anime',
-            'live-tv': 'TV en Vivo'
-        };
-
+    const unsupportedTitles: Record<string, string> = {
+        novelas: 'Telenovelas',
+        'live-tv': 'TV en Vivo',
+    };
+    if (category in unsupportedTitles) {
         return (
             <ComingSoon
-                title={titles[category]}
+                title={unsupportedTitles[category]}
                 description="Estamos trabajando para traerte el mejor contenido de esta categoría. ¡Vuelve pronto!"
             />
         );
     }
 
-    const isTV = category === 'tv';
-    let content;
+    const isTV    = category === 'tv';
+    const isAnime = category === 'anime';
 
-    if (genre || sortBy || year) {
-        const data = isTV
-            ? await discoverTV({ genre, year, sortBy, page: 1 })
-            : await discoverMovies({ genre, year, sortBy, page: 1 });
-        content = data.results;
+    // Fetch data with error handling
+    let content: (Movie | TVShow)[] = [];
+    let genres: any[] = [];
+    let qualityRecord: Record<string, string> = {};
+
+    if (isAnime) {
+        // Anime: datos del listing de Vimeus, pero SOLO los que reproducen de
+        // verdad. Antes se mostraba el listado crudo (200 títulos) y muchos no
+        // tenían fuentes → fichas muertas y mala reputación. Ahora sondeamos el
+        // embed (filterAvailableAnimes, cacheado 2h por ítem) y ocultamos lo no
+        // reproducible. Pedimos de más (80) y recortamos a los disponibles.
+        try {
+            const animes = await getVimeusAnimeCatalog(80).catch(() => []);
+            const asShows = animes.map((a) => ({
+                id: a.tmdb_id,
+                name: a.title ?? '',
+                original_name: a.title ?? '',
+                poster_path: a.poster ?? null,
+                backdrop_path: a.backdrop ?? null,
+                vote_average: 0,
+                vote_count: 0,
+                first_air_date: '',
+                overview: '',
+                genre_ids: [],
+                adult: false,
+                original_language: 'ja',
+                popularity: 0,
+                origin_country: ['JP'],
+            } as TVShow));
+            // Solo títulos con fuentes reales (fail-open si el filtro peta).
+            content = await filterAvailableAnimes(asShows).catch(() => asShows);
+        } catch (error) {
+            console.error('Error crítico en BrowsePage (anime):', error);
+            content = [];
+        }
+        genres = [];
     } else {
-        // Fetch trending content on the server
-        if (isTV) {
-            const trendingData = await getTrending('tv', 'week', 1);
-            content = trendingData.results;
-        } else {
-            const trendingData = await getTrending('movie', 'week', 1);
-            content = trendingData.results;
+        try {
+            const [contentData, genresData, qMap] = await Promise.all([
+                fetchContent(isTV, genre, year, sortBy).catch((err) => {
+                    console.error('Error fetching content:', err);
+                    return { results: [] };
+                }),
+                isTV ? getTVGenres().catch(() => ({ genres: [] })) : getGenres().catch(() => ({ genres: [] })),
+                getQualityMap(isTV ? 'serie' : 'movie', 4).catch(() => new Map<number, string>()),
+            ]);
+            qualityRecord = Object.fromEntries(qMap);
+
+            // Filtrar solo títulos disponibles, con fallback seguro
+            try {
+                content = isTV
+                    ? await filterAvailableSeries(contentData.results as TVShow[])
+                    : await filterAvailableMovies(contentData.results as Movie[]);
+            } catch {
+                content = contentData.results || [];
+            }
+
+            genres = genresData.genres || [];
+        } catch (error) {
+            console.error('Error crítico en BrowsePage:', error);
+            content = [];
+            genres = [];
         }
     }
 
-    // Fetch genres based on category
-    const { genres } = isTV ? await getTVGenres() : await getGenres();
-
     return (
-        <div className="space-y-8 pb-20">
-            {/* Hero Section */}
-            <div className="relative rounded-3xl overflow-hidden mb-12 border border-white/5 shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-surface to-accent/10 opacity-50" />
-                <div className="absolute inset-0 backdrop-blur-3xl" />
+        <div className="space-y-6 sm:space-y-8 pb-20">
+            {/* ── Hero Section ────────────────────────────────── */}
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[200px] sm:min-h-[260px] flex items-center">
+                {/* Fondo: mosaico de pósters del catálogo (estilo Netflix) */}
+                <HeroPosterCollage posters={content.map((m) => m.poster_path)} />
 
-                <div className="relative z-10 p-8 sm:p-12">
-                    <div className="space-y-4 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 animate-fade-in-up">
-                            {isTV ? <Tv className="w-4 h-4 text-primary" /> : <TrendingUp className="w-4 h-4 text-primary" />}
+                <div className="relative z-10 p-5 sm:p-12">
+                    <div className="max-w-2xl">
+                        {/* Etiqueta de categoría */}
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
+                            {isAnime ? (
+                                <Swords className="w-4 h-4 text-orange-400" />
+                            ) : isTV ? (
+                                <Tv className="w-4 h-4 text-primary" />
+                            ) : (
+                                <TrendingUp className="w-4 h-4 text-primary" />
+                            )}
                             <span className="text-xs font-medium text-white/90">
-                                {isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
+                                {isAnime ? 'Catálogo de Anime' : isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
                             </span>
                         </div>
-                        <h1 className="text-4xl sm:text-5xl text-white font-bold tracking-tight">
-                            Explora <span className="text-gradient-premium">{isTV ? 'Series' : 'Películas'}</span>
+
+                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3 drop-shadow-lg">
+                            Explora{' '}
+                            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                                {isAnime ? 'Anime' : isTV ? 'Series' : 'Películas'}
+                            </span>
                         </h1>
-                        <p className="text-text-secondary text-lg">
-                            {isTV
-                                ? 'Descubre las series más populares y aclamadas del momento.'
-                                : 'Explora las películas que están definiendo la conversación cinematográfica.'}
+                        <p className="text-white/80 text-sm sm:text-lg leading-relaxed drop-shadow">
+                            {isAnime
+                                ? 'Catálogo completo de anime disponible para ver online, actualizado a diario.'
+                                : isTV
+                                    ? 'Descubre las series más populares y aclamadas del momento.'
+                                    : 'Explora las películas que están definiendo la conversación cinematográfica.'}
                         </p>
                     </div>
                 </div>
             </div>
 
-            {/* AI Recommendations — stand-by, desactivado temporalmente */}
-            {/* <AIRecommendations /> */}
+            {/* Filtros y contenido */}
+            <FilterBar genres={genres} />
 
-            <Suspense
-                fallback={
-                    <div className="space-y-8">
-                        <div className="h-12 w-full max-w-3xl rounded-full bg-white/5 animate-pulse" />
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {Array.from({ length: 10 }).map((_, i) => (
-                                <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse" />
-                            ))}
-                        </div>
-                    </div>
-                }
-            >
-                <FilterBar genres={genres} />
-                <MovieGrid initialMovies={content} mediaType={isTV ? 'tv' : 'movie'} />
-            </Suspense>
+            {/* 📢 Banner publicitario — discreto, entre filtros y grilla */}
+            <div className="my-8 opacity-90 hover:opacity-100 transition-opacity">
+              <AdBanner2 />
+            </div>
+
+            <MovieGrid initialMovies={content} mediaType={isAnime || isTV ? 'tv' : 'movie'} qualityMap={qualityRecord} />
+
         </div>
     );
 }

@@ -3,15 +3,28 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv } from 'lucide-react';
+import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { User as SupabaseUser, SupabaseClient, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser, SupabaseClient, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
-import SearchInput from '@/components/features/SearchInput';
+import dynamic from 'next/dynamic';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
-import UserMenu from './navbar/UserMenu';
-import NotificationCenter from './navbar/NotificationCenter';
-import MobileMenu from './navbar/MobileMenu';
+
+const SearchInput = dynamic(() => import('@/components/features/SearchInput'), {
+    ssr: false
+});
+
+const UserMenu = dynamic(() => import('./navbar/UserMenu'), {
+    ssr: false
+});
+
+const NotificationCenter = dynamic(() => import('./navbar/NotificationCenter'), {
+    ssr: false
+});
+
+const MobileMenu = dynamic(() => import('./navbar/MobileMenu'), {
+    ssr: false
+});
 
 let supabase: SupabaseClient | undefined;
 try {
@@ -79,7 +92,7 @@ export default function Navbar() {
 
         if (!supabase) return;
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
             if (session?.user && supabase) {
                 try {
@@ -110,7 +123,8 @@ export default function Navbar() {
         const handleScroll = () => {
             setScrolled(window.scrollY > 20);
         };
-        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // sync on mount (e.g. when loading already scrolled)
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -164,64 +178,78 @@ export default function Navbar() {
 
                         {/* Desktop Navigation */}
                         <div className="hidden md:flex items-center gap-6">
-                            {!loading && !isAuthPage && (
+                            {!isAuthPage && (
                                 <>
+                                    {/* Navigation Links — content is public, visible for everyone */}
+                                    <div className="flex items-center gap-1">
+                                        {user && isAdmin && (
+                                            <Link
+                                                href="/admin"
+                                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/admin')
+                                                    ? 'bg-red-500/10 text-red-500'
+                                                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                Admin
+                                            </Link>
+                                        )}
+                                        <Link
+                                            href="/browse"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/browse')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            Explorar
+                                        </Link>
+
+
+                                        <Link
+                                            href="/live-tv"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            TV en Vivo
+                                        </Link>
+
+                                        {user && (
+                                            <Link
+                                                href="/favorites"
+                                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname === '/favorites'
+                                                    ? 'bg-accent/10 text-accent'
+                                                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                Favoritos
+                                            </Link>
+                                        )}
+                                        <Link
+                                            href="/editorial"
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/editorial')
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <BookOpen className="w-3.5 h-3.5" />
+                                            Editorial
+                                        </Link>
+                                    </div>
+
+                                    {/* Search Bar — public, prominent for everyone */}
+                                    <div className="h-8 w-px bg-white/10 mx-2" />
+                                    <SearchInput className="w-64" />
+
                                     {user ? (
                                         <>
-                                            {/* Navigation Links */}
-                                            <div className="flex items-center gap-1">
-                                                {isAdmin && (
-                                                    <Link
-                                                        href="/admin"
-                                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/admin')
-                                                            ? 'bg-red-500/10 text-red-500'
-                                                            : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                            }`}
-                                                    >
-                                                        Admin
-                                                    </Link>
-                                                )}
-                                                <Link
-                                                    href="/browse"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/browse')
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    Explorar
-                                                </Link>
-
-
-                                                <Link
-                                                    href="/live-tv"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    TV en Vivo
-                                                </Link>
-
-                                                <Link
-                                                    href="/favorites"
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname === '/favorites'
-                                                        ? 'bg-accent/10 text-accent'
-                                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                        }`}
-                                                >
-                                                    Favoritos
-                                                </Link>
+                                            {/* Notification Center */}
+                                            <div className="relative z-50">
+                                                <NotificationCenter user={user} favorites={favorites} />
                                             </div>
 
-                                            {/* Search Bar */}
-                                            <div className="h-8 w-px bg-white/10 mx-2" />
-                                            <SearchInput className="w-64" />
-
-                                            {/* Notification Center */}
-                                            <NotificationCenter user={user} favorites={favorites} />
-
                                             {/* User Menu */}
-                                            <div className="pl-4 border-l border-white/10">
+                                            <div className="pl-4 border-l border-white/10 z-50">
                                                 <UserMenu onLogoutClick={handleLogoutClick} avatarUrl={user.user_metadata?.avatar_url} />
                                             </div>
                                         </>
@@ -237,7 +265,7 @@ export default function Navbar() {
                                                 href="/register"
                                                 className="px-6 py-2.5 rounded-full bg-primary text-black font-bold text-sm hover:bg-primary-hover hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20"
                                             >
-                                                Comenzar Gratis
+                                                Crear Cuenta
                                             </Link>
                                         </div>
                                     )}
@@ -269,46 +297,54 @@ export default function Navbar() {
 
             {/* Mobile Bottom Navigation for logged-in users */}
             {user && !isAuthPage && (
-                <div className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-background/90 border-t border-white/10 backdrop-blur-xl shadow-2xl">
-                    <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-                        <button
-                            type="button"
-                            onClick={() => router.push('/browse')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/browse') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a Explorar"
-                        >
-                            <Clapperboard className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Explorar</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/live-tv')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a TV en Vivo"
-                        >
-                            <Tv className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">TV</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/favorites')}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname === '/favorites' ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                            aria-label="Ir a Favoritos"
-                        >
-                            <Heart className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Favoritos</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/search')}
-                            className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-2xl text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                            aria-label="Buscar"
-                        >
-                            <Search className="w-5 h-5" />
-                            <span className="text-[10px] font-semibold">Buscar</span>
-                        </button>
-                    </div>
-                </div>
+                <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-background/90 border-t border-white/10 backdrop-blur-xl shadow-2xl" aria-label="Navegación móvil">
+                    <ul className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2 list-none">
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/browse')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/browse') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Explorar"
+                            >
+                                <Clapperboard className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Explorar</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/live-tv')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a TV en Vivo"
+                            >
+                                <Tv className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">TV</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/favorites')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname === '/favorites' ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Mis Favoritos"
+                            >
+                                <Heart className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Favoritos</span>
+                            </button>
+                        </li>
+                        <li className="flex-1">
+                            <button
+                                type="button"
+                                onClick={() => router.push('/editorial')}
+                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/editorial') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+                                aria-label="Ir a Editorial"
+                            >
+                                <BookOpen className="w-5 h-5" />
+                                <span className="text-[10px] font-semibold">Editorial</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             )}
 
             {user && !isAuthPage && <div className="h-20 md:hidden" />}

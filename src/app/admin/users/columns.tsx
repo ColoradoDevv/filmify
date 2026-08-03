@@ -16,7 +16,7 @@ import {
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
-import { updateUserRole, banUser, impersonateUser, banIp } from "../actions"
+import { updateUserRole, banUser, impersonateUser, banIp } from "./actions"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Ghost, Lock } from "lucide-react"

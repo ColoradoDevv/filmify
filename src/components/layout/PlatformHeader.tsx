@@ -2,34 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { User, LogOut, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
 
+const supabase = createClient();
+
 export default function PlatformHeader() {
     const router = useRouter();
+    const pathname = usePathname();
+    const isSearchPage = pathname?.startsWith('/search') ?? false;
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const supabase = createClient();
+    const [searchFocused, setSearchFocused] = useState(false);
 
     useFavoritesSync();
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+        const fetchUser = async () => {
+            const { data } = await supabase.auth.getUser();
+            setUser(data.user);
         };
-        getUser();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+        void fetchUser();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
         });
+
         return () => subscription.unsubscribe();
-    }, [supabase]);
+    }, []);
 
     const handleLogoutClick = () => { setShowLogoutConfirm(true); setProfileMenuOpen(false); };
     const confirmLogout = async () => {
@@ -41,56 +47,66 @@ export default function PlatformHeader() {
 
     return (
         <>
-            {/* MD3 Top App Bar — small variant, 56px height */}
             <div
                 style={{ top: 'var(--announcement-height, 0px)' }}
                 className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Mobile logo */}
-                <div className="flex items-center gap-2 lg:hidden">
-                    <img src="/logo-icon.svg" alt="FilmiFy" className="h-6 w-6" />
-                    <span className="md3-title-large text-on-surface font-medium">FilmiFy</span>
+                {/* Logo móvil — siempre visible (el search está oculto en móvil) */}
+                <div className="flex items-center gap-2 lg:hidden shrink-0">
+                    <Link href="/" className="flex items-center gap-2" aria-label="Inicio">
+                        <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
+                        <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
+                    </Link>
                 </div>
 
-                {/* Search — takes remaining space */}
-                <div className="flex-1 max-w-sm">
+                {/* Search — solo visible en desktop (lg+); en móvil se accede desde la pestaña de búsqueda */}
+                <div
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out hidden lg:block ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    onFocusCapture={() => setSearchFocused(true)}
+                    onBlurCapture={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            setSearchFocused(false);
+                        }
+                    }}
+                >
                     <SearchInput className="w-full" placeholder="Buscar…" />
                 </div>
 
                 {/* Actions */}
+                {!user && (
+                    <Link
+                        href="/login"
+                        className="inline-flex h-9 px-4 items-center rounded-full bg-primary text-white md3-label-large font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
+                    >
+                        Iniciar sesión
+                    </Link>
+                )}
                 {user && (
-                    <div className="flex items-center gap-1 relative">
-                        <NotificationCenter user={user} />
+                    <div className="relative shrink-0 flex items-center gap-1">
+                        {/* En desktop el search puede animarse; en móvil los iconos siempre son visibles */}
+                        <div className={`flex items-center gap-1 transition-all duration-300 ease-out ${searchFocused ? 'opacity-0 pointer-events-none translate-x-2 lg:opacity-100 lg:pointer-events-auto lg:translate-x-0' : ''}`}>
+                            <NotificationCenter user={user} />
 
-                        {/* Avatar button — MD3 icon button */}
-                        <button
-                            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    setProfileMenuOpen(!profileMenuOpen);
-                                }
-                            }}
-                            className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                            aria-label="Menú de usuario"
-                            aria-expanded={profileMenuOpen}
-                        >
-                            {user.user_metadata?.avatar_url ? (
-                                <img
-                                    src={user.user_metadata.avatar_url}
-                                    alt="Avatar"
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-primary-container flex items-center justify-center">
-                                    <User className="w-4 h-4 text-on-primary-container" />
-                                </div>
-                            )}
-                            {/* Online indicator */}
-                            <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#10b981] rounded-full border border-surface-container-low" />
-                        </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                    className="w-8 h-8 rounded-full overflow-hidden border-2 border-outline-variant hover:border-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    aria-label="Menú de usuario"
+                                    aria-expanded={profileMenuOpen}
+                                >
+                                    {user.user_metadata?.avatar_url ? (
+                                        <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-primary-container flex items-center justify-center">
+                                            <User className="w-4 h-4 text-on-primary-container" />
+                                        </div>
+                                    )}
+                                </button>
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#10b981] rounded-full border-2 border-surface-container-low pointer-events-none" />
+                            </div>
+                        </div>
 
-                        {/* MD3 Menu */}
+                        {/* Dropdown del perfil — fuera del div animado para no ser recortado */}
                         {profileMenuOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
@@ -128,7 +144,7 @@ export default function PlatformHeader() {
                 )}
             </div>
 
-            {/* MD3 Dialog — logout confirmation */}
+            {/* Diálogo de logout */}
             {showLogoutConfirm && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-surface-container rounded-[var(--radius-xl)] p-6 max-w-xs w-full shadow-[var(--shadow-5)] animate-scale-in">

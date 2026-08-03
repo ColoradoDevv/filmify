@@ -15,14 +15,6 @@ export type ResendSignupConfirmationResult = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function formatAuthError(message: string): string {
-    const m = message.toLowerCase();
-    if (m.includes('captcha')) {
-        return 'La verificación de seguridad falló. Completa el captcha de nuevo e inténtalo otra vez.';
-    }
-    return message || 'No se pudo solicitar el reenvío.';
-}
-
 async function resolveAppOrigin(): Promise<string> {
     const { appUrl } = getOptionalApiKeys();
     const hdrs = await headers();
@@ -39,17 +31,11 @@ async function resolveAppOrigin(): Promise<string> {
  */
 export async function resendSignupConfirmation(input: {
     email: string;
-    captchaToken?: string | null;
 }): Promise<ResendSignupConfirmationResult> {
     const email = input.email.trim().toLowerCase();
-    const captchaToken = input.captchaToken?.trim() ?? '';
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!email || !EMAIL_RE.test(email)) {
         return { error: 'Introduce un correo electrónico válido.' };
-    }
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Completa la verificación “No soy un robot” antes de reenviar.' };
     }
 
     const { url, anonKey } = getSupabaseConfig();
@@ -63,6 +49,7 @@ export async function resendSignupConfirmation(input: {
     const resendFrom =
         process.env.RESEND_FROM_EMAIL ?? 'FilmiFy <onboarding@resend.dev>';
 
+    // Intentar con Resend + Admin (correo propio)
     if (resendApiKey) {
         try {
             const admin = createAdminClient();
@@ -87,20 +74,15 @@ export async function resendSignupConfirmation(input: {
                 const actionLink = linkData?.properties?.action_link;
                 if (!genErr && actionLink) {
                     const resend = new Resend(resendApiKey);
+                    const templateId = process.env.RESEND_CONFIRM_TEMPLATE_ID;
                     const mailResult = await resend.emails.send({
                         from: resendFrom,
                         to: email,
                         subject: 'Tu enlace para continuar en FilmiFy',
-                        html: `
-<p>Hola,</p>
-<p>Usa el siguiente botón para confirmar el acceso a tu cuenta y continuar. Si no solicitaste este correo, puedes ignorarlo.</p>
-<p style="margin:24px 0">
-  <a href="${actionLink}" style="background:#6366f1;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
-    Continuar en FilmiFy
-  </a>
-</p>
-<p style="font-size:12px;color:#666">Si el botón no funciona, copia y pega esta URL en el navegador:<br/>${actionLink}</p>
-`,
+                        ...(templateId
+                            ? { template: { id: templateId, variables: { action_url: actionLink, email } } }
+                            : { html: `<p>Hola,</p><p><a href="${actionLink}" style="background:#6366f1;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Continuar en FilmiFy</a></p>` }
+                        ),
                     });
 
                     if (!mailResult.error) {
@@ -116,6 +98,7 @@ export async function resendSignupConfirmation(input: {
         }
     }
 
+    // Fallback: usar el método nativo de Supabase Auth
     const anon = createClient(url, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -125,12 +108,11 @@ export async function resendSignupConfirmation(input: {
         email,
         options: {
             emailRedirectTo: redirectTo,
-            ...(hcaptchaEnabled && captchaToken ? { captchaToken } : {}),
         },
     });
 
     if (error) {
-        return { error: formatAuthError(error.message) };
+        return { error: error.message || 'No se pudo solicitar el reenvío.' };
     }
 
     return { error: '', ok: true };

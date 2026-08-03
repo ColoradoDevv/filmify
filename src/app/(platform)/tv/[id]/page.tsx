@@ -1,16 +1,23 @@
-import type { MovieDetails, TVDetails } from '@/types/tmdb';
-import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
-import MovieHero from '@/components/features/MovieHero';
+import {
+    isSeriesAvailableOnVimeus,
+    isAnimeAvailableOnVimeus,
+    filterAvailableSeries,
+    getSeriesEpisodeMap,
+} from '@/server/services/vimeus';
+import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
+import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
+import { AdSlot } from '@/components/ads';
 import Image from 'next/image';
+import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { isTVDevice } from '@/lib/device-detection';
 import TVDetailsPageTV from './page-tv';
-import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
-import TVSidebar from '@/components/layout/TVSidebar';
+import TVBodySwitch from '@/components/layout/TVBodySwitch';
 
 interface PageProps {
     params: Promise<{
@@ -20,19 +27,36 @@ interface PageProps {
 }
 
 function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Metadata {
-    const title = `Dónde ver ${tvShow.name} online | FilmiFy`;
-    const description = tvShow.overview
-        ? `${tvShow.overview} Descubre dónde ver ${tvShow.name} online, con proveedores de streaming, temporada y reparto.`
-        : `Encuentra dónde ver ${tvShow.name} online, con datos de streaming y capítulos disponibles en FilmiFy.`;
+    const canonical = `/tv/${tvShow.id}`;
+    // El año hace el título único y mejora el CTR en resultados de búsqueda.
+    const year = tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : null;
+    const title = year
+        ? `Ver ${tvShow.name} (${year}) online gratis | FilmiFy`
+        : `Ver ${tvShow.name} online gratis | FilmiFy`;
+    // El gancho de marca va PRIMERO porque Google trunca a ~155 caracteres.
+    // Así, aunque la sinopsis de TMDB falte o esté en otro idioma, la
+    // descripción mostrada en resultados sigue siendo relevante a la búsqueda
+    // ("ver X online") en lugar de ser sobrescrita por Google con el reparto.
+    const hook = year
+        ? `Ver ${tvShow.name} (${year}) online gratis y en HD en FilmiFy, todas las temporadas, sin registro.`
+        : `Ver ${tvShow.name} online gratis y en HD en FilmiFy, todas las temporadas, sin registro.`;
+    const genres = tvShow.genres?.map((g) => g.name).filter(Boolean).slice(0, 3).join(', ');
+    const synopsis = tvShow.overview?.trim();
+    const extra = synopsis
+        ? ` ${synopsis}`
+        : genres
+            ? ` Serie de ${genres}. Mira el tráiler, reparto y reproduce los episodios online.`
+            : ' Mira el tráiler, reparto y reproduce todos los episodios online.';
+    const description = (hook + extra).slice(0, 300);
     const keywordSet = new Set<string>([
         tvShow.name,
         `ver ${tvShow.name}`,
-        `dónde ver ${tvShow.name}`,
+        `ver ${tvShow.name} online`,
+        `${tvShow.name} online gratis`,
         'serie online',
         'ver serie',
         'streaming',
         'temporadas',
-        'dónde ver serie',
     ]);
 
     tvShow.genres?.forEach((genre) => {
@@ -45,53 +69,57 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
     const keywords = Array.from(keywordSet).slice(0, 24);
 
     return {
-        title,
+        // `absolute`: el título ya incluye "| FilmiFy"; evita que el template
+        // del layout lo duplique ("... | FilmiFy | FilmiFy").
+        title: { absolute: title },
         description,
         keywords,
+        alternates: { canonical },
+        // El og:image lo genera opengraph-image.tsx de este segmento (SVG).
         openGraph: {
             title,
             description,
+            url: canonical,
             type: 'website',
-            images: [
-                {
-                    url: getPosterUrl(tvShow.poster_path) || '/logo-icon.svg',
-                    alt: `${tvShow.name} poster`,
-                },
-            ],
         },
         twitter: {
             card: 'summary_large_image',
             title,
             description,
-            images: [getPosterUrl(tvShow.poster_path) || '/logo-icon.svg'],
         },
     };
 }
 
+// Metadata de "no encontrada": noindex explícito → Google no indexa esta página
+// (evita las soft-404). Mismo criterio que el body (notFound si no es reproducible).
+const NOT_FOUND_METADATA: Metadata = {
+    title: 'Serie no encontrada - FilmiFy',
+    robots: { index: false, follow: false },
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { id } = await params;
     const tvId = parseInt(id);
+    if (isNaN(tvId)) return NOT_FOUND_METADATA;
 
     try {
+        // Solo noindex si la serie NO existe en TMDB (404 inequívoco). NO se
+        // acopla al probe de Vimeus: un fallo transitorio des-indexaría una serie
+        // válida. El body sí hace notFound() si no es reproducible.
         const tvShow = await getTVDetails(tvId);
-
-        if (!tvShow) {
-            return {
-                title: 'Serie no encontrada - FilmiFy',
-            };
-        }
-
+        if (!tvShow) return NOT_FOUND_METADATA;
         return buildTvMetadata(tvShow);
     } catch (error) {
-        return {
-            title: 'Serie no encontrada - FilmiFy',
-        };
+        if (error instanceof TMDBError && error.status === 404) {
+            return NOT_FOUND_METADATA;
+        }
+        // Error transitorio: no des-indexamos una serie válida por un fallo puntual.
+        return { title: 'Detalles de Serie - FilmiFy' };
     }
 }
 
-export default async function TVDetailsPage({ params, searchParams }: PageProps) {
+export default async function TVDetailsPage({ params }: PageProps) {
     const { id } = await params;
-    const sp = await searchParams;
     const tvId = parseInt(id);
     if (isNaN(tvId)) notFound();
 
@@ -100,26 +128,28 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
         tvShow = await getTVDetails(tvId);
         if (!tvShow) notFound();
     } catch (error) {
-        // If TMDB API returns 404 or any error, show our custom 404 page
-        console.error('Error fetching TV show details:', error);
-        notFound();
+        console.error('Error fetching TV details:', error);
+        if (error instanceof TMDBError && error.status === 404) {
+            notFound();
+        }
+        throw error;
     }
 
-    // Map TV show data to match Movie structure for MovieHero
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { similar, recommendations, ...restTvShow } = tvShow;
+    // Availability gate + datos de Vimeus en paralelo.
+    // Algunos títulos están en Vimeus solo como anime (/e/anime), no como serie
+    // (/e/serie) — si el probe de serie falla, intentamos el de anime.
+    const [seriesAvail, animeAvail, episodeMap, recommendations] = await Promise.all([
+        isSeriesAvailableOnVimeus(tvId),
+        isAnimeAvailableOnVimeus(tvId),
+        getSeriesEpisodeMap(tvId),
+        filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 18)),
+    ]);
+    const isAnime = !seriesAvail && animeAvail;
+    if (!seriesAvail && !animeAvail) notFound();
 
-    const heroData = {
-        ...restTvShow,
-        title: tvShow.name,
-        original_title: tvShow.original_name,
-        release_date: tvShow.first_air_date,
-        runtime: 0,
-        budget: 0,
-        revenue: 0,
-        imdb_id: tvShow.external_ids?.imdb_id || '',
-        video: false,
-    } as unknown as MovieDetails;
+    const backdropUrl = getBackdropUrl(tvShow.backdrop_path);
+    const posterUrl = getPosterUrl(tvShow.poster_path);
+    const firstAirYear = tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : null;
 
     // Get trailer
     let trailer = tvShow.videos?.results.find(
@@ -148,220 +178,324 @@ export default async function TVDetailsPage({ params, searchParams }: PageProps)
         }
     }
 
-    const creator = tvShow.credits?.crew.find((person) => person.job === 'Executive Producer' || person.job === 'Creator');
-    const cast = tvShow.credits?.cast.slice(0, 10) || [];
-    const providers = tvShow['watch/providers']?.results?.MX ||
-        tvShow['watch/providers']?.results?.US ||
-        Object.values(tvShow['watch/providers']?.results || {})[0];
+    const creator = tvShow.credits?.crew.find(
+        (person) => person.job === 'Executive Producer' || person.job === 'Creator'
+    );
+    const cast = tvShow.credits?.cast.slice(0, 12) || [];
+
+    // Episodes actually available on Vimeus; fall back to TMDB seasons when
+    // the listing has no episode rows for this series.
+    let seasons: SeasonEpisodes[] = episodeMap;
+    if (seasons.length === 0) {
+        seasons = (tvShow.seasons ?? [])
+            .filter((s) => s.season_number > 0 && s.episode_count > 0)
+            .map((s) => ({
+                season: s.season_number,
+                episodes: Array.from({ length: s.episode_count }, (_, i) => i + 1),
+            }));
+    }
 
     const appUrl = getOptionalApiKeys().appUrl;
-    const posterUrl = getPosterUrl(tvShow.poster_path);
-    const jsonLd = {
+    const tvJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'TVSeries',
         name: tvShow.name,
-        description: tvShow.overview,
-        image: posterUrl || `${appUrl}/logo-icon.svg`,
-        url: `${appUrl}/tv/${tvShow.id}`,
+        description: tvShow.overview || undefined,
+        image: posterUrl || backdropUrl || undefined,
+        datePublished: tvShow.first_air_date || undefined,
+        numberOfSeasons: tvShow.number_of_seasons || undefined,
+        numberOfEpisodes: tvShow.number_of_episodes || undefined,
+        actor: cast.map((person) => ({ '@type': 'Person', name: person.name })),
         genre: tvShow.genres?.map((genre) => genre.name).filter(Boolean),
-        actor: cast.map((person) => person.name),
-        numberOfSeasons: tvShow.number_of_seasons,
+        sameAs: tvShow.homepage ? [tvShow.homepage] : undefined,
+        aggregateRating: tvShow.vote_average ? {
+            '@type': 'AggregateRating',
+            ratingValue: tvShow.vote_average.toFixed(1),
+            ratingCount: tvShow.vote_count,
+        } : undefined,
+        // WatchAction: eligible for "Watch now" rich results in Google.
+        potentialAction: {
+            '@type': 'WatchAction',
+            target: {
+                '@type': 'EntryPoint',
+                urlTemplate: `${appUrl}/tv/${tvShow.id}`,
+                actionPlatform: [
+                    'https://schema.org/DesktopWebPlatform',
+                    'https://schema.org/MobileWebPlatform',
+                ],
+            },
+            expectsAcceptanceOf: {
+                '@type': 'Offer',
+                price: 0,
+                priceCurrency: 'USD',
+            },
+        },
     };
 
-    const isGlobalTV = await isTVDevice();
-    const isManualTV = sp.tv === 'true';
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Series', item: `${appUrl}/browse?category=tv` },
+            { '@type': 'ListItem', position: 3, name: tvShow.name, item: `${appUrl}/tv/${tvShow.id}` },
+        ],
+    };
 
-    if (isGlobalTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <TVDetailsPageTV
-                    tvShow={tvShow}
-                    trailer={trailer}
-                    cast={cast}
-                    creator={creator}
-                />
-            </>
-        );
-    }
+    const jsonLd = [tvJsonLd, breadcrumbJsonLd];
 
-    if (isManualTV) {
-        return (
-            <>
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-                <TVLayoutWrapper
-                    forceTVMode={true}
-                    tvLayout={
-                        <div className="flex min-h-screen bg-background text-white">
-                            <TVSidebar />
-                            <main className="flex-1 ml-0 lg:ml-24 p-8 overflow-x-hidden">
-                                <TVDetailsPageTV
-                                    tvShow={tvShow}
-                                    trailer={trailer}
-                                    cast={cast}
-                                    creator={creator}
-                                />
-                            </main>
-                        </div>
-                    }>
-                    <div />
-            </TVLayoutWrapper>
-            </>
-        );
-    }
+    // TVBodySwitch decide en CLIENTE entre vista web y vista TV, sin leer
+    // cookies/headers/searchParams en el servidor (evita lecturas de request
+    // redundantes en el render). La latencia venía del waterfall de Vimeus.
+    const tvBody = (
+        <TVDetailsPageTV
+            tvShow={tvShow}
+            trailer={trailer}
+            cast={cast}
+            creator={creator}
+        />
+    );
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            <MovieHero movie={heroData} trailer={trailer} mediaType="tv" seasons={tvShow.seasons} />
+        <TVBodySwitch tvBody={tvBody}>
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
 
-            <div className="container mx-auto px-4 py-12 space-y-16">
-                {/* Cast Section */}
-                {cast.length > 0 && (
-                    <section>
-                        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                            Reparto Principal
-                        </h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {cast.map((person) => (
-                                <div key={person.id} className="group relative bg-surface-light/30 rounded-xl overflow-hidden border border-white/5 hover:border-primary/50 transition-colors">
-                                    <div className="aspect-[2/3] relative">
-                                        {person.profile_path ? (
-                                            <Image
-                                                src={getProfileUrl(person.profile_path) || ''}
-                                                alt={person.name}
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full bg-surface-light flex items-center justify-center text-gray-500">
-                                                Sin Imagen
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-3">
-                                        <h3 className="font-bold text-white text-sm line-clamp-1">{person.name}</h3>
-                                        <p className="text-xs text-gray-400 line-clamp-1">{person.character}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+            {/* ── Cuevana/LaMovie-style layout: player front and center ── */}
+            <div className="relative min-h-screen pb-16">
+
+                {/* Ambient backdrop behind the player */}
+                {backdropUrl && (
+                    <div className="absolute inset-x-0 top-0 h-[480px] overflow-hidden pointer-events-none" aria-hidden>
+                        <Image
+                            src={backdropUrl}
+                            alt=""
+                            fill
+                            className="object-cover opacity-25 blur-sm scale-105"
+                            sizes="100vw"
+                            priority
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/85 to-background" />
+                    </div>
                 )}
 
-                {/* Info Grid */}
-                <section className="grid md:grid-cols-3 gap-8">
-                    {/* Details */}
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white mb-4">Detalles</h2>
-                        <div className="space-y-4 text-sm">
-                            {creator && (
-                                <div>
-                                    <span className="block text-gray-400 mb-1">Creador / EP</span>
-                                    <span className="text-white font-medium">{creator.name}</span>
-                                </div>
+                <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                    {/* Back link */}
+                    <Link
+                        href="/browse?category=tv"
+                        className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors mt-4 mb-6"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Volver a series
+                    </Link>
+
+                    {/* ── Player (full width, sin grid) ── */}
+                    <SeriesPlayer
+                        tmdbId={tvShow.id}
+                        title={tvShow.name}
+                        backdropUrl={backdropUrl}
+                        trailerKey={trailer?.key ?? null}
+                        seasons={seasons}
+                        isAnime={isAnime}
+                    />
+
+                    {/* Mobile quick facts */}
+                    <div className="lg:hidden flex items-center gap-3 mt-3 mb-4 text-sm flex-wrap">
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
+                            <Star className="w-3.5 h-3.5 fill-primary" />
+                            {tvShow.vote_average ? tvShow.vote_average.toFixed(1) : 'NR'}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                            {tvShow.number_of_seasons} temporada{tvShow.number_of_seasons === 1 ? '' : 's'}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                            {tvShow.number_of_episodes} ep.
+                        </span>
+                    </div>
+
+                    {/* ── Title bar ── */}
+                    <div className="flex flex-wrap items-start justify-between gap-4 mt-6">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+                                {tvShow.name}
+                                {firstAirYear && !isNaN(firstAirYear) && (
+                                    <span className="text-text-secondary font-normal"> ({firstAirYear})</span>
+                                )}
+                            </h1>
+                            {tvShow.original_name !== tvShow.name && (
+                                <p className="text-sm text-text-secondary mt-0.5">{tvShow.original_name}</p>
+                            )}
+
+                            {/* Meta chips */}
+                            <div className="flex flex-wrap items-center gap-2 mt-3 text-sm">
+                                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
+                                    <Star className="w-3.5 h-3.5 fill-primary" />
+                                    {tvShow.vote_average ? tvShow.vote_average.toFixed(1) : 'NR'}
+                                </span>
+                                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                                    <Tv className="w-3.5 h-3.5" />
+                                    {tvShow.number_of_seasons} temporada{tvShow.number_of_seasons === 1 ? '' : 's'}
+                                </span>
+                                {firstAirYear && !isNaN(firstAirYear) && (
+                                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary">
+                                        <Calendar className="w-3.5 h-3.5" />
+                                        {firstAirYear}
+                                    </span>
+                                )}
+                                <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-text-secondary text-xs font-bold">
+                                    {tvShow.status === 'Ended' ? 'Finalizada' : 'En emisión'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <MovieActions movie={tvShow} />
+                    </div>
+
+                    {/* Genres */}
+                    {tvShow.genres && tvShow.genres.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            {tvShow.genres.map((genre) => (
+                                <Link
+                                    key={genre.id}
+                                    href={`/browse?category=tv&genre=${genre.id}`}
+                                    className="px-3 py-1 rounded-full bg-surface-container border border-outline-variant text-xs font-medium text-text-secondary hover:text-white hover:border-primary/40 transition-colors"
+                                >
+                                    {genre.name}
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* ── Sinopsis + info ── */}
+                    <section className="mt-8">
+                        <div className="space-y-4 min-w-0">
+                            {tvShow.tagline && (
+                                <p className="text-base italic text-text-secondary">&ldquo;{tvShow.tagline}&rdquo;</p>
                             )}
                             <div>
-                                <span className="block text-gray-400 mb-1">Estado</span>
-                                <span className="text-white font-medium">{tvShow.status}</span>
+                                <h2 className="text-lg font-bold text-white mb-2">Sinopsis</h2>
+                                <p className="text-text-secondary leading-relaxed">
+                                    {tvShow.overview || 'Sin descripción disponible.'}
+                                </p>
                             </div>
-                            {tvShow.number_of_seasons && (
-                                <div>
-                                    <span className="block text-gray-400 mb-1">Temporadas</span>
-                                    <span className="text-white font-medium">
-                                        {tvShow.number_of_seasons}
-                                    </span>
-                                </div>
-                            )}
-                            {tvShow.number_of_episodes && (
-                                <div>
-                                    <span className="block text-gray-400 mb-1">Episodios</span>
-                                    <span className="text-white font-medium">
-                                        {tvShow.number_of_episodes}
-                                    </span>
-                                </div>
-                            )}
+
+                            {/* Compact info rows */}
+                            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm pt-2">
+                                {creator && (
+                                    <>
+                                        <dt className="text-text-muted">Creador</dt>
+                                        <dd className="text-white font-medium">{creator.name}</dd>
+                                    </>
+                                )}
+                                <dt className="text-text-muted">Idioma original</dt>
+                                <dd className="text-white font-medium uppercase">{tvShow.original_language}</dd>
+                                {tvShow.external_ids?.imdb_id && (
+                                    <>
+                                        <dt className="text-text-muted">IMDb</dt>
+                                        <dd>
+                                            <a
+                                                href={`https://www.imdb.com/title/${tvShow.external_ids.imdb_id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[#f5c518] font-semibold hover:underline"
+                                            >
+                                                Ver ficha
+                                            </a>
+                                        </dd>
+                                    </>
+                                )}
+                            </dl>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* Where to Watch */}
-                    <div className="md:col-span-2 space-y-6">
-                        <h2 className="text-2xl font-bold text-white mb-4">Dónde Ver</h2>
-                        {providers ? (
-                            <div className="space-y-6">
-                                {providers.flatrate && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Streaming</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.flatrate.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden tooltip" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="48px"
-                                                    />
+
+                    {/* 📢 Banner publicitario — tras la sinopsis */}
+                    <AdSlot />
+
+                    {/* ── Reparto: compact horizontal row ── */}
+                    {cast.length > 0 && (
+                        <section className="mt-10">
+                            <h2 className="text-lg font-bold text-white mb-4">Reparto</h2>
+                            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                                {cast.map((person) => (
+                                    <div key={person.id} className="flex-shrink-0 w-20 text-center">
+                                        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-surface-container border border-white/10 mx-auto">
+                                            {person.profile_path ? (
+                                                <Image
+                                                    src={getProfileUrl(person.profile_path) || ''}
+                                                    alt={person.name}
+                                                    fill
+                                                    className="object-cover"
+                                                    sizes="80px"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <User className="w-7 h-7 text-text-muted opacity-40" />
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
+                                        <p className="text-[11px] font-semibold text-white mt-2 line-clamp-2 leading-tight">
+                                            {person.name}
+                                        </p>
+                                        <p className="text-[10px] text-text-muted line-clamp-1">
+                                            {person.character}
+                                        </p>
                                     </div>
-                                )}
-                                {providers.rent && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Alquilar</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.rent.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="48px"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {providers.buy && (
-                                    <div>
-                                        <h3 className="text-sm text-gray-400 mb-3">Comprar</h3>
-                                        <div className="flex flex-wrap gap-3">
-                                            {providers.buy.map((provider) => (
-                                                <div key={provider.provider_id} className="relative w-12 h-12 rounded-lg overflow-hidden" title={provider.provider_name}>
-                                                    <Image
-                                                        src={getPosterUrl(provider.logo_path) || ''}
-                                                        alt={provider.provider_name}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="48px"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {!providers.flatrate && !providers.rent && !providers.buy && (
-                                    <p className="text-gray-400">No hay información de streaming disponible para esta región.</p>
-                                )}
+                                ))}
                             </div>
-                        ) : (
-                            <p className="text-gray-400">No hay información de streaming disponible.</p>
-                        )}
-                    </div>
-                </section>
+                        </section>
+                    )}
 
-                {/* Reviews Section */}
-                <ReviewsSection mediaId={tvId} mediaType="tv" />
+                    {/* ── Recomendaciones (solo disponibles) ── */}
+                    {recommendations.length > 0 && (
+                        <section className="mt-10">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Film className="w-5 h-5 text-primary" />
+                                <h2 className="text-lg font-bold text-white">También te puede gustar</h2>
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                {recommendations.slice(0, 12).map((rec) => (
+                                    <Link
+                                        key={rec.id}
+                                        href={`/tv/${rec.id}`}
+                                        className="group relative aspect-[2/3] rounded-lg overflow-hidden bg-surface-container border border-white/5 hover:border-primary/50 transition-all"
+                                    >
+                                        {rec.poster_path ? (
+                                            <Image
+                                                src={getPosterUrl(rec.poster_path) || ''}
+                                                alt={rec.name}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 16vw"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-text-muted text-xs px-2 text-center">
+                                                {rec.name}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                            <p className="text-white font-semibold text-xs line-clamp-2">{rec.name}</p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* 📢 Segundo banner — antes de los comentarios (página con mucho contenido) */}
+                    <AdSlot />
+
+                    {/* ── Comentarios (login solo aquí, como mejora opcional) ── */}
+                    <div className="mt-12">
+                        <ReviewsSection mediaId={tvId} mediaType="tv" />
+                    </div>
+                </div>
             </div>
-        </div>
+        </>
+        </TVBodySwitch>
     );
 }

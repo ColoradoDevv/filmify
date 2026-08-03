@@ -10,6 +10,23 @@ import {
     searchMulti,
 } from '@/server/services/tmdb';
 
+/**
+ * Devuelve JSON con Cache-Control para que el CDN de Vercel sirva respuestas
+ * idénticas a MUCHOS usuarios sin invocar la función ni pegar a TMDB.
+ * - s-maxage: tiempo que el edge la considera fresca.
+ * - stale-while-revalidate: sirve la versión cacheada al instante mientras
+ *   refresca en segundo plano → el usuario nunca espera. Clave en plan Free.
+ */
+function cachedJson(data: unknown, sMaxAge: number): NextResponse {
+    return NextResponse.json(data, {
+        headers: {
+            'Cache-Control': `public, s-maxage=${sMaxAge}, stale-while-revalidate=${sMaxAge * 4}`,
+        },
+    });
+}
+
+const CACHE = { list: 3600, details: 21600, discover: 3600, search: 60 } as const;
+
 export async function GET(request: Request) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -23,12 +40,12 @@ export async function GET(request: Request) {
             case 'search-multi': {
                 const query = url.searchParams.get('query') ?? '';
                 const page = Number(url.searchParams.get('page') ?? '1');
-                return NextResponse.json(await searchMulti(query, page));
+                return cachedJson(await searchMulti(query, page), CACHE.search);
             }
             case 'search-movies': {
                 const query = url.searchParams.get('query') ?? '';
                 const page = Number(url.searchParams.get('page') ?? '1');
-                return NextResponse.json(await searchMovies(query, page));
+                return cachedJson(await searchMovies(query, page), CACHE.search);
             }
             case 'trending': {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv' | 'all';
@@ -36,12 +53,12 @@ export async function GET(request: Request) {
                 const page = Number(url.searchParams.get('page') ?? '1');
 
                 if (mediaType === 'movie') {
-                    return NextResponse.json(await getTrending('movie', timeWindow, page));
+                    return cachedJson(await getTrending('movie', timeWindow, page), CACHE.list);
                 }
                 if (mediaType === 'tv') {
-                    return NextResponse.json(await getTrending('tv', timeWindow, page));
+                    return cachedJson(await getTrending('tv', timeWindow, page), CACHE.list);
                 }
-                return NextResponse.json(await getTrending('all', timeWindow, page));
+                return cachedJson(await getTrending('all', timeWindow, page), CACHE.list);
             }
             case 'discover': {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv';
@@ -61,9 +78,9 @@ export async function GET(request: Request) {
                 };
 
                 if (mediaType === 'tv') {
-                    return NextResponse.json(await discoverTV(filters));
+                    return cachedJson(await discoverTV(filters), CACHE.discover);
                 }
-                return NextResponse.json(await discoverMovies(filters));
+                return cachedJson(await discoverMovies(filters), CACHE.discover);
             }
             case 'details': {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv';
@@ -72,9 +89,9 @@ export async function GET(request: Request) {
                     return new NextResponse('Missing id parameter', { status: 400 });
                 }
                 if (mediaType === 'tv') {
-                    return NextResponse.json(await getTVDetails(id));
+                    return cachedJson(await getTVDetails(id), CACHE.details);
                 }
-                return NextResponse.json(await getMovieDetails(id));
+                return cachedJson(await getMovieDetails(id), CACHE.details);
             }
             default:
                 return new NextResponse('Unsupported action', { status: 400 });

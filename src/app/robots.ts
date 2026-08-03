@@ -3,10 +3,30 @@ import { getOptionalApiKeys } from '@/lib/env';
 
 /**
  * Robots.txt configuration for FilmiFy
- * Tells search engines what to index and what to avoid
+ * Tells search engines what to index and what to avoid.
  */
 
 const BASE_URL = getOptionalApiKeys().appUrl;
+
+// Private / non-indexable areas. Auth-gated and personal routes are excluded
+// so crawlers don't waste budget on pages that just redirect to /login.
+const DISALLOW = [
+    '/api/',          // API routes
+    '/auth/',         // Auth callback routes
+    '/login',         // Auth pages
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/confirm-email',
+    '/admin',         // Admin dashboard (private)
+    '/settings',      // User settings (private)
+    '/favorites',     // Personal — requires login
+    '/lists',         // Personal — requires login
+    '/profile',       // Personal — requires login
+    '/watch-party',   // Ephemeral private rooms
+    '/*.json',        // JSON files
+    '/debug-schema',  // Debug routes
+];
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -14,27 +34,15 @@ export default function robots(): MetadataRoute.Robots {
             {
                 userAgent: '*',
                 allow: '/',
-                disallow: [
-                    '/api/',           // Block API routes
-                    '/auth/',          // Block authentication pages
-                    '/settings/',      // Block user settings (private)
-                    '/*.json',         // Block JSON files
-                    '/debug-schema',   // Block debug routes
-                ],
+                disallow: DISALLOW,
             },
             {
                 userAgent: 'Googlebot',
                 allow: '/',
-                disallow: [
-                    '/api/',
-                    '/auth/',
-                    '/settings/',
-                    '/*.json',
-                    '/debug-schema',
-                ],
-                crawlDelay: 0,
+                disallow: DISALLOW,
             },
         ],
         sitemap: `${BASE_URL}/sitemap.xml`,
+        host: BASE_URL,
     };
 }

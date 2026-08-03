@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Send, Mail, User, MessageSquare } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
+import { AdSlot } from '@/components/ads';
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -163,6 +164,9 @@ export default function ContactPage() {
                         )}
                     </form>
                 </div>
+
+                {/* 📢 Banner publicitario */}
+                <AdSlot />
 
                 {/* Back Link */}
                 <div className="text-center mt-8">

@@ -2,11 +2,33 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 
+/** Generate a cryptographically random base64 nonce using the Web Crypto API.
+ *  Works in both Edge Runtime and Node.js — no 'crypto' module import needed. */
+function generateNonce(): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return btoa(String.fromCharCode(...bytes));
+}
+
 // ── Route classification ──────────────────────────────────────────────────────
 
-/** Publicly accessible — no auth required */
+/**
+ * Publicly accessible — no auth required.
+ * Filmify is a PUBLIC platform: all content routes (catalog, detail pages,
+ * search, playback) are open to anonymous visitors. Authentication is an
+ * optional enhancement (favorites, comments, lists), never a blocker.
+ * Listed here for documentation; anything not in PROTECTED_PREFIXES or
+ * ADMIN_PREFIX is public by default.
+ */
 const PUBLIC_ROUTES = [
-    '/',                    // landing / call-to-action
+    '/',                    // public catalog homepage
+    '/browse',
+    '/movie',
+    '/tv',
+    '/search',
+    '/live-tv',
+    '/editorial',
+    '/about',
     '/contact',
     '/legal',
     '/security',
@@ -21,18 +43,18 @@ const AUTH_ROUTES = [
     '/confirm-email',
 ];
 
-/** Platform routes that require authentication */
+/**
+ * Personal routes that require authentication — everything that depends on
+ * a user record in the database. Content routes are intentionally NOT here.
+ */
 const PROTECTED_PREFIXES = [
-    '/browse',
     '/favorites',
     '/lists',
-    '/live-tv',
-    '/movie',
-    '/tv',
-    '/search',
     '/settings',
     '/profile',
-    '/watch-party',
+    // NOTE: /watch-party is NOT middleware-protected on purpose — the page
+    // itself shows anonymous visitors a friendly "inicia sesión" screen
+    // instead of a hard redirect.
 ];
 
 /** Admin routes — require admin/super_admin role */
@@ -49,6 +71,28 @@ function isMatch(pathname: string, prefixes: string[]): boolean {
     return prefixes.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
 }
 
+// ── IP-ban cache ────────────────────────────────────────────────────────────
+// El chequeo de baneo corría una consulta a Supabase en CADA request de página
+// (incluidas las públicas/anónimas), añadiendo latencia y golpeando el pool en
+// cada pageview. Cacheamos el resultado por IP en memoria del worker durante un
+// tiempo corto: los baneos toleran unos segundos de propagación y esto elimina
+// la mayoría de las consultas repetidas. El caché es por-instancia (Edge), no
+// global, pero suficiente para absorber ráfagas del mismo visitante.
+const IP_BAN_TTL_MS = 60_000;
+const ipBanCache = new Map<string, { banned: boolean; at: number }>();
+
+function getCachedBan(ip: string): boolean | null {
+    const hit = ipBanCache.get(ip);
+    if (hit && Date.now() - hit.at < IP_BAN_TTL_MS) return hit.banned;
+    return null;
+}
+
+function setCachedBan(ip: string, banned: boolean): void {
+    // Poda simple para que el Map no crezca sin límite en workers de larga vida.
+    if (ipBanCache.size > 5_000) ipBanCache.clear();
+    ipBanCache.set(ip, { banned, at: Date.now() });
+}
+
 // ── Security headers ──────────────────────────────────────────────────────────
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -57,7 +101,15 @@ const SECURITY_HEADERS: Record<string, string> = {
     'X-Frame-Options':           'SAMEORIGIN',
     'X-Content-Type-Options':    'nosniff',
     'Referrer-Policy':           'origin-when-cross-origin',
+    // SEC-024: restrict browser feature APIs and cross-origin isolation
+    'Permissions-Policy':              'camera=(), microphone=(), geolocation=(), payment=()',
+    'Cross-Origin-Opener-Policy':      'same-origin',
+    'Cross-Origin-Resource-Policy':    'same-origin',
 };
+
+// NOTE: TV-device and crawler User-Agent bypasses were removed — content
+// routes are now public for everyone, so no special-casing is needed.
+// Crawlers and TV devices see the same public pages as any anonymous visitor.
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -69,10 +121,38 @@ export default async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    let response = NextResponse.next({ request: { headers: request.headers } });
+    // Generate a per-request nonce for CSP (base64, 16 bytes = 128 bits)
+    const nonce = generateNonce();
+
+    // Build CSP with nonce — allows Next.js inline scripts and GTM consent init
+    // while blocking all other inline scripts (XSS protection).
+    const csp = [
+        `default-src 'self'`,
+        // 'self' + nonce for Next.js hydration scripts + GTM consent init
+        // 'unsafe-eval' is NOT included — no eval() allowed
+        `script-src 'self' 'nonce-${nonce}' https:`,
+        `style-src 'self' 'unsafe-inline' https:`,
+        `img-src 'self' data: blob: https:`,
+        `media-src 'self' blob: https:`,
+        `connect-src 'self' https: wss:`,
+        `font-src 'self' data: https:`,
+        `frame-src https:`,
+        `frame-ancestors 'self'`,
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `form-action 'self'`,
+        `upgrade-insecure-requests`,
+    ].join('; ');
+
+    // Forward nonce to page components via request header
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+
+    let response = NextResponse.next({ request: { headers: requestHeaders } });
 
     // Apply security headers to all responses
     Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+    response.headers.set('Content-Security-Policy', csp);
 
     const { url, anonKey } = getSupabaseConfig();
     const hasSupabase = !!(url && anonKey);
@@ -89,6 +169,7 @@ export default async function middleware(request: NextRequest) {
     }
 
     // ── Build Supabase client (refreshes session cookie if needed) ────────────
+    // Build Supabase client (refreshes session cookie if needed)
     let supabase: any;
     try {
         supabase = createServerClient(url, anonKey, {
@@ -96,12 +177,21 @@ export default async function middleware(request: NextRequest) {
                 getAll: () => request.cookies.getAll(),
                 setAll: (cookiesToSet) => {
                     // Recreate response so cookies can be set on it
-                    response = NextResponse.next({ request: { headers: request.headers } });
+                    response = NextResponse.next({ request: { headers: requestHeaders } });
                     Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                    // Ensure CSP header is preserved when cookies are set from the server client
+                    response.headers.set('Content-Security-Policy', csp);
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     );
                 },
+            },
+        });
+    } catch (err) {
+        console.error('[middleware] failed to create Supabase server client', err);
+        supabase = null;
+    }
+
             },
         });
     } catch (err) {
@@ -116,39 +206,84 @@ export default async function middleware(request: NextRequest) {
         request.headers.get('x-real-ip') ||
         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         '127.0.0.1';
-    if (supabase) {
-        try {
+    // Build Supabase client (refreshes session cookie if needed)
+    let supabase: any;
+    try {
+        supabase = createServerClient(url, anonKey, {
+            cookies: {
+                getAll: () => request.cookies.getAll(),
+                setAll: (cookiesToSet) => {
+                    // Recreate response so cookies can be set on it
+                    response = NextResponse.next({ request: { headers: requestHeaders } });
+                    Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                    // Ensure CSP header is preserved when cookies are set from the server client
+                    response.headers.set('Content-Security-Policy', csp);
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
+                },
+            },
+        });
+    } catch (err) {
+        console.error('[middleware] failed to create Supabase server client', err);
+        supabase = null;
+    }
+
             const { data: banned } = await supabase
                 .from('ip_bans')
                 .select('id')
                 .eq('ip_address', ip)
-                .single();
-            if (banned) {
-                return new NextResponse('Access Denied: Your IP has been banned.', { status: 403 });
-            }
-        } catch (err) {
-            // Table may not exist yet or query failed. Log for observability but don't break the request.
-            console.warn('[middleware] ip_bans check failed (ignoring):', err);
-        }
+    // Build Supabase client (refreshes session cookie if needed)
+    let supabase: any;
+    try {
+        supabase = createServerClient(url, anonKey, {
+            cookies: {
+                getAll: () => request.cookies.getAll(),
+                setAll: (cookiesToSet) => {
+                    // Recreate response so cookies can be set on it
+                    response = NextResponse.next({ request: { headers: requestHeaders } });
+                    Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+                    // Ensure CSP header is preserved when cookies are set from the server client
+                    response.headers.set('Content-Security-Policy', csp);
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
+                },
+            },
+        });
+    } catch (err) {
+        console.error('[middleware] failed to create Supabase server client', err);
+        supabase = null;
     }
 
-    // ── Get current user ──────────────────────────────────────────────────────
-    let user: any = null;
-    if (supabase) {
-        try {
-            const result = await supabase.auth.getUser();
-            user = result?.data?.user ?? null;
-        } catch (err) {
-            console.error('[middleware] supabase.auth.getUser failed (treating as unauthenticated):', err);
-            user = null;
-        }
-    }
 
     const isProtected = isMatch(pathname, PROTECTED_PREFIXES);
     const isAdmin     = pathname.startsWith(ADMIN_PREFIX);
     const isAuthPage  = isMatch(pathname, AUTH_ROUTES);
 
-    // 1. Unauthenticated user → protected/admin route: redirect to login
+    // If the refresh token is invalid/expired, clear the stale session cookies.
+    // On protected routes, redirect to login; on public routes, just clear the
+    // cookies and let the visitor continue anonymously — auth is optional.
+    if (authError && (
+        authError.message?.includes('Refresh Token Not Found') ||
+        authError.message?.includes('Invalid Refresh Token') ||
+        authError.code === 'refresh_token_not_found'
+    )) {
+        const target = (isProtected || isAdmin)
+            ? new URL('/login', request.url)
+            : request.nextUrl;
+        const redirectResponse = NextResponse.redirect(target);
+        // Clear Supabase session cookies so the client starts fresh
+        request.cookies.getAll().forEach(({ name }) => {
+            if (name.startsWith('sb-')) {
+                redirectResponse.cookies.delete(name);
+            }
+        });
+        return redirectResponse;
+    }
+
+    // 1. Unauthenticated user → personal/admin route: redirect to login.
+    //    Content routes never reach this branch — they are public.
     //    Preserve the intended destination so we can redirect back after login.
     if (!user && (isProtected || isAdmin)) {
         const loginUrl = new URL('/login', request.url);
@@ -186,11 +321,16 @@ export default async function middleware(request: NextRequest) {
     }
 
     // 3. Authenticated user → auth page: redirect to browse (or ?next param)
-    if (user && isAuthPage && !pathname.startsWith('/confirm-email')) {
+    //    /reset-password se excluye: el flujo de recuperación crea una sesión
+    //    (verifyOtp / exchangeCodeForSession) ANTES de mostrar el formulario,
+    //    así que redirigir aquí rompería el cambio de contraseña.
+    if (user && isAuthPage && !pathname.startsWith('/confirm-email') && !pathname.startsWith('/reset-password')) {
         const next = request.nextUrl.searchParams.get('next') ?? '/browse';
-        // Only allow relative paths to prevent open redirect
-        const safePath = next.startsWith('/') ? next : '/browse';
-        return NextResponse.redirect(new URL(safePath, request.url));
+        // SEC-016: validate strictly — /\example.com and similar bypass naive checks
+        const isSafe = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') && (() => {
+            try { return new URL(next, 'https://filmify.me').hostname === 'filmify.me'; } catch { return false; }
+        })();
+        return NextResponse.redirect(new URL(isSafe ? next : '/browse', request.url));
     }
 
     return response;

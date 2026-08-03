@@ -70,9 +70,7 @@ export function getOptionalApiKeys() {
         groqApiKey: process.env.GROQ_API_KEY ?? '',
         resendApiKey: process.env.RESEND_API_KEY ?? '',
         cronSecret: process.env.CRON_SECRET ?? '',
-        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
-        adsenseClientId: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID ?? '',
         contactEmail: process.env.CONTACT_EMAIL ?? '',
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
     };
@@ -81,9 +79,12 @@ export function getOptionalApiKeys() {
 /**
  * Returns true if the critical runtime dependencies are configured.
  * Useful to early-return in API routes / server components.
+ * Acepta cualquiera de las dos variantes de la clave TMDB — el cliente TMDB
+ * ya usa la pública como fallback, así que el sitemap no debe ser más
+ * estricto que las páginas.
  */
 export function hasRequiredEnv(): boolean {
-    return Boolean(process.env.TMDB_API_KEY);
+    return Boolean(process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY);
 }
 
 /**

@@ -1,0 +1,327 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, Clock, Tag, Calendar, ArrowRight, BookOpen } from 'lucide-react';
+import { getArticleBySlug, getPublishedArticles, CATEGORIES } from '@/lib/editorial';
+import ArticleImage from '@/components/editorial/ArticleImage';
+import { getOptionalApiKeys } from '@/lib/env';
+import { AdSlot } from '@/components/ads';
+
+interface Props {
+    params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { slug } = await params;
+    const article = await getArticleBySlug(slug);
+    // noindex explícito si el artículo no existe → evita soft-404.
+    if (!article) {
+        return { title: 'Artículo no encontrado', robots: { index: false, follow: false } };
+    }
+
+    return {
+        // Marca corta al final para no robar caracteres a la keyword del título
+        // (Google muestra ~60 chars). `absolute` por si se añade un template.
+        title: { absolute: `${article.title} | FilmiFy` },
+        description: article.excerpt,
+        keywords: article.tags,
+        openGraph: {
+            title: article.title,
+            description: article.excerpt,
+            type: 'article',
+            publishedTime: article.published_at ?? undefined,
+            authors: [article.author_name],
+            images: article.cover_url ? [{ url: article.cover_url }] : [],
+            siteName: 'FilmiFy',
+            url: `/editorial/${slug}`,
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: article.title,
+            description: article.excerpt,
+        },
+        alternates: {
+            canonical: `/editorial/${slug}`
+        }
+    };
+}
+
+export const revalidate = 3600;
+
+// Pre-genera los artículos publicados en build para que el primer crawler
+// reciba HTML listo (mejor TTFB / indexación). Los nuevos artículos se
+// renderizan on-demand y luego quedan cacheados por ISR.
+export async function generateStaticParams() {
+    try {
+        const articles = await getPublishedArticles(100);
+        return articles.map((a) => ({ slug: a.slug }));
+    } catch {
+        return [];
+    }
+}
+
+/** Solo se permiten enlaces internos (/...) y http(s) absolutos. Bloquea
+ *  esquemas peligrosos como javascript: o data: para evitar XSS a través del
+ *  contenido renderizado con dangerouslySetInnerHTML. */
+function isSafeHref(url: string): boolean {
+    const u = url.trim();
+    if (u.startsWith('/')) return true;            // ruta interna
+    return /^https?:\/\//i.test(u);                // http(s) absoluto
+}
+
+/** Escapa los caracteres HTML peligrosos del texto de enlace/destino. */
+function escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Inline markdown: **negrita** y [enlaces](url). Los enlaces internos
+ *  (/genero/*, /browse, …) distribuyen autoridad SEO hacia el catálogo. */
+function fmtInline(text: string): string {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-on-surface">$1</strong>')
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label: string, url: string) => {
+            if (!isSafeHref(url)) return label; // esquema no permitido → solo el texto
+            const safeUrl = escapeAttr(url.trim());
+            const isExternal = /^https?:\/\//i.test(url.trim());
+            const rel = isExternal ? ' target="_blank" rel="noopener noreferrer nofollow"' : '';
+            return `<a href="${safeUrl}" class="text-primary font-medium hover:underline"${rel}>${label}</a>`;
+        });
+}
+
+/** Convert markdown-like content to HTML paragraphs */
+function renderContent(content: string) {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let key = 0;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { elements.push(<br key={key++} />); continue; }
+
+        if (trimmed.startsWith('### ')) {
+            elements.push(<h3 key={key++} className="text-xl font-bold text-on-surface mt-8 mb-3">{trimmed.slice(4)}</h3>);
+        } else if (trimmed.startsWith('## ')) {
+            elements.push(<h2 key={key++} className="text-2xl font-bold text-on-surface mt-10 mb-4">{trimmed.slice(3)}</h2>);
+        } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            elements.push(<p key={key++} className="font-bold text-on-surface mb-2">{trimmed.slice(2, -2)}</p>);
+        } else if (trimmed.startsWith('- ')) {
+            elements.push(
+                <li key={key++} className="flex items-start gap-2 text-on-surface-variant mb-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                    <span dangerouslySetInnerHTML={{ __html: fmtInline(trimmed.slice(2)) }} />
+                </li>
+            );
+        } else if (/^\d+\./.test(trimmed)) {
+            const num = trimmed.match(/^(\d+)\./)?.[1];
+            const text = trimmed.replace(/^\d+\.\s*/, '');
+            elements.push(
+                <li key={key++} className="flex items-start gap-3 text-on-surface-variant mb-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{num}</span>
+                    <span dangerouslySetInnerHTML={{ __html: fmtInline(text) }} />
+                </li>
+            );
+        } else {
+            elements.push(
+                <p key={key++} className="text-on-surface-variant leading-relaxed mb-4"
+                    dangerouslySetInnerHTML={{ __html: fmtInline(trimmed) }}
+                />
+            );
+        }
+    }
+    return elements;
+}
+
+export default async function ArticlePage({ params }: Props) {
+    const { slug } = await params;
+    const [article, related] = await Promise.all([
+        getArticleBySlug(slug),
+        getPublishedArticles(4),
+    ]);
+
+    if (!article) notFound();
+
+    const relatedArticles = related.filter(a => a.slug !== slug).slice(0, 3);
+    const date = article.published_at
+        ? new Date(article.published_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+
+    const appUrl = getOptionalApiKeys().appUrl;
+    const categoryLabel = CATEGORIES[article.category] ?? article.category;
+    const articleJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: article.title,
+        description: article.excerpt,
+        image: article.cover_url,
+        datePublished: article.published_at,
+        // dateModified usa la fecha de actualización real cuando existe —
+        // señal de frescura para Google (cae a published_at si no hay edición).
+        dateModified: article.updated_at || article.published_at,
+        author: {
+            '@type': 'Person',
+            name: article.author_name,
+        },
+        publisher: {
+            '@type': 'Organization',
+            name: 'FilmiFy',
+            logo: {
+                '@type': 'ImageObject',
+                url: `${appUrl}/logo-icon.svg`,
+            },
+        },
+        mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': `${appUrl}/editorial/${slug}`,
+        },
+        articleSection: categoryLabel,
+        keywords: article.tags?.length ? article.tags.join(', ') : undefined,
+        wordCount: article.content ? article.content.trim().split(/\s+/).length : undefined,
+        inLanguage: 'es-ES',
+    };
+
+    // Breadcrumbs: aparecen en resultados de Google (Inicio › Editorial › …)
+    // y refuerzan la jerarquía del sitio.
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: appUrl },
+            { '@type': 'ListItem', position: 2, name: 'Editorial', item: `${appUrl}/editorial` },
+            { '@type': 'ListItem', position: 3, name: categoryLabel, item: `${appUrl}/editorial/categoria/${article.category}` },
+            { '@type': 'ListItem', position: 4, name: article.title, item: `${appUrl}/editorial/${slug}` },
+        ],
+    };
+
+    return (
+        <>
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([articleJsonLd, breadcrumbJsonLd]) }} />
+
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+                {/* Back */}
+                <Link href="/editorial" className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-8 text-sm">
+                    <ArrowLeft className="w-4 h-4" />
+                    Volver al editorial
+                </Link>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+                    {/* Article */}
+                    <article className="lg:col-span-2">
+                        {/* Category + meta */}
+                        <div className="flex flex-wrap items-center gap-3 mb-5">
+                            <Link href={`/editorial/categoria/${article.category}`} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-medium hover:bg-primary/20 transition-colors">
+                                {CATEGORIES[article.category] ?? article.category}
+                            </Link>
+                            <span className="flex items-center gap-1 text-xs text-on-surface-variant">
+                                <Clock className="w-3 h-3" />
+                                {article.read_time} min de lectura
+                            </span>
+                            {date && (
+                                <span className="flex items-center gap-1 text-xs text-on-surface-variant">
+                                    <Calendar className="w-3 h-3" />
+                                    {date}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Title */}
+                        <h1 className="text-3xl sm:text-4xl font-bold text-on-surface leading-tight mb-4">
+                            {article.title}
+                        </h1>
+
+                        {/* Excerpt */}
+                        <p className="text-lg text-on-surface-variant leading-relaxed mb-6 border-l-2 border-primary pl-4">
+                            {article.excerpt}
+                        </p>
+
+                        {/* Author */}
+                        <div className="flex items-center gap-3 mb-8 pb-8 border-b border-outline-variant">
+                            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
+                                <span className="text-sm font-bold text-primary">F</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-on-surface">{article.author_name}</p>
+                                <p className="text-xs text-on-surface-variant">FilmiFy Editorial</p>
+                            </div>
+                        </div>
+
+                        {/* Cover image — siempre visible con fallback por categoría */}
+                        <div className="relative h-64 sm:h-80 rounded-2xl overflow-hidden mb-8">
+                            <ArticleImage
+                                src={article.cover_url}
+                                alt={article.title}
+                                category={article.category}
+                                fill
+                                className="object-cover"
+                                priority
+                            />
+                        </div>
+
+                        {/* 📢 Banner publicitario — antes del cuerpo del artículo */}
+                        <AdSlot />
+
+                        {/* Content */}
+                        <div className="prose-editorial">
+                            {renderContent(article.content)}
+                        </div>
+
+                        {/* 📢 Segundo banner — al final del artículo (contenido largo) */}
+                        <AdSlot />
+
+                        {/* Tags */}
+                        {article.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-10 pt-8 border-t border-outline-variant">
+                                <Tag className="w-4 h-4 text-on-surface-variant mt-0.5" />
+                                {article.tags.map(tag => (
+                                    <span key={tag} className="px-2.5 py-1 bg-surface-container-high border border-outline-variant rounded-full text-xs text-on-surface-variant">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+
+                    {/* Sidebar */}
+                    <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+                        {/* CTA */}
+                        <div className="bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/20 rounded-2xl p-5">
+                            <h3 className="font-bold text-on-surface mb-2">¿Buscas dónde ver una película?</h3>
+                            <p className="text-sm text-on-surface-variant mb-4">
+                                FilmiFy te muestra en qué plataformas está disponible cualquier película o serie en tu región.
+                            </p>
+                            <Link
+                                href="/browse"
+                                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:bg-primary-hover transition-colors"
+                            >
+                                Explorar catálogo
+                                <ArrowRight className="w-4 h-4" />
+                            </Link>
+                        </div>
+
+                        {/* Related */}
+                        {relatedArticles.length > 0 && (
+                            <div className="bg-surface-container border border-outline-variant rounded-2xl p-5">
+                                <h3 className="font-bold text-on-surface mb-4 flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4 text-primary" />
+                                    Más artículos
+                                </h3>
+                                <div className="space-y-4">
+                                    {relatedArticles.map(rel => (
+                                        <Link key={rel.id} href={`/editorial/${rel.slug}`} className="group block">
+                                            <p className="text-sm font-medium text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                                                {rel.title}
+                                            </p>
+                                            <p className="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" />
+                                                {rel.read_time} min
+                                            </p>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </aside>
+                </div>
+            </div>
+        </>
+    );
+}

@@ -6,6 +6,8 @@ import { useFavorites } from '@/lib/store/useStore';
 import MovieCard from '@/components/features/MovieCard';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
+import TVFavoritesPage from '@/components/tv/TVFavoritesPage';
+import { AdSlot } from '@/components/ads';
 
 export default function FavoritesPage() {
     const favorites = useFavorites();
@@ -14,24 +16,31 @@ export default function FavoritesPage() {
 
     useSpatialNavigation(containerRef, {
         enabled: isTV,
-        focusOnMount: true
+        focusOnMount: true,
     });
 
+    // TV mode: render dedicated TV layout
+    if (isTV) {
+        return <TVFavoritesPage />;
+    }
+
+    // Desktop/mobile layout — unchanged
     return (
         <div className="space-y-8" ref={containerRef}>
             {/* Header */}
-            <div className="flex items-center gap-3">
-                <Heart className="w-8 h-8 text-accent" />
-                <div>
-                    <h1 className="text-3xl sm:text-4xl font-bold">Mis Favoritos</h1>
-                    <p className="text-text-secondary mt-1">
-                        {favorites.length} {favorites.length === 1 ? 'película' : 'películas'} guardadas
-                    </p>
-                </div>
+            <div>
+                <h1 className="text-3xl sm:text-4xl font-bold">Mis Favoritos</h1>
+                <p className="text-text-secondary mt-1">
+                    {favorites.length} {favorites.length === 1 ? 'película' : 'películas'} guardadas
+                </p>
             </div>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot className="my-0" />
 
             {/* Favorites Grid */}
             {favorites.length > 0 ? (
+                <>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                     {favorites.map((movie) => (
                         <div key={movie.id} className="tv-focusable rounded-xl transition-transform focus:scale-105">
@@ -39,6 +48,10 @@ export default function FavoritesPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* 📢 Segundo banner — solo cuando hay muchos favoritos */}
+                {favorites.length > 10 && <AdSlot className="my-0" />}
+                </>
             ) : (
                 <div className="text-center py-16">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-surface rounded-full mb-4">

@@ -1,0 +1,92 @@
+{
+  "name": "filmify",
+
+  // ── Runtime ────────────────────────────────────────────────────────────────
+  // 2025-04-01+ garantiza que process.env funcione correctamente en Workers.
+  // nodejs_compat habilita las APIs de Node.js emuladas (crypto, buffer, etc.)
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // ── Entry point ────────────────────────────────────────────────────────────
+  "main": "./custom-worker.ts",
+
+  // ── Static assets ──────────────────────────────────────────────────────────
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // ── Cache ISR — Cloudflare KV ─────────────────────────────────────────────
+  // Namespaces creados el 2026-07-21:
+  //   production: f38aea99d1704c48ad9d2887e162c81e
+  //   preview:    d6a420d03cbc4e8fa8baf1442b282667
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "f38aea99d1704c48ad9d2887e162c81e",
+      "preview_id": "d6a420d03cbc4e8fa8baf1442b282667"
+    }
+  ],
+
+  // ── Cron triggers ─────────────────────────────────────────────────────────
+  // 00:00 UTC → /api/cron/cleanup
+  // 06:00 UTC → /api/cron/rss
+  // 09:00 UTC → /api/cron/notifications
+  "triggers": {
+    "crons": ["0 0 * * *", "0 6 * * *", "0 9 * * *"]
+  },
+
+  // ── Observability ─────────────────────────────────────────────────────────
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
+
+  // ── Preview environment ───────────────────────────────────────────────────
+  // Usado por `wrangler deploy --env preview` en el non-production branch
+  // deploy command del dashboard de Cloudflare Builds.
+  // Los valores reales de las variables viven en el dashboard (Settings →
+  // Variables and Secrets del Worker "filmify-preview"), no aquí, para
+  // evitar commitear secretos al repo.
+  "env": {
+    "preview": {
+      "name": "filmify-preview",
+      "kv_namespaces": [
+        {
+          "binding": "NEXT_INC_CACHE_KV",
+          "id": "d6a420d03cbc4e8fa8baf1442b282667",
+          "preview_id": "d6a420d03cbc4e8fa8baf1442b282667"
+        }
+      ],
+      "triggers": {
+        "crons": ["0 0 * * *", "0 6 * * *", "0 9 * * *"]
+      },
+      "observability": {
+        "enabled": false,
+        "head_sampling_rate": 1,
+        "logs": {
+          "enabled": true,
+          "head_sampling_rate": 1,
+          "persist": true,
+          "invocation_logs": true
+        },
+        "traces": {
+          "enabled": false,
+          "persist": true,
+          "head_sampling_rate": 1
+        }
+      }
+    }
+  }
+}

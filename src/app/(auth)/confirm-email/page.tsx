@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { createClient } from '@/lib/supabase/client';
 import { resendSignupConfirmation } from './actions';
-
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
-const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
 export default function ConfirmEmailPage() {
     const router = useRouter();
@@ -21,9 +17,7 @@ export default function ConfirmEmailPage() {
     const [resendSuccess, setResendSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resendError, setResendError] = useState<string | null>(null);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [infoMessage, setInfoMessage] = useState<string | null>(null);
-    const captchaRef = useRef<HCaptcha>(null);
     const supabase = createClient();
 
     const effectiveEmail = (emailFromQuery || manualEmail.trim()).toLowerCase();
@@ -34,18 +28,11 @@ export default function ConfirmEmailPage() {
         return () => window.clearTimeout(t);
     }, [resendSuccess]);
 
-    useEffect(() => {
-        if (!resendError) return;
-        captchaRef.current?.resetCaptcha();
-        setCaptchaToken(null);
-    }, [resendError]);
-
     const handleCheckConfirmation = async () => {
         setChecking(true);
         setError(null);
 
         try {
-            // Get the current session
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
             if (sessionError) {
@@ -56,10 +43,8 @@ export default function ConfirmEmailPage() {
             }
 
             if (session) {
-                // User is confirmed and logged in
                 router.push('/browse');
             } else {
-                // User hasn't confirmed yet
                 setError('Aún no has confirmado tu email. Por favor, revisa tu bandeja de entrada y haz clic en el enlace de confirmación.');
                 setChecking(false);
             }
@@ -76,11 +61,6 @@ export default function ConfirmEmailPage() {
             return;
         }
 
-        if (hcaptchaConfigured && !captchaToken) {
-            setResendError('Completa la verificación “No soy un robot” antes de reenviar el correo.');
-            return;
-        }
-
         setResending(true);
         setResendError(null);
         setResendSuccess(false);
@@ -89,7 +69,6 @@ export default function ConfirmEmailPage() {
         try {
             const result = await resendSignupConfirmation({
                 email: effectiveEmail,
-                captchaToken: hcaptchaConfigured ? captchaToken : undefined,
             });
 
             if (result.error) {
@@ -100,8 +79,6 @@ export default function ConfirmEmailPage() {
                 setInfoMessage('Este correo ya está confirmado. Puedes iniciar sesión con tu contraseña.');
             } else if (result.ok) {
                 setResendSuccess(true);
-                captchaRef.current?.resetCaptcha();
-                setCaptchaToken(null);
             }
         } catch (err) {
             console.error('Unexpected resend error:', err);
@@ -238,24 +215,11 @@ export default function ConfirmEmailPage() {
                     <div className="text-sm text-text-muted space-y-2">
                         <div className="flex flex-col items-center gap-2">
                             <p>¿No recibiste el correo?</p>
-                            {hcaptchaConfigured && (
-                                <div className="w-full flex justify-center py-3">
-                                    <HCaptcha
-                                        sitekey={HCAPTCHA_SITE_KEY}
-                                        theme="dark"
-                                        ref={captchaRef}
-                                        onVerify={(token) => setCaptchaToken(token)}
-                                    />
-                                </div>
-                            )}
+                            
                             <button
                                 type="button"
                                 onClick={handleResend}
-                                disabled={
-                                    resending ||
-                                    !effectiveEmail ||
-                                    (hcaptchaConfigured && !captchaToken)
-                                }
+                                disabled={resending || !effectiveEmail}
                                 className="text-primary hover:text-accent font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {resending ? (

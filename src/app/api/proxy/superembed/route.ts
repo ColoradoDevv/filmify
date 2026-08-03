@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
+    // PUBLIC: playback is available without an account (auth is optional on
+    // Filmify). Abuse protection relies on the strict imdb_id input validation
+    // below and the IP-ban check in middleware.
+
     const { searchParams } = new URL(request.url);
     const imdbFull = searchParams.get('imdb_id'); // ej: tt0137523
     const server = searchParams.get('server') || '1';
@@ -53,4 +57,6 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export const runtime = 'edge';
+// Note: `export const runtime = 'edge'` has been removed.
+// @opennextjs/cloudflare only supports the Node.js runtime.
+// The edge runtime from Next.js is intentionally unsupported by this adapter.

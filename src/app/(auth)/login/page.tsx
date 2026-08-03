@@ -1,37 +1,19 @@
 'use client';
 
-import { useState, useRef, useActionState, useEffect } from 'react';
+import { useState, useRef, useActionState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { loginAction } from './actions';
 
 const initialState = { error: '' };
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
-const hcaptchaConfigured = Boolean(HCAPTCHA_SITE_KEY);
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState(loginAction, initialState);
     const [showPassword, setShowPassword] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-    const captchaRef = useRef<HCaptcha>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const searchParams = useSearchParams();
     const next = searchParams.get('next') ?? '';
-
-    useEffect(() => {
-        if (state?.error) {
-            captchaRef.current?.resetCaptcha();
-            setCaptchaToken(null);
-        }
-    }, [state?.error]);
-
-    const handleSubmit = (formData: FormData) => {
-        if (hcaptchaConfigured && !captchaToken) return;
-        if (hcaptchaConfigured && captchaToken) formData.set('captchaToken', captchaToken);
-        formAction(formData);
-    };
 
     return (
         <div className="relative">
@@ -76,9 +58,10 @@ export default function LoginPage() {
                 )}
 
                 {/* Form */}
-                <form action={handleSubmit} className="space-y-4" ref={formRef}>
+                <form action={formAction} className="space-y-4" ref={formRef}>
                     {/* Preserve redirect destination */}
                     {next && <input type="hidden" name="next" value={next} />}
+
                     {/* Email/Nickname Field */}
                     <div>
                         <label
@@ -126,32 +109,24 @@ export default function LoginPage() {
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
                                 aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
-                                {showPassword ? (
-                                    <EyeOff className="w-5 h-5" />
-                                ) : (
-                                    <Eye className="w-5 h-5" />
-                                )}
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
                         </div>
-                    </div>
-
-                    {/* hCaptcha */}
-                    {hcaptchaConfigured && (
-                        <div className="flex justify-center py-2">
-                            <HCaptcha
-                                sitekey={HCAPTCHA_SITE_KEY}
-                                onVerify={(token) => setCaptchaToken(token)}
-                                ref={captchaRef}
-                                theme="dark"
-                            />
+                        <div className="flex justify-end mt-1.5">
+                            <Link
+                                href="/forgot-password"
+                                className="text-xs text-text-muted hover:text-primary transition-colors"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </Link>
                         </div>
-                    )}
+                    </div>
 
                     {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={isPending}
-                        className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-5"
+                        className="w-full px-6 py-3.5 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-semibold hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 mt-2"
                     >
                         {isPending ? (
                             <>

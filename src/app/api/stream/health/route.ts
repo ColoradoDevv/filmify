@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { validateOutboundUrl } from '@/lib/ssrf-guard';
 
 /**
  * POST /api/stream/health — quick HEAD check to test if a stream URL is live.
  *
- * Requires an authenticated session. The target URL is validated against SSRF
- * attack vectors before any outbound request is made.
+ * PUBLIC: part of the playback flow, which works without an account (auth is
+ * optional on Filmify). The target URL is validated against SSRF attack
+ * vectors before any outbound request is made.
  */
 export async function POST(request: NextRequest) {
-    // 1. Authentication — unauthenticated callers cannot probe arbitrary URLs.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-    }
-
     try {
         const { url } = await request.json();
 

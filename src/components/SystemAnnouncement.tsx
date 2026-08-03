@@ -3,12 +3,36 @@ import AnnouncementBanner from "./AnnouncementBanner";
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Genera un ID único por anuncio basado en el contenido del mensaje.
+ * Si el mensaje cambia → nuevo ID → el banner se vuelve a mostrar.
+ */
+function generateAnnouncementId(message: string): string {
+    return `ann-${Buffer.from(message).toString('base64').slice(0, 8)}`;
+}
+
 export default async function SystemAnnouncement() {
-    const settings = await fetchSettings();
+    let settings;
+    try {
+        settings = await fetchSettings();
+    } catch (error) {
+        console.error('[SystemAnnouncement] Error fetching settings:', error);
+        return null;
+    }
 
-    if (!settings.activeAnnouncement) return null;
+    const activeAnnouncement: string | undefined = settings?.activeAnnouncement;
 
-    const type = settings.announcementType || 'info';
+    if (!activeAnnouncement || typeof activeAnnouncement !== 'string') {
+        return null;
+    }
 
-    return <AnnouncementBanner message={settings.activeAnnouncement} type={type} />;
+    const type = settings?.announcementType || 'info';
+
+    return (
+        <AnnouncementBanner
+            id={generateAnnouncementId(activeAnnouncement)}
+            message={activeAnnouncement}
+            type={type as 'info' | 'warning' | 'success'}
+        />
+    );
 }

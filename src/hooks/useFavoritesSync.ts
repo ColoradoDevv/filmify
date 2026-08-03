@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { loadFavoritesFromSupabase, saveFavoritesToSupabase, mergeFavorites } from '@/lib/supabase/favorites';
 import { useStore } from '@/lib/store/useStore';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 export default function useFavoritesSync() {
     const setFavorites = useStore((state) => state.setFavorites);
@@ -38,7 +38,7 @@ export default function useFavoritesSync() {
 
         syncFavorites();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             if (session?.user) {
                 syncFavorites();
             } else {

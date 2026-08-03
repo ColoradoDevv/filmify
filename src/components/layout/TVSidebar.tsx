@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, Heart, Settings, Film, Search, TrendingUp } from 'lucide-react';
+import { Home, Heart, Settings, Film, Search, TrendingUp, Tv, Radio } from 'lucide-react';
 import { useRef } from 'react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
 const navigation = [
-    { name: 'Inicio', href: '/browse', icon: Home, exact: true },
-    { name: 'Buscar', href: '/search', icon: Search },
+    { name: 'Inicio',     href: '/browse',                  icon: Home,       exact: true },
+    { name: 'Buscar',     href: '/search',                  icon: Search },
     { name: 'Tendencias', href: '/browse?category=trending', icon: TrendingUp },
-    { name: 'Favoritos', href: '/favorites', icon: Heart },
-    { name: 'Ajustes', href: '/settings', icon: Settings },
+    { name: 'Series',     href: '/browse?category=tv',       icon: Tv },
+    { name: 'TV en Vivo', href: '/live-tv',                  icon: Radio },
+    { name: 'Favoritos',  href: '/favorites',                icon: Heart },
+    { name: 'Ajustes',    href: '/settings',                 icon: Settings },
 ];
 
 export default function TVSidebar() {
@@ -56,7 +58,7 @@ export default function TVSidebar() {
     return (
         <aside
             style={{ top: 'var(--announcement-height, 0px)' }}
-            className="tv-sidebar hidden lg:flex lg:flex-col lg:fixed lg:bottom-0 lg:w-24 bg-surface/40 backdrop-blur-xl border-r border-white/10 z-50"
+            className="tv-sidebar flex flex-col fixed left-0 bottom-0 w-16 lg:w-24 bg-surface/40 backdrop-blur-xl border-r border-white/10 z-50"
         >
             <div className="flex flex-col flex-1 min-h-0 relative">
                 {/* Logo */}

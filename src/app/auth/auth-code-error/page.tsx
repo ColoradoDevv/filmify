@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
+import { AdSlot } from '@/components/ads';
 
 export default function AuthCodeErrorPage() {
     return (
@@ -27,6 +28,9 @@ export default function AuthCodeErrorPage() {
                         Confirmar correo
                     </Link>
                 </div>
+
+                {/* 📢 Banner publicitario */}
+                <AdSlot />
             </div>
         </div>
     );

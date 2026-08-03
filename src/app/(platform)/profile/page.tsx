@@ -11,7 +11,9 @@ import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { getMediaDetails } from '@/lib/tmdb/client';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
+import { AdSlot } from '@/components/ads';
 import type { User } from '@supabase/supabase-js';
+import type { Movie as MovieDetails, TVShow as TVDetails } from '@/types/tmdb';
 
 interface ReviewItem {
     id: string;
@@ -203,7 +205,7 @@ export default function ProfilePage() {
                         const details = await getMediaDetails(review.media_type, review.media_id);
                         return {
                             id: review.media_id,
-                            title: review.media_type === 'movie' ? details.title : details.name,
+                            title: getMediaTitle(details, review.media_type),
                             poster_path: details.poster_path || null,
                             media_type: review.media_type,
                         };
@@ -418,6 +420,9 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </section>
+
+            {/* 📢 Banner publicitario */}
+            <AdSlot className="my-0" />
 
             <section className="rounded-3xl border border-surface-light/30 bg-surface-light/80 p-6 shadow-xl shadow-black/5">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -792,7 +797,7 @@ export default function ProfilePage() {
                                                 <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-3xl bg-surface-light">
                                                     {media?.poster_path ? (
                                                         <Image
-                                                            src={getPosterUrl(media.poster_path)}
+                                                            src={getPosterUrl(media.poster_path) ?? ''}
                                                             alt={media.title}
                                                             fill
                                                             className="object-cover"
@@ -836,6 +841,16 @@ export default function ProfilePage() {
                     </section>
                 )}
             </section>
+
+            {/* 📢 Segundo banner — al final del perfil (página con mucho contenido) */}
+            <AdSlot className="my-0" />
         </div>
     );
 }
+
+const getMediaTitle = (details: MovieDetails | TVDetails, mediaType: string) => {
+    if (mediaType === 'movie') {
+        return (details as MovieDetails).title;
+    }
+    return (details as TVDetails).name;
+};

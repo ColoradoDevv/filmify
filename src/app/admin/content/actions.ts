@@ -2,13 +2,13 @@
 
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { logAdminAction } from '@/app/admin/actions';
+import { logAdminAction, requireAdmin } from '@/app/admin/actions';
 
 export async function addToBlacklist(tmdbId: number, mediaType: 'movie' | 'tv', reason: string) {
-    const supabase = await createAdminClient();
-    const { data: { user } } = await createClient().then(c => c.auth.getUser());
+    // SEC-008: verify admin role BEFORE creating the admin client
+    await requireAdmin();
 
-    if (!user) return { success: false, error: 'Unauthorized' };
+    const supabase = await createAdminClient();
 
     // Check if already exists
     const { data: existing } = await supabase

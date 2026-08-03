@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { validateOutboundUrl } from '@/lib/ssrf-guard';
 
 export const dynamic = 'force-dynamic';
@@ -25,12 +24,9 @@ const ALLOWED_EMBED_HOSTS = new Set([
 ]);
 
 export async function GET(request: NextRequest) {
-    // 1. Authentication — only logged-in users can use this proxy.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-    }
+    // PUBLIC: playback works without an account (auth is optional on Filmify).
+    // Abuse protection relies on the embed-host allowlist + SSRF guard below
+    // and the IP-ban check in middleware.
 
     const urlParam = request.nextUrl.searchParams.get('url');
     if (!urlParam) return NextResponse.json({ error: 'Falta URL' }, { status: 400 });

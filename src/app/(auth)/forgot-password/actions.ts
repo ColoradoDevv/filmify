@@ -16,15 +16,9 @@ export async function forgotPasswordAction(
     formData: FormData
 ): Promise<ForgotPasswordState> {
     const email = String(formData.get('email') ?? '').trim().toLowerCase();
-    const captchaToken = String(formData.get('captchaToken') ?? '');
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!email || !EMAIL_RE.test(email)) {
         return { error: 'Por favor ingresa un email válido' };
-    }
-
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Por favor completa el captcha' };
     }
 
     // Build the redirect URL the user will land on after clicking the link.
@@ -40,7 +34,6 @@ export async function forgotPasswordAction(
     const supabase = await createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/auth/callback?next=/reset-password`,
-        ...(hcaptchaEnabled && captchaToken ? { captchaToken } : {}),
     });
 
     if (error) {
@@ -50,6 +43,46 @@ export async function forgotPasswordAction(
         console.error('[forgot-password] resetPasswordForEmail error:', error);
         // Tell the user it succeeded regardless to prevent enumeration.
         return { error: '', success: true };
+    }
+
+    return { error: '', success: true };
+}
+
+export type VerifyRecoveryCodeState = {
+    error: string;
+    success?: boolean;
+};
+
+/**
+ * Verifica el código de recuperación que llega por correo (plantilla con
+ * {{ .Token }}). Al validarlo, Supabase emite una sesión (cookies vía
+ * @supabase/ssr) con la que /reset-password puede llamar a updateUser.
+ */
+export async function verifyRecoveryCodeAction(
+    _prevState: VerifyRecoveryCodeState,
+    formData: FormData
+): Promise<VerifyRecoveryCodeState> {
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const token = String(formData.get('code') ?? '').replace(/\D/g, '');
+
+    if (!email || !EMAIL_RE.test(email)) {
+        return { error: 'Falta el email. Vuelve a solicitar el código.' };
+    }
+
+    if (token.length < 6 || token.length > 10) {
+        return { error: 'El código no es válido. Revisa el correo que te enviamos.' };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'recovery',
+    });
+
+    if (error) {
+        console.error('[forgot-password] verifyOtp error:', error.message);
+        return { error: 'Código inválido o expirado. Solicita uno nuevo.' };
     }
 
     return { error: '', success: true };
