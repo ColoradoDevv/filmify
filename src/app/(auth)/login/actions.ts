@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getOptionalApiKeys, getSupabaseConfig } from '@/lib/env';
+import { getSupabaseConfig } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
 /**
@@ -33,14 +33,9 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     const identifier = String(formData.get('email') ?? '').trim();
     const password = String(formData.get('password') ?? '');
     const captchaToken = String(formData.get('captchaToken') ?? '');
-    const hcaptchaEnabled = Boolean(getOptionalApiKeys().hcaptchaSiteKey);
 
     if (!identifier || !password) {
         return { error: 'Por favor completa todos los campos' };
-    }
-
-    if (hcaptchaEnabled && !captchaToken) {
-        return { error: 'Por favor completa el captcha' };
     }
 
     let email = identifier;
@@ -79,7 +74,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
         return { error: 'El servicio de autenticación no está disponible.' };
     }
 
-    let supabase: any;
+    let supabase;
     try {
         supabase = await createClient();
     } catch (err) {
@@ -88,10 +83,11 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     }
 
     try {
+        const signInOptions = captchaToken ? { options: { captchaToken } } : {};
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
-            ...(hcaptchaEnabled && captchaToken ? { options: { captchaToken } } : {}),
+            ...signInOptions,
         });
 
         if (error) {
