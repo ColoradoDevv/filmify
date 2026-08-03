@@ -74,6 +74,7 @@ export async function registerAction(
 
     const email = String(formData.get('email') ?? '').trim().toLowerCase();
     const password = String(formData.get('password') ?? '');
+    const captchaToken = String(formData.get('captchaToken') ?? '');
     const fullName = '';
 
     const acceptedTerms = formData.get('acceptedTerms') === 'true';
@@ -134,17 +135,19 @@ export async function registerAction(
     // --- Sign up via the cookie-backed server client (so session cookies
     //     get set if email confirmation is disabled in the project). ---
     const supabase = await createClient();
+    const signUpOptions = {
+        emailRedirectTo: `${origin}/auth/callback`,
+        data: {
+            full_name: fullName || null,
+            username: null,
+        },
+        ...(captchaToken ? { captchaToken } : {}),
+    };
+
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-            emailRedirectTo: `${origin}/auth/callback`,
-            data: {
-                full_name: fullName || null,
-                username: null,
-            },
-
-        },
+        options: signUpOptions,
     });
 
     if (signUpError) {
