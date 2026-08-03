@@ -184,18 +184,12 @@ export default async function RootLayout({
         <GoogleAnalytics gaId={gaId} />
         <AnalyticsClient />
         <CookieConsent />
-        <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('consent', 'default', {
-              'ad_storage': 'denied',
-              'ad_user_data': 'denied',
-              'ad_personalization': 'denied',
-              'analytics_storage': 'denied'
-            });
-          `}
-        </Script>
+        <Script
+          defer
+          src="https://analytics.filmify.me/script.js"
+          data-website-id="2824ea64-ae5f-496e-8f86-9919461f025c"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
