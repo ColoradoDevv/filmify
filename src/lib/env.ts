@@ -72,7 +72,9 @@ export function getOptionalApiKeys() {
         cronSecret: process.env.CRON_SECRET ?? '',
         gaId: process.env.NEXT_PUBLIC_GA_ID ?? '',
         contactEmail: process.env.CONTACT_EMAIL ?? '',
-        appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',\n        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',\n    };
+        appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+        hcaptchaSiteKey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '',
+    };
 }
 
 /**
@@ -111,4 +113,3 @@ export function getRequiredEnv(key: string): string {
 export function getOptionalEnv(key: string, defaultValue: string = ''): string {
     return process.env[key] ?? defaultValue;
 }
-
