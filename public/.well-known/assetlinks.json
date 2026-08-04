@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "me.filmify.app",
+      "sha256_cert_fingerprints": [
+        "FC:F2:D3:6A:B7:47:18:3E:F3:8E:FE:85:96:D5:CD:D4:0B:3A:23:9D:4B:B8:A5:D0:53:74:22:18:A3:FD:68:76"
+      ]
+    }
+  }
+]

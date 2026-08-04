@@ -56,7 +56,22 @@ bubblewrap init --manifest=https://filmify.me/manifest.json
 
 Bubblewrap descargará el manifest y creará un archivo `twa-manifest.json`.
 
-### 4) Ajustar el TWA manifest
+### 4) Verificar los Digital Asset Links
+
+Para que Android muestre la app como una TWA real y no como una pestaña de navegador, tu dominio debe servir el archivo de enlaces digitales en:
+
+```text
+https://filmify.me/.well-known/assetlinks.json
+```
+
+Ese archivo debe contener los datos del paquete Android y el fingerprint SHA-256 de la clave que uses para la app.
+
+- En desarrollo con un APK instalado en modo debug, usa el fingerprint de la clave de debug.
+- Para publicar, reemplaza ese fingerprint por el de la keystore de release que usarás en Play Store.
+
+Si falta o no coincide, Android caerá en un fallback de `customtabs`, y la app se parecerá a un navegador.
+
+### 5) Ajustar el TWA manifest
 
 Revisa los valores generados y cambia lo necesario:
 - `host`: el dominio de tu sitio.

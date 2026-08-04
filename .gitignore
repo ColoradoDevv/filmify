@@ -58,11 +58,11 @@ next-env.d.ts
 
 # Android / Trusted Web Activity build artifacts
 .gradle/
-/app/.gradle/
-/app/build/
-/app/gradle/
+/android-app/.gradle/
+/android-app/build/
 /.idea/
-/app/.idea/
+/android-app/.idea/
+/android-app/local.properties
 local.properties
 android.keystore
 *.keystore
