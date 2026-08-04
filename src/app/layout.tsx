@@ -128,6 +128,8 @@ export default async function RootLayout({
         <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/touch-icon-iphone.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/touch-icon-ipad.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0b0e11" />
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
         {/* Player embeds — connect early so playback starts faster */}
@@ -194,6 +196,16 @@ export default async function RootLayout({
               'ad_personalization': 'denied',
               'analytics_storage': 'denied'
             });
+          `}
+        </Script>
+
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service worker registered:', reg.scope))
+                .catch(err => console.warn('SW registration failed:', err));
+            }
           `}
         </Script>
       </body>
