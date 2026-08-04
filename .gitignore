@@ -56,5 +56,20 @@ next-env.d.ts
 # wrangler state and build
 .wrangler/
 
+# Android / Trusted Web Activity build artifacts
+.gradle/
+/android-app/.gradle/
+/android-app/build/
+/.idea/
+/android-app/.idea/
+/android-app/local.properties
+local.properties
+android.keystore
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+
 # local helper files
 commits.txt

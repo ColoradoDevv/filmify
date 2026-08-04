@@ -83,6 +83,8 @@ rompen el build ni el servidor).
 | `npm run lint`        | ESLint sobre todo el proyecto                          |
 | `npm run check-env`   | Verifica que `.env.local` tenga las variables requeridas |
 
+Para empaquetar la web como un APK Android usando Trusted Web Activity (TWA), consulta [`docs/ANDROID_TWA.md`](./docs/ANDROID_TWA.md).
+
 No hay un suite de tests automatizado (`npm test`); la validación se hace con
 `npm run build` (TypeScript estricto + ESLint) y scripts manuales en
 `scripts/` (p. ej. `test-party-*.mjs` para Watch Party, `verify_security.ts`
