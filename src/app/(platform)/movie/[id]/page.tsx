@@ -65,6 +65,10 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
     });
     const keywords = Array.from(keywordSet).slice(0, 24);
 
+    const posterUrl = getPosterUrl(movie.poster_path);
+    const encodedTitle = encodeURIComponent(title);
+    const encodedImage = posterUrl ? encodeURIComponent(posterUrl) : undefined;
+
     return {
         // `absolute`: el título ya incluye "| FilmiFy"; evita que el template
         // del layout lo duplique ("... | FilmiFy | FilmiFy").
@@ -72,12 +76,6 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
         description,
         keywords,
         alternates: { canonical },
-        // Usamos el renderer genérico "page" con título e imagen (si existe)
-        // para asegurar que cada película tenga su OG personalizado con su nombre
-        // y póster, sin depender de que el endpoint de OG pueda llamar a TMDB.
-        const posterUrl = getPosterUrl(movie.poster_path);
-        const encodedTitle = encodeURIComponent(title);
-        const encodedImage = posterUrl ? encodeURIComponent(posterUrl) : undefined;
 
         openGraph: {
             title,
@@ -93,6 +91,7 @@ function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>):
                 },
             ],
         },
+
 
 
         twitter: {
