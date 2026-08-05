@@ -10,7 +10,9 @@ export const metadata: Metadata = {
         description: 'Ponte en contacto con el equipo de FilmiFy.',
         url: '/contact',
         type: 'website',
+        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('Contacto - FilmiFy')}` }],
     },
+
 };
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {

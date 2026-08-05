@@ -75,13 +75,28 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
         description,
         keywords,
         alternates: { canonical },
-        // El og:image lo genera opengraph-image.tsx de este segmento (SVG).
+        // Usamos el renderer genérico "page" con título e imagen (si existe)
+        // para asegurar que cada serie tenga su OG personalizado con su nombre
+        // y póster, sin depender de que el endpoint de OG tenga que llamar a TMDB.
+        const posterUrl = getPosterUrl(tvShow.poster_path);
+        const encodedTitle = encodeURIComponent(title);
+        const encodedImage = posterUrl ? encodeURIComponent(posterUrl) : undefined;
+
         openGraph: {
             title,
             description,
             url: canonical,
             type: 'website',
+            images: [
+                {
+                    url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodedTitle}${encodedImage ? `&image=${encodedImage}` : ''}`,
+                    width: 1200,
+                    height: 630,
+                },
+            ],
         },
+
+
         twitter: {
             card: 'summary_large_image',
             title,

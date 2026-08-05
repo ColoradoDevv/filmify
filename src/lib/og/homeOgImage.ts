@@ -169,7 +169,7 @@ export async function renderHomeOgImage(): Promise<Response> {
 
             <g transform="translate(${titleX} 116)">
                 ${renderFilmifyLogoMarkup(0, 0, 72)}
-            <text x="88" y="48" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="800" letter-spacing="-2">
+            <text x="88" y="48" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="800">
                     <tspan fill="#ffffff">Filmi</tspan>
                     <tspan fill="#00c2ff">Fy</tspan>
                 </text>
@@ -196,10 +196,10 @@ export async function renderHomeOgImage(): Promise<Response> {
                 .join('')}
 
             <g transform="translate(${titleX} ${pillsY})">
-                <rect x="0" y="0" width="132" height="46" rx="9999" fill="#00c2ff" />
+                <rect x="0" y="0" width="132" height="46" rx="12" fill="#00c2ff" />
                 <text x="66" y="31" text-anchor="middle" fill="#001f2a" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Gratis</text>
 
-                <rect x="148" y="0" width="194" height="46" rx="9999" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2" />
+                <rect x="148" y="0" width="194" height="46" rx="12" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2" />
                 <text x="245" y="31" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Sin registro</text>
             </g>
 

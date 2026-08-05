@@ -42,7 +42,9 @@ export const metadata: Metadata = {
         description:
             'Descubre dónde ver películas y series online. Explora streaming, alquiler, compra y las mejores recomendaciones en un solo lugar.',
         type: 'website',
+        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('Explora películas y series online | FilmiFy')}` }],
     },
+
     twitter: {
         card: 'summary_large_image',
         title: 'Explora películas y series online | FilmiFy',

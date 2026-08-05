@@ -14,7 +14,9 @@ export const metadata = {
         description: 'Conoce la misión de FilmiFy: transformar la forma en que descubres y disfrutas del cine y las series.',
         url: '/about',
         type: 'website',
+        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('Sobre Nosotros - FilmiFy')}` }],
     },
+
 };
 
 export default function AboutPage() {

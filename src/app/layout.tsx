@@ -79,8 +79,11 @@ export const metadata: Metadata = {
     siteName: "FilmiFy",
     title: "FilmiFy - Dónde ver películas y series online",
     description: "FilmiFy te ayuda a descubrir dónde ver películas y series online, con reseñas, tráileres y proveedores actualizados.",
-    // og:image is generated as a 1200x630 SVG by src/app/opengraph-image.tsx
-    // (file-based metadata) — keeps the Worker bundle small.
+    // og:image is generated dynamically by the opengraph-image route.
+    // Provide a default (home) image URL so crawlers and social cards get a concrete URL.
+    images: [
+      { url: `${appUrl}/opengraph-image?type=home`, width: 1200, height: 630 }
+    ],
   },
   twitter: {
     card: "summary_large_image",

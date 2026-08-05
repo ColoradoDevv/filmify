@@ -21,7 +21,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: card.description?.slice(0, 160)
             ?? `Ficha de ${card.title}: sinopsis, puntuación y dónde verlo online.`,
         alternates: { canonical: `/anime/${card.id}` },
-        openGraph: card.coverImage ? { images: [card.coverImage] } : undefined,
+        // Use the generic page OG renderer with title and cover image (when available)
+        const encodedTitle = encodeURIComponent(`${card.title} — Anime | FilmiFy`);
+        const encodedImage = card.coverImage ? encodeURIComponent(card.coverImage) : undefined;
+
+        openGraph: {
+            title: card.title,
+            description: card.description?.slice(0, 160) ?? undefined,
+            images: [
+                {
+                    url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodedTitle}${encodedImage ? `&image=${encodedImage}` : ''}`,
+                    width: 1200,
+                    height: 630,
+                },
+            ],
+        },
+
     };
 }
 

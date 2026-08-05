@@ -142,7 +142,7 @@ function renderTitleSvg(options: {
                 rating
                     ? `
                         <g transform="translate(${textX} ${metaTop})">
-                            <rect x="0" y="0" width="${badgeWidth}" height="46" rx="9999" fill="#00c2ff" />
+                            <rect x="0" y="0" width="${badgeWidth}" height="46" rx="12" fill="#00c2ff" />
                             ${renderStarMarkup(14, 11, 24)}
                             <text x="42" y="31" fill="#001f2a" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">${escapeXml(rating)}</text>
                         </g>
@@ -155,7 +155,7 @@ function renderTitleSvg(options: {
             </text>
 
             <g transform="translate(${textX} ${pillTop})">
-                <rect x="0" y="0" width="220" height="50" rx="9999" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2" />
+                <rect x="0" y="0" width="220" height="50" rx="12" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2" />
                 <text x="110" y="33" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Ver gratis en FilmiFy</text>
             </g>
         </svg>

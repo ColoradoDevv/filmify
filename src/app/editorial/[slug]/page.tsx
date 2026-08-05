@@ -31,10 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             type: 'article',
             publishedTime: article.published_at ?? undefined,
             authors: [article.author_name],
-            images: article.cover_url ? [{ url: article.cover_url }] : [],
+            images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent(article.title)}&image=${encodeURIComponent(article.cover_url ?? '')}` }],
             siteName: 'FilmiFy',
             url: `/editorial/${slug}`,
         },
+
         twitter: {
             card: 'summary_large_image',
             title: article.title,

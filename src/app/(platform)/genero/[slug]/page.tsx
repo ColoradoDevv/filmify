@@ -36,6 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description: genre.description,
             url: `/genero/${genre.slug}`,
             type: 'website',
+            images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent(genre.title)}` }],
         },
         twitter: {
             card: 'summary_large_image',
