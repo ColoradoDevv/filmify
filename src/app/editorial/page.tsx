@@ -28,7 +28,9 @@ export const metadata: Metadata = {
         url: '/editorial',
         siteName: 'FilmiFy',
         locale: 'es_ES',
+        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('FilmiFy Editorial')}` }],
     },
+
     twitter: {
         card: 'summary_large_image',
         title: 'FilmiFy Editorial',

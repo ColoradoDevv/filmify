@@ -12,7 +12,9 @@ export const metadata: Metadata = {
         description: 'Mira canales de TV en vivo gratis de todo el mundo: noticias, deportes, entretenimiento y más.',
         url: '/live-tv',
         type: 'website',
+        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('TV en Vivo gratis - Canales de todo el mundo | FilmiFy')}` }],
     },
+
 };
 
 // ISR: rebuild at most once per day. The channel list is cached in Supabase
