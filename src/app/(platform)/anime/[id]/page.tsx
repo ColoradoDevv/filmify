@@ -16,14 +16,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // Soft-404: si AniList no lo tiene, no indexar (Next inyecta noindex en notFound()).
     if (!anime) return { robots: { index: false, follow: false } };
     const card = toAnimeCard(anime);
+
+    const encodedTitle = encodeURIComponent(`${card.title} — Anime | FilmiFy`);
+    const encodedImage = card.coverImage ? encodeURIComponent(card.coverImage) : undefined;
+
     return {
         title: `${card.title} — Anime | FilmiFy`,
         description: card.description?.slice(0, 160)
             ?? `Ficha de ${card.title}: sinopsis, puntuación y dónde verlo online.`,
         alternates: { canonical: `/anime/${card.id}` },
-        // Use the generic page OG renderer with title and cover image (when available)
-        const encodedTitle = encodeURIComponent(`${card.title} — Anime | FilmiFy`);
-        const encodedImage = card.coverImage ? encodeURIComponent(card.coverImage) : undefined;
 
         openGraph: {
             title: card.title,

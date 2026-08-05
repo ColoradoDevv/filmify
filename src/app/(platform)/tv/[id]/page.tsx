@@ -68,6 +68,10 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
 
     const keywords = Array.from(keywordSet).slice(0, 24);
 
+    const posterUrl = getPosterUrl(tvShow.poster_path);
+    const encodedTitle = encodeURIComponent(title);
+    const encodedImage = posterUrl ? encodeURIComponent(posterUrl) : undefined;
+
     return {
         // `absolute`: el título ya incluye "| FilmiFy"; evita que el template
         // del layout lo duplique ("... | FilmiFy | FilmiFy").
@@ -75,12 +79,6 @@ function buildTvMetadata(tvShow: Awaited<ReturnType<typeof getTVDetails>>): Meta
         description,
         keywords,
         alternates: { canonical },
-        // Usamos el renderer genérico "page" con título e imagen (si existe)
-        // para asegurar que cada serie tenga su OG personalizado con su nombre
-        // y póster, sin depender de que el endpoint de OG tenga que llamar a TMDB.
-        const posterUrl = getPosterUrl(tvShow.poster_path);
-        const encodedTitle = encodeURIComponent(title);
-        const encodedImage = posterUrl ? encodeURIComponent(posterUrl) : undefined;
 
         openGraph: {
             title,
