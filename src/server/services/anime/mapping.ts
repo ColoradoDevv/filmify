@@ -194,6 +194,11 @@ async function buildIndex(): Promise<IdIndex | null> {
     return { byAnilist, byTmdb };
 }
 
+/** ¿Hay un índice utilizable ahora mismo, sin esperar a ninguna descarga? */
+function isWarm(): boolean {
+    return _index != null && Date.now() - _builtAt < TTL_MS;
+}
+
 /**
  * Devuelve el índice, reconstruyéndolo si venció el TTL. Las llamadas
  * concurrentes comparten una única construcción en vuelo (mismo patrón que
@@ -257,6 +262,32 @@ export async function canonicalAnilistForTmdb(
         if (exact) return exact;
     }
     return all[0];
+}
+
+/**
+ * Igual que `canonicalAnilistForTmdb`, pero SIN esperar a que se construya el
+ * índice: si aún no está caliente, devuelve null y lanza la construcción en
+ * segundo plano para que las siguientes peticiones sí acierten.
+ *
+ * Es la variante que debe usar la ficha de serie (/tv/[id]): esa página se
+ * renderiza para CUALQUIER serie, no solo anime, y bloquearla mientras se
+ * descargan 5,9 MB penalizaría a todo el catálogo de series en cada arranque
+ * en frío de un worker. El grueso de las redirecciones ya lo resuelve el
+ * middleware con su snapshot estático; esto es solo la red de seguridad para
+ * los animes que aún no estén en él.
+ */
+export async function canonicalAnilistForTmdbIfWarm(
+    tmdbId: number,
+    season?: number,
+): Promise<AnimeIdMatch | null> {
+    if (!Number.isFinite(tmdbId) || tmdbId <= 0) return null;
+    if (!isWarm()) {
+        // Dispara la construcción sin esperarla. `void` + catch para no dejar
+        // una promesa rechazada sin gestionar.
+        void getIndex().catch(() => null);
+        return null;
+    }
+    return canonicalAnilistForTmdb(tmdbId, season);
 }
 
 /**

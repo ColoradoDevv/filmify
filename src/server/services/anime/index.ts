@@ -33,6 +33,7 @@ export {
     tmdbFromAnilist,
     anilistFromTmdb,
     canonicalAnilistForTmdb,
+    canonicalAnilistForTmdbIfWarm,
     isAnimeTmdbId,
     warmAnimeIdIndex,
 } from './mapping';

@@ -7,7 +7,7 @@ import {
     filterAvailableSeries,
     getSeriesEpisodeMap,
 } from '@/server/services/vimeus';
-import { canonicalAnilistForTmdb } from '@/server/services/anime';
+import { canonicalAnilistForTmdbIfWarm } from '@/server/services/anime';
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
@@ -150,7 +150,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
     //
     // Nota: `permanentRedirect` emite 308, que Google trata igual que un 301 y
     // es lo mismo que producen los redirects de next.config.ts.
-    const animeMatch = await canonicalAnilistForTmdb(tvId).catch(() => null);
+    const animeMatch = await canonicalAnilistForTmdbIfWarm(tvId).catch(() => null);
     if (animeMatch) permanentRedirect(`/anime/${animeMatch.anilistId}`);
 
     let tvShow;

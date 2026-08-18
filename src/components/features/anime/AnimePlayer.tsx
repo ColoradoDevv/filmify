@@ -17,7 +17,7 @@
  * costarle al usuario ni un clic.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import {
     Play, Loader2, AlertCircle, RefreshCw, Maximize, Server,
@@ -39,6 +39,18 @@ interface AnimePlayerProps {
 }
 
 const LOAD_TIMEOUT_MS = 20_000;
+
+/**
+ * Episodios por bloque en el navegador inferior.
+ *
+ * No es solo estética: pintar la lista entera de una serie larga hunde el
+ * tiempo hasta que la página responde. Medido con One Piece (1174 episodios),
+ * los 1174 botones tardaban VARIOS SEGUNDOS en hidratar, y hasta entonces ni
+ * el botón de reproducir ni el selector de servidor respondían al clic.
+ * Con bloques de 100 el DOM se mantiene acotado y la página es interactiva
+ * enseguida, independientemente de lo larga que sea la serie.
+ */
+const EPISODES_PER_RANGE = 100;
 
 /** Etiqueta corta de la pista, para el chip junto al nombre del servidor. */
 const AUDIO_LABEL: Record<AnimeSource['audio'], string> = {
@@ -75,6 +87,29 @@ export default function AnimePlayer({
     const active: AnimeSource | undefined = sources[activeIdx];
     const hasNext = episode < episodeCount;
     const hasPrev = episode > 1;
+
+    // ── Bloques de episodios (ver EPISODES_PER_RANGE) ────────────────────────
+    const ranges = useMemo(() => {
+        const out: { start: number; end: number }[] = [];
+        for (let start = 1; start <= episodeCount; start += EPISODES_PER_RANGE) {
+            out.push({ start, end: Math.min(start + EPISODES_PER_RANGE - 1, episodeCount) });
+        }
+        return out;
+    }, [episodeCount]);
+
+    const [rangeStart, setRangeStart] = useState(1);
+
+    // El bloque visible sigue al episodio actual (por ejemplo al usar las
+    // flechas de anterior/siguiente y cruzar de bloque).
+    useEffect(() => {
+        const start = Math.floor((episode - 1) / EPISODES_PER_RANGE) * EPISODES_PER_RANGE + 1;
+        setRangeStart(start);
+    }, [episode]);
+
+    const visibleEpisodes = useMemo(() => {
+        const end = Math.min(rangeStart + EPISODES_PER_RANGE - 1, episodeCount);
+        return Array.from({ length: Math.max(0, end - rangeStart + 1) }, (_, i) => rangeStart + i);
+    }, [rangeStart, episodeCount]);
 
     // ── Carga de fuentes al cambiar de episodio ──────────────────────────────
     const loadEpisode = useCallback(async (ep: number, autoplay: boolean) => {
@@ -388,8 +423,30 @@ export default function AnimePlayer({
                         </div>
                     </div>
 
+                    {/* Selector de bloque — solo si la serie excede un bloque */}
+                    {ranges.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 mb-1">
+                            {ranges.map((r) => {
+                                const activeRange = r.start === rangeStart;
+                                return (
+                                    <button
+                                        key={r.start}
+                                        onClick={() => setRangeStart(r.start)}
+                                        className={`shrink-0 px-3 h-8 rounded-lg text-xs font-bold transition-colors ${
+                                            activeRange
+                                                ? 'bg-primary/20 border border-primary/40 text-primary'
+                                                : 'bg-white/5 border border-white/10 text-on-surface-variant hover:text-white'
+                                        }`}
+                                    >
+                                        {r.start}–{r.end}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
-                        {Array.from({ length: episodeCount }, (_, i) => i + 1).map((ep) => (
+                        {visibleEpisodes.map((ep) => (
                             <button
                                 key={ep}
                                 onClick={() => loadEpisode(ep, true)}

@@ -52,15 +52,29 @@ export function buildMegaplayUrl(
 /**
  * ¿Tiene MegaPlay este episodio?
  *
- * Discrimina por el `<title>` de la respuesta (ver cabecera). Fail-closed: si
- * la petición falla o el HTML no trae un título reconocible, devolvemos false
- * — preferimos ocultar un anime a ofrecer un reproductor que no carga.
+ * Devuelve tres estados, y la distinción IMPORTA:
+ *   true  — el embed resolvió un fichero (`<title>File 13461 - MegaPlay</title>`).
+ *   false — MegaPlay dice explícitamente que no lo tiene (su página de error).
+ *   null  — NO SE PUEDE SABER: el proveedor está caído, dio 5xx, agotó el
+ *           tiempo o cambió su maquetado.
+ *
+ * Por qué tres estados y no un booleano
+ * -------------------------------------
+ * El catálogo de anime se filtra con esta sonda. Con un booleano fail-closed,
+ * una caída de megaplay.buzz convertía «no lo sé» en «no existe» para TODOS
+ * los títulos y la sección de anime entera se quedaba vacía (verificado en
+ * pruebas). Separando «no lo tiene» de «no he podido preguntar», quien llama
+ * puede degradar con criterio: ante un fallo de infraestructura preferimos
+ * mostrar el catálogo aunque alguna ficha falle al reproducir —el reproductor
+ * ya salta al siguiente servidor— antes que vaciar la sección.
+ *
+ * Un 4xx sí es respuesta definitiva (no existe); un 5xx es problema suyo.
  */
 export async function probeMegaplay(
     anilistId: number,
     episode = 1,
     audio: 'sub' | 'dub' = 'sub',
-): Promise<boolean> {
+): Promise<boolean | null> {
     if (!Number.isFinite(anilistId) || anilistId <= 0) return false;
 
     try {
@@ -74,16 +88,29 @@ export async function probeMegaplay(
             next: { revalidate: PROBE_REVALIDATE_S },
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
+
+        // 5xx: su servidor está mal, no es una respuesta sobre el contenido.
+        if (res.status >= 500) {
+            if (DEBUG) console.warn(`[megaplay] HTTP ${res.status} para ${anilistId}`);
+            return null;
+        }
+        // 4xx: respuesta definitiva — no lo tiene.
         if (!res.ok) return false;
 
         const html = await res.text();
         // Página de error explícita.
         if (/<title>\s*Error\s*-\s*MegaPlay\s*<\/title>/i.test(html)) return false;
         // Página buena: el título lleva el id del fichero resuelto.
-        return /<title>\s*File\s+\d+\s*-\s*MegaPlay\s*<\/title>/i.test(html);
+        if (/<title>\s*File\s+\d+\s*-\s*MegaPlay\s*<\/title>/i.test(html)) return true;
+
+        // 200 con maquetado que no reconocemos: probablemente han cambiado su
+        // HTML. No es «no existe» — es que ya no sabemos leerlo.
+        if (DEBUG) console.warn(`[megaplay] maquetado no reconocido para ${anilistId}`);
+        return null;
     } catch (err) {
+        // Timeout, DNS, conexión rechazada… nada de esto habla del contenido.
         if (DEBUG) console.warn(`[megaplay] probe falló para ${anilistId}:`, err);
-        return false;
+        return null;
     }
 }
 

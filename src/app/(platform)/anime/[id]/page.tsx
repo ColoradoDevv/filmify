@@ -13,6 +13,7 @@ interface Props { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { id } = await params;
+    if (!/^\d+$/.test(id)) return { robots: { index: false, follow: false } };
     const anime = await getAnimeById(Number(id)).catch(() => null);
     // Soft-404: si AniList no lo tiene, no indexar (Next inyecta noindex en notFound()).
     if (!anime) return { robots: { index: false, follow: false } };
@@ -44,9 +45,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export const revalidate = 3600;
 
+/**
+ * Los ids de AniList son enteros positivos: descartamos lo demás sin gastar
+ * una petición a AniList.
+ *
+ * Ojo con las expectativas: esto NO consigue un 404 con status real. En esta
+ * app `notFound()` siempre acaba pintando la página de error con status 200
+ * (soft-404), porque los layouts hacen await y la respuesta ya está en
+ * streaming cuando corre la página — comprobado también en rutas ajenas a
+ * este módulo, como /editorial/categoria/[cat]. La defensa efectiva contra
+ * la indexación es el `robots: noindex` que emite `generateMetadata`.
+ */
+function parseAnilistId(raw: string): number | null {
+    if (!/^\d+$/.test(raw)) return null;
+    const n = Number(raw);
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
 export default async function AnimeDetailPage({ params }: Props) {
     const { id } = await params;
-    const anime = await getAnimeById(Number(id)).catch(() => null);
+    const anilistId = parseAnilistId(id);
+    if (anilistId === null) notFound();
+
+    const anime = await getAnimeById(anilistId).catch(() => null);
     if (!anime) notFound();
 
     const card = toAnimeCard(anime);

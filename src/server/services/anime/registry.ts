@@ -124,7 +124,8 @@ export async function isAnimePlayable(
     if (!Number.isFinite(anilistId) || anilistId <= 0) return false;
 
     // 1) MegaPlay: id nativo de AniList y sonda fiable en servidor.
-    if (await probeMegaplay(anilistId, 1).catch(() => false)) return true;
+    const mega = await probeMegaplay(anilistId, 1).catch(() => null);
+    if (mega === true) return true;
 
     // 2) Vimeus: solo si nos piden profundidad — implica resolver el tmdb_id.
     if (opts.deep) {
@@ -133,6 +134,13 @@ export async function isAnimePlayable(
             .catch(() => false);
         if (available === true) return true;
     }
+
+    // 3) La sonda no pudo pronunciarse (proveedor caído, 5xx, timeout, cambio
+    //    de maquetado). Degradamos ABIERTO a propósito: si tratáramos «no lo
+    //    sé» como «no existe», una caída de un único proveedor vaciaría la
+    //    sección de anime entera. Es preferible mostrar el catálogo y que el
+    //    reproductor salte de servidor a dejar la home de anime en blanco.
+    if (mega === null) return true;
 
     return false;
 }
