@@ -12,8 +12,7 @@ unlocks favorites, lists, reviews, watch parties, and notifications. There is
 also an admin dashboard for content/user/editorial moderation.
 
 Additional bolted-on features: a Live TV section, an editorial/blog section
-(SEO articles), a synchronized "Watch Party" feature, and a World Cup 2026
-live-scores/streaming section (`/mundial`).
+(SEO articles), and a synchronized "Watch Party" feature.
 
 ## Tech stack
 
@@ -23,7 +22,7 @@ live-scores/streaming section (`/mundial`).
 - **Auth/DB**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Content data**: TMDB (The Movie Database) API
 - **AI**: Groq SDK for recommendations
-- **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics, football-data.org (World Cup)
+- **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics
 - **Player**: hls.js + third-party embed providers (Vimeus, SuperEmbed, "Latino" proxy)
 
 ## Repository structure
@@ -33,7 +32,7 @@ src/
 ├── app/                      # Next.js App Router
 │   ├── (auth)/               # Route group: login, register, password reset, confirm-email
 │   ├── (platform)/           # Route group: browse, search, favorites, lists, profile,
-│   │                          #   settings, live-tv, watch-party, mundial (World Cup)
+│   │                          #   settings, live-tv, watch-party
 │   ├── admin/                 # Admin dashboard (RBAC-gated: admin/super_admin role)
 │   ├── api/                   # Route handlers (proxies, cron jobs, watch-party, stream health…)
 │   ├── actions/               # Top-level Server Actions (catalog, search, streams, ai, vidsrc)
@@ -44,7 +43,7 @@ src/
 │   ├── ui/                   # shadcn/ui primitives (button, card, dropdown, table, …)
 │   ├── features/             # Movie/TV cards, players, hero, AI recommendations, search
 │   ├── layout/                # Navbar, Sidebar, Footer, TV layout wrappers, mobile tab bar
-│   ├── admin/, ads/, auth/, editorial/, live-tv/, tv/, worldcup/
+│   ├── admin/, ads/, auth/, editorial/, live-tv/, tv/
 ├── server/                    # Backend layer — see "Server layer" below
 │   ├── services/              # tmdb, ai, embed-extractor, live-tv, admin-settings, admin-logger
 │   ├── repositories/          # supabase (server/admin/service-role clients), history
@@ -60,7 +59,7 @@ src/
 │   └── ...editorial, genres, rss, scraper, referrals, notifications, og/ (OG image gen)
 ├── hooks/                     # useFavoritesSync, useKeyboardNavigation, useSpatialNavigation,
 │                              #   useFocusManagement, useTVDetection (smart-TV / D-pad support)
-├── services/                  # Older service modules (embedExtractor, liveTV, worldcup)
+├── services/                  # Older service modules (embedExtractor, liveTV)
 ├── types/                     # Shared TS types (tmdb.ts, watch-party.ts)
 └── styles/                    # tw-animate.css
 
