@@ -333,42 +333,49 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
 
-  /* Larger text for TV viewing */
-  .tv-text-lg {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
+/* Utilidades del modo TV. Van a nivel superior, como el resto de .tv-* de
+   más abajo: estaban anidadas dentro de la regla ::-webkit-scrollbar-thumb:hover
+   (y habían sustituido a su background-color), lo que Tailwind 4 rechaza
+   —"Pseudo-elements can't be followed by selectors"— y tumbaba la compilación
+   del CSS en todas las rutas. */
 
-  .tv-text-xl {
-    font-size: 1.5rem;
-    line-height: 2rem;
-  }
+/* Larger text for TV viewing */
+.tv-text-lg {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
 
-  .tv-text-2xl {
-    font-size: 2rem;
-    line-height: 2.5rem;
-  }
+.tv-text-xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
 
-  /* Larger spacing */
-  .tv-spacing-lg {
-    padding: 1.5rem;
-  }
+.tv-text-2xl {
+  font-size: 2rem;
+  line-height: 2.5rem;
+}
 
-  .tv-spacing-xl {
-    padding: 2rem;
-  }
+/* Larger spacing */
+.tv-spacing-lg {
+  padding: 1.5rem;
+}
 
-  /* Larger touch targets */
-  .tv-target {
-    min-width: 48px;
-    min-height: 48px;
-  }
+.tv-spacing-xl {
+  padding: 2rem;
+}
 
-  .tv-target-lg {
-    min-width: 64px;
-    min-height: 64px;
-  }
+/* Larger touch targets */
+.tv-target {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.tv-target-lg {
+  min-width: 64px;
+  min-height: 64px;
 }
 
 /* TV Mode Body Styles */

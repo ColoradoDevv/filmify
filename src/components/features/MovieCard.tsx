@@ -14,9 +14,16 @@ import { toast } from 'sonner';
 
 interface MovieCardProps {
     movie: Movie | TVShow;
-    mediaType?: 'movie' | 'tv';
+    /** 'anime' pinta la etiqueta correcta; el destino lo fija `href`. */
+    mediaType?: 'movie' | 'tv' | 'anime';
     priority?: boolean;
     quality?: string;
+    /**
+     * Destino explícito. Lo necesita el anime: su ficha vive en
+     * /anime/[anilistId] y la tarjeta solo conoce el id de TMDB, así que quien
+     * la renderiza (que sí tiene el id de AniList) pasa la URL ya construida.
+     */
+    href?: string;
 }
 
 // Valores de calidad que merecen badge (en orden de prioridad visual).
@@ -31,7 +38,7 @@ const QUALITY_CONFIG: Record<string, { label: string; className: string }> = {
     'BluRay': { label: 'BD',  className: 'bg-blue-500/90 text-white' },
 };
 
-export default function MovieCard({ movie, mediaType = 'movie', priority = false, quality }: MovieCardProps) {
+export default function MovieCard({ movie, mediaType = 'movie', priority = false, quality, href }: MovieCardProps) {
     const router = useRouter();
     const { isTV } = useTVDetection();
     const cardRef = useRef<HTMLDivElement>(null);
@@ -46,7 +53,9 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
     const [favLoading, setFavLoading] = useState(false);
 
     const posterUrl = getPosterUrl(movie.poster_path);
-    const linkHref = mediaType === 'tv' ? `/tv/${movie.id}` : `/movie/${movie.id}`;
+    const linkHref = href
+        ?? (mediaType === 'movie' ? `/movie/${movie.id}` : `/tv/${movie.id}`);
+    const typeLabel = mediaType === 'movie' ? 'Película' : mediaType === 'anime' ? 'Anime' : 'Serie';
     const title = 'title' in movie ? movie.title : movie.name;
     const date = 'release_date' in movie ? movie.release_date : movie.first_air_date;
     const year = date ? new Date(date).getFullYear() : '—';
@@ -135,7 +144,7 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
             tabIndex={0}
             data-focusable="true"
             role="link"
-            aria-label={`${title} (${year}) — ${mediaType === 'tv' ? 'Serie' : 'Película'}`}
+            aria-label={`${title} (${year}) — ${typeLabel}`}
             className={[
                 'group relative rounded-[var(--radius-lg)] overflow-hidden cursor-pointer',
                 'bg-surface-container transition-all duration-200',
@@ -238,7 +247,7 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
                         <span className="md3-label-small text-white/70">{year}</span>
                         <span className="w-0.5 h-0.5 rounded-full bg-white/30" />
                         <span className="md3-label-small text-white/70">
-                            {mediaType === 'tv' ? 'Serie' : 'Película'}
+                            {typeLabel}
                         </span>
                     </div>
                 </div>

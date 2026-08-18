@@ -38,7 +38,7 @@ Reescrita como catálogo público estilo Cuevana/PelisPlus: hero con la películ
 ## 3. Seguridad y consideraciones
 
 - RLS de Supabase intacta: las escrituras (reviews, favoritos, perfiles) siguen exigiendo sesión a nivel de base de datos.
-- Los proxies públicos aumentan la superficie de consumo anónimo. Mitigaciones vigentes: allowlists de dominios, SSRF guard, IP bans. **Recomendado a futuro:** rate limiting por IP en los proxies (p. ej. Vercel WAF o Upstash Ratelimit).
+- Los proxies públicos aumentan la superficie de consumo anónimo. Mitigaciones vigentes: allowlists de dominios, SSRF guard, IP bans. **Recomendado a futuro:** rate limiting por IP en los proxies (p. ej. a nivel de Nginx en el servidor, o Upstash Ratelimit).
 - `robots.ts` y `sitemap.ts` ya estaban alineados (contenido indexable, rutas personales en disallow).
 
 ## 4. Verificación

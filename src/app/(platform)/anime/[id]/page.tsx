@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, Calendar, Clapperboard, Layers, ChevronLeft } from 'lucide-react';
+import { Star, Calendar, Clapperboard, Layers, ChevronLeft, Play, Info } from 'lucide-react';
 import { getAnimeById, toAnimeCard, FORMAT_LABELS } from '@/server/services/anilist';
+import { getAnimePlayback, resolveEpisodeCount } from '@/server/services/anime';
 import AnimeCard from '@/components/features/anime/AnimeCard';
-import AnimeWatchButton from '@/components/features/anime/AnimeWatchButton';
+import AnimePlayer from '@/components/features/anime/AnimePlayer';
 import { AdSlot } from '@/components/ads';
 
 interface Props { params: Promise<{ id: string }> }
@@ -51,6 +52,18 @@ export default async function AnimeDetailPage({ params }: Props) {
     const card = toAnimeCard(anime);
     const recs = anime.recommendations.map(toAnimeCard).filter((r) => !r.isAdult).slice(0, 12);
     const accent = card.color ?? 'var(--color-primary)';
+
+    // Reproducción propia del módulo: se resuelve con el id de AniList contra
+    // el registro de proveedores, sin pasar por la ficha de series. El primer
+    // episodio se resuelve en servidor para que el reproductor pinte ya con
+    // sus servidores listos (sin spinner inicial).
+    const episodeCount = resolveEpisodeCount(anime);
+    const initialPlayback = await getAnimePlayback({
+        anilistId: card.id,
+        episode: 1,
+        titles: { english: anime.title.english, romaji: anime.title.romaji },
+        year: card.year,
+    }).catch(() => ({ sources: [], hasVerifiedSource: false }));
 
     return (
         <div className="min-h-screen pb-16">
@@ -129,17 +142,37 @@ export default async function AnimeDetailPage({ params }: Props) {
                             </div>
                         )}
 
-                        {/* CTA: resuelve TMDB→Vimeus en cliente */}
+                        {/* Estado de disponibilidad — el CTA real es el
+                            reproductor que va justo debajo. */}
                         <div className="mt-4">
-                            <AnimeWatchButton
-                                anilistId={card.id}
-                                english={anime.title.english}
-                                romaji={anime.title.romaji}
-                                year={card.year}
-                            />
+                            {initialPlayback.sources.length > 0 ? (
+                                <span className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-primary/10 border border-primary/30 md3-label-medium text-primary">
+                                    <Play className="w-3.5 h-3.5 fill-current" />
+                                    {initialPlayback.sources.length}{' '}
+                                    {initialPlayback.sources.length === 1 ? 'servidor disponible' : 'servidores disponibles'}
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-surface-container-high border border-outline-variant md3-body-small text-on-surface-variant">
+                                    <Info className="w-3.5 h-3.5" />
+                                    Aún no disponible para reproducir
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* ── Reproductor ── */}
+                <section className="mt-6">
+                    <AnimePlayer
+                        anilistId={card.id}
+                        title={card.title}
+                        bannerUrl={anime.bannerImage ?? card.coverImage}
+                        episodeCount={episodeCount}
+                        titles={{ english: anime.title.english, romaji: anime.title.romaji }}
+                        year={card.year}
+                        initialPlayback={initialPlayback}
+                    />
+                </section>
 
                 {/* Sinopsis */}
                 {card.description && (
