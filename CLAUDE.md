@@ -214,11 +214,38 @@ npm run check-env            # verifies required vars exist in .env.local
 
 ## Deployment
 
-- Target platform: Vercel (`vercel.json` defines cron schedules):
-  - `/api/cron/cleanup` — daily at 00:00 (stale watch-party rooms, expired data)
-  - `/api/cron/notifications` — daily at 09:00
-  - `/api/cron/rss` — daily at 06:00 (editorial RSS ingestion)
-  - Cron routes are protected by `CRON_SECRET`.
+- **Real production runs on AWS EC2** (inside a VPC), not Vercel or Cloudflare.
+  `.github/workflows/deploy.yml` triggers on push to `main`: it SSHes into the
+  EC2 host and runs `git pull origin main`, `npm install`, `npm run build`,
+  then `pm2 reload filmify` (PM2 in cluster mode). Docker and Nginx sit on the
+  EC2 host in front of/around the app (Nginx as reverse proxy) — their config
+  is **not** in this repo; it's managed directly on the host.
+- **Cloudflare Workers is not the production runtime.** The `wrangler.jsonc` /
+  `open-next.config.ts` / `custom-worker.ts` setup exists to (1) verify the
+  build compiles/deploys cleanly as a Worker, and (2) Cloudflare manages the
+  `filmify.me` domain/DNS. A green Cloudflare deploy does not mean prod is
+  updated — the EC2 deploy via GitHub Actions is what actually matters.
+  - `wrangler.jsonc`'s `triggers.crons` is dead documentation — it describes
+    the intent but nothing actually invokes it; it never fires against
+    production. **The real cron trigger is the `ubuntu` user's crontab on the
+    EC2 host** (`crontab -l` / `/var/spool/cron/crontabs/ubuntu`, server
+    timezone `Etc/UTC` so schedule times below are literal UTC):
+    ```
+    0 0 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/cleanup
+    0 6 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/rss
+    0 9 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/notifications
+    ```
+    `run-cron.sh` loads `/home/ubuntu/filmify/.env.local`, calls
+    `https://filmify.me$ROUTE` with `Authorization: Bearer $CRON_SECRET` and
+    an `X-Cron-Trigger: system-cron` header, and logs to
+    `/home/ubuntu/logs/cron-<route>.log`. Confirmed via nginx access logs
+    (exactly one request per route per day, no Cloudflare-triggered
+    duplicates) and journald timing (cron fires at :00:01, nginx receives the
+    request 1-4s later — the Cloudflare round trip).
+  - Cron routes are protected by `CRON_SECRET`, sourced from `.env.local` on
+    the EC2 host (same file the app reads, so it can't drift out of sync).
+- `vercel.json` is fully unused (`_LEGACY`, kept only for its cron-schedule
+  reference) — Vercel is not part of the deployment pipeline at all.
 - `poweredByHeader: false` and no framework fingerprinting — keep it that way for SEO/security hygiene.
 
 ## Git workflow
