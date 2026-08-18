@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
     Filter, ChevronDown, Check, Calendar,
-    Film, Tv, Radio, Swords,
+    Film, Tv, Swords,
     ArrowDownWideNarrow, X,
 } from 'lucide-react';
 import {
@@ -27,7 +27,6 @@ const CATEGORIES = [
     { id: 'movie',   name: 'Películas',  icon: Film,   color: 'text-sky-400'    },
     { id: 'tv',      name: 'Series',     icon: Tv,     color: 'text-violet-400' },
     { id: 'anime',   name: 'Anime',      icon: Swords, color: 'text-orange-400' },
-    { id: 'live-tv', name: 'TV en Vivo', icon: Radio,  color: 'text-red-400'    },
 ];
 
 // Fuera del componente para no regenerar el array en cada render

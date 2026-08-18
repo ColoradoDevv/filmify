@@ -11,7 +11,7 @@ import {
     Terminal,
     BookOpen,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 import { AdSlot } from '@/components/ads';
 
 import type { Metadata } from 'next';

@@ -1,18 +1,21 @@
 'use server';
 
 /**
- * Server Actions del apartado de Anime (descubrimiento vía AniList).
+ * Server Actions del apartado de Anime.
  *
- * Envuelven el servicio de AniList (`@/server/services/anilist`) para poder
- * llamarlo desde componentes cliente (búsqueda en vivo, paginación, filtro por
- * género). La reproducción se resuelve por separado con el puente AniList→TMDB.
+ * Dos bloques:
+ *  - Descubrimiento (AniList): búsqueda en vivo, paginación, filtro por género.
+ *  - Reproducción: resolver las fuentes de un episodio contra el registro de
+ *    proveedores. El anime NO pasa por el módulo de series: se identifica por
+ *    su id de AniList de principio a fin.
  */
 
 import {
     getTrendingAnime, getPopularAnime, getTopRatedAnime, getSeasonalAnime,
     searchAnime, getAnimeByGenre,
 } from '@/server/services/anilist';
-import { resolveAnimeTmdb, filterPlayableAnimeCards } from '@/server/services/anime-bridge';
+import { filterPlayableAnimeCards, getAnimePlayback } from '@/server/services/anime';
+import type { AnimePlayback } from '@/server/services/anime';
 import type { AnimeCard } from '@/lib/anilist/types';
 
 export async function searchAnimeAction(query: string, page = 1): Promise<AnimeCard[]> {
@@ -44,18 +47,22 @@ export async function seasonalAnimeAction(page = 1): Promise<AnimeCard[]> {
 }
 
 /**
- * Resuelve el destino reproducible de un anime de AniList.
- * Devuelve la URL de la ficha del catálogo (donde vive el player de Vimeus) o
- * null si no encontramos un tmdb_id razonable.
+ * Fuentes reproducibles de un episodio concreto, ya ordenadas (español
+ * primero, verificadas antes que las que no se pueden comprobar).
+ *
+ * El reproductor la llama cada vez que el usuario cambia de episodio: las
+ * URLs de los proveedores llevan el número de episodio dentro, así que no se
+ * pueden derivar en cliente sin duplicar aquí la lógica del registro.
  */
-export async function resolveAnimeWatchHref(
+export async function getAnimeSourcesAction(
     anilistId: number,
-    english?: string | null,
-    romaji?: string | null,
+    episode: number,
+    titles?: { english?: string | null; romaji?: string | null },
     year?: number | null,
-): Promise<{ href: string; confirmed: boolean } | null> {
-    const match = await resolveAnimeTmdb(anilistId, { english, romaji, year });
-    if (!match) return null;
-    const base = match.mediaType === 'movie' ? '/movie' : '/tv';
-    return { href: `${base}/${match.tmdbId}`, confirmed: match.confirmed };
+): Promise<AnimePlayback> {
+    if (!Number.isFinite(anilistId) || anilistId <= 0) {
+        return { sources: [], hasVerifiedSource: false };
+    }
+    const ep = Number.isFinite(episode) && episode > 0 ? Math.floor(episode) : 1;
+    return getAnimePlayback({ anilistId, episode: ep, titles, year });
 }

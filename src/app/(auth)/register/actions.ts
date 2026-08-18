@@ -2,8 +2,7 @@
 
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseServerClient as createClient, createSupabaseStatelessAdminClient as createAdminClient } from '@/server/repositories/supabase';
 import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
 

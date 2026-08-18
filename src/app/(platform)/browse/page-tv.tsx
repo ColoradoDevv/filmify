@@ -1,4 +1,4 @@
-import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
+import { getTrending, discoverMovies, discoverTV } from '@/server/services/tmdb';
 import TVHero from '@/components/tv/TVHero';
 import TVRow from '@/components/tv/TVRow';
 import { AdSlot } from '@/components/ads';

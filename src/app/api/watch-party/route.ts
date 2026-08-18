@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient, createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { hashRoomPassword } from '@/lib/watch-party-crypto';
 import { cleanupInactiveParties } from '@/lib/watch-party-cleanup';
 /** Throttle de la limpieza al listar salas: no más de una vez cada 30s para

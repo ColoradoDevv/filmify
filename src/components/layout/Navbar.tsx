@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, Tv, BookOpen } from 'lucide-react';
+import { Menu, X, Clapperboard, Heart, Search, Sparkles, LogOut, ShieldCheck, Users, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, SupabaseClient, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { useFavorites } from '@/lib/store/useStore';
@@ -204,16 +204,6 @@ export default function Navbar() {
                                         </Link>
 
 
-                                        <Link
-                                            href="/live-tv"
-                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${pathname?.startsWith('/live-tv')
-                                                ? 'bg-primary/10 text-primary'
-                                                : 'text-text-secondary hover:text-white hover:bg-white/5'
-                                                }`}
-                                        >
-                                            TV en Vivo
-                                        </Link>
-
                                         {user && (
                                             <Link
                                                 href="/favorites"
@@ -308,17 +298,6 @@ export default function Navbar() {
                             >
                                 <Clapperboard className="w-5 h-5" />
                                 <span className="text-[10px] font-semibold">Explorar</span>
-                            </button>
-                        </li>
-                        <li className="flex-1">
-                            <button
-                                type="button"
-                                onClick={() => router.push('/live-tv')}
-                                className={`w-full flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-colors ${pathname?.startsWith('/live-tv') ? 'bg-primary/15 text-primary' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                                aria-label="Ir a TV en Vivo"
-                            >
-                                <Tv className="w-5 h-5" />
-                                <span className="text-[10px] font-semibold">TV</span>
                             </button>
                         </li>
                         <li className="flex-1">

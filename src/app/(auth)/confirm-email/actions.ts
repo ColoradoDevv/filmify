@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { headers } from 'next/headers';
 import { Resend } from 'resend';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseStatelessAdminClient as createAdminClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys, getSupabaseConfig } from '@/lib/env';
 
 export type ResendSignupConfirmationResult = {

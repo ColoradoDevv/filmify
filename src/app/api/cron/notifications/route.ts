@@ -12,9 +12,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
-import { getNowPlaying, getUpcoming, getTrending, getImageUrl } from '@/lib/tmdb/service';
+import { getNowPlaying, getUpcoming, getTrending, getImageUrl } from '@/server/services/tmdb';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;

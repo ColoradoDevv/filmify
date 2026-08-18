@@ -66,7 +66,17 @@ import { getTrending } from '@/lib/tmdb/service';
 
 ## Migration status
 
-Legacy paths (`@/lib/tmdb/service`, `@/services/embedExtractor`, `@/lib/supabase/*`)
-are still used by existing files. `src/server/**` re-exports them, so new code
-can use the clean entry point today while old imports keep working. Migrate
-opportunistically — any file you touch should switch to `@/server/*`.
+Consumer code has been switched to `@/server/*` for `@/lib/tmdb/service` and
+the server-side Supabase clients (`@/lib/supabase/server`, `@/lib/supabase/admin`).
+`src/server/**` still re-exports the legacy implementations underneath — the
+actual logic hasn't moved, only the import boundary — so behavior is
+unchanged. Keep new code on `@/server/*`.
+
+Not part of this migration, and expected to stay on `@/lib/*` directly:
+- `@/lib/supabase/client` — the browser Supabase client. It runs in the
+  client bundle, so it belongs on the frontend side of the boundary, not
+  behind `@/server`.
+- Legacy `src/lib/*` and `src/services/*` modules that haven't been promoted
+  to `src/server/services/*` yet (e.g. `watch-party*`, `notifications`,
+  `editorial`) — they now *import* Supabase/TMDB access through `@/server/*`
+  internally, but the modules themselves still live in `src/lib`/`src/services`.

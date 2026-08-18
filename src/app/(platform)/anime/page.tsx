@@ -4,7 +4,7 @@ import {
     getTrendingAnime, getPopularAnime, getTopRatedAnime,
     getSeasonalAnime, getAnimeGenres, currentSeason,
 } from '@/server/services/anilist';
-import { filterPlayableAnimeCards } from '@/server/services/anime-bridge';
+import { filterPlayableAnimeCards } from '@/server/services/anime';
 import AnimeExplorer from '@/components/features/anime/AnimeExplorer';
 import { AdSlot } from '@/components/ads';
 
@@ -36,10 +36,10 @@ export default async function AnimePage() {
         getAnimeGenres().catch(() => []),
     ]);
 
-    // Ocultar del catálogo lo que NO se puede ver: cada anime se cruza contra el
-    // catálogo reproducible de Vimeus (por título / puente TMDB). Reputación:
-    // preferimos un catálogo más corto pero 100% jugable a uno lleno de fichas
-    // muertas. Cada rail se recorta a 24 tras filtrar.
+    // Ocultar del catálogo lo que NO se puede ver. La comprobación va contra el
+    // registro de proveedores usando el id de AniList (una sonda cacheada 2 h),
+    // no contra el listing de Vimeus: así el catálogo deja de estar limitado a
+    // lo que tenga un único proveedor. Cada rail se recorta a 24 tras filtrar.
     const [fTrending, fSeasonal, fPopular, fTopRated] = await Promise.all([
         filterPlayableAnimeCards(trending).then((a) => a.slice(0, 24)).catch(() => []),
         filterPlayableAnimeCards(seasonal).then((a) => a.slice(0, 24)).catch(() => []),

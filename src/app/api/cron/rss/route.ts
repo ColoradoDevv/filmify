@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
 import { parseFeed, RSS_SOURCES } from '@/lib/rss';
 

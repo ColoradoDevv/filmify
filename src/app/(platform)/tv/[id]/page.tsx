@@ -1,4 +1,4 @@
-import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
+import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
 import {
@@ -7,6 +7,7 @@ import {
     filterAvailableSeries,
     getSeriesEpisodeMap,
 } from '@/server/services/vimeus';
+import { canonicalAnilistForTmdbIfWarm } from '@/server/services/anime';
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
@@ -14,7 +15,7 @@ import { AdSlot } from '@/components/ads';
 import Image from 'next/image';
 import { Star, Calendar, ArrowLeft, Tv, User, Film } from 'lucide-react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import TVDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
@@ -135,6 +136,22 @@ export default async function TVDetailsPage({ params }: PageProps) {
     const { id } = await params;
     const tvId = parseInt(id);
     if (isNaN(tvId)) notFound();
+
+    // ── El anime ya no vive aquí ──────────────────────────────────────────
+    // Tiene módulo propio en /anime/[anilistId], con su catálogo de AniList y
+    // su registro de proveedores. Las URLs /tv/[tmdbId] de anime siguen
+    // indexadas en Google, así que se redirigen de forma permanente en vez de
+    // servir contenido duplicado.
+    //
+    // Va ANTES de pedir la ficha a TMDB por dos motivos: ahorra esa llamada
+    // en el caso anime, y evita el 404 de la comprobación de disponibilidad
+    // de más abajo — un anime que Vimeus no tenga sí puede estar en los otros
+    // proveedores del módulo de anime.
+    //
+    // Nota: `permanentRedirect` emite 308, que Google trata igual que un 301 y
+    // es lo mismo que producen los redirects de next.config.ts.
+    const animeMatch = await canonicalAnilistForTmdbIfWarm(tvId).catch(() => null);
+    if (animeMatch) permanentRedirect(`/anime/${animeMatch.anilistId}`);
 
     let tvShow;
     try {

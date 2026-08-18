@@ -10,8 +10,8 @@ import {
     getTVGenres,
     getImageUrl,
     getExternalIds
-} from '@/lib/tmdb/service';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+} from '@/server/services/tmdb';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 // SEC-027: use static top-level imports instead of dynamic require('crypto')
 // inside functions — dynamic require is susceptible to prototype pollution
 // and module injection in compromised environments.

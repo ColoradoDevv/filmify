@@ -9,7 +9,7 @@
  * Se invoca desde el cron diario y, de forma ligera y con throttle, al cargar
  * el lobby — así las salas vacías desaparecen en ~2 min sin esperar al cron.
  */
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 
 /** Sin heartbeat en este tiempo → el miembro se considera desconectado. */
 const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;     // 2 min (cliente late cada 20s)

@@ -3,7 +3,16 @@
 </p>
 
 <p align="center">
-  Catálogo de "dónde ver" películas y series — descubre, busca y reproduce, con cuentas, listas, reseñas, Watch Party, TV en vivo y un panel de administración.
+  Catálogo de "dónde ver" películas y series — descubre, busca y reproduce, con cuentas, listas, reseñas, Watch Party y un panel de administración.
+</p>
+
+<p align="center">
+  <a href="https://filmify.me"><img src="https://img.shields.io/badge/sitio-filmify.me-6366f1?style=flat-square" alt="Sitio en producción" /></a>
+  <img src="https://img.shields.io/badge/Next.js-15.5-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js 15.5" />
+  <img src="https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript estricto" />
+  <img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/licencia-privada-lightgrey?style=flat-square" alt="Licencia privada" />
 </p>
 
 ---
@@ -17,9 +26,8 @@ visitantes anónimos. Crear una cuenta (Supabase Auth) desbloquea favoritos,
 listas, reseñas, salas de "Watch Party" y notificaciones. También incluye un
 panel de administración para moderación de contenido, usuarios y editorial.
 
-Funcionalidades adicionales: sección de **TV en Vivo**, un blog/editorial
-(artículos SEO), una función de **Watch Party** sincronizada, y una sección
-de marcadores y streaming en vivo del **Mundial 2026** (`/mundial`).
+Funcionalidades adicionales: un blog/editorial (artículos SEO) y una función
+de **Watch Party** sincronizada.
 
 ## 🧱 Stack técnico
 
@@ -29,7 +37,7 @@ de marcadores y streaming en vivo del **Mundial 2026** (`/mundial`).
 - **Auth/BD**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Datos de contenido**: API de TMDB (The Movie Database)
 - **IA**: Groq SDK para recomendaciones
-- **Otras integraciones**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics, football-data.org (Mundial)
+- **Otras integraciones**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics
 - **Reproductor**: hls.js + proveedores de embeds de terceros (Vimeus, SuperEmbed, proxy "Latino")
 
 ## 📂 Estructura del proyecto
@@ -38,21 +46,24 @@ de marcadores y streaming en vivo del **Mundial 2026** (`/mundial`).
 src/
 ├── app/              # Next.js App Router (rutas, layouts, server actions)
 │   ├── (auth)/        # login, registro, recuperación de contraseña
-│   ├── (platform)/    # browse, búsqueda, favoritos, listas, perfil, live-tv, watch-party, mundial
+│   ├── (platform)/    # browse, búsqueda, favoritos, listas, perfil, watch-party
+│   │                  #   (live-tv existe en el código pero está deshabilitado temporalmente)
 │   ├── admin/          # Panel de administración (RBAC: admin/super_admin)
 │   ├── api/            # Route handlers (proxies, crons, watch-party, salud de streams…)
 │   └── actions/        # Server Actions de nivel superior (catálogo, búsqueda, streams, IA)
-├── components/        # UI (shadcn/ui), features, layout, admin, editorial, live-tv, worldcup…
+├── components/        # UI (shadcn/ui), features, layout, admin, editorial, live-tv…
 ├── server/             # Capa backend (servicios + repositorios) — punto de entrada `@/server`
 ├── lib/                # Utilidades y módulos legados (Supabase, TMDB, store, seguridad…)
 ├── hooks/              # Hooks compartidos (favoritos, navegación TV/D-pad, etc.)
-├── services/           # Servicios antiguos (embeds, Live TV, Mundial)
+├── services/           # Servicios antiguos (embeds, Live TV)
 └── types/              # Tipos TS compartidos (TMDB, Watch Party)
 
 middleware.ts           # Auth, RBAC, CSP con nonce, bans de IP, cabeceras de seguridad
 supabase/migrations/    # Migraciones SQL del proyecto Supabase
+android-app/            # Proyecto Android (TWA) que empaqueta el sitio como app nativa
 scripts/                # Verificación de entorno, seed de editorial, pruebas de Watch Party, seguridad
-docs/                    # Guías de ads/AdSense y notas de migración a acceso público
+docs/                    # Guías operativas: ads.txt/AdSense, empaquetado Android (TWA),
+                         # plantillas de email de Supabase, notas de migración a acceso público
 ```
 
 Para una guía más detallada de arquitectura y convenciones (pensada para
@@ -101,7 +112,7 @@ Todas las variables están documentadas con comentarios en
   favoritos, admin, reseñas, watch party).
 - **Opcional**: claves de Vimeus, Groq (IA), Resend (contacto), `CRON_SECRET`
   (jobs programados), `PORTAL_DEVICE_SECRET` (STB), hCaptcha, donaciones,
-  analítica/ads, y `FOOTBALL_DATA_API_KEY` (Mundial 2026).
+  analítica/ads.
 
 ## 🛡️ Seguridad
 
@@ -125,11 +136,25 @@ Para reportar una vulnerabilidad: **security@filmify.com**.
 
 ## ☁️ Despliegue
 
-El objetivo de despliegue es **Vercel** (`vercel.json` define los crons):
+**Producción corre en AWS EC2**, no en Vercel ni en Cloudflare. Al hacer push
+a `main`, [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) se
+conecta por SSH al servidor y ejecuta `git pull`, `npm install`, `npm run
+build` y `pm2 reload filmify` (PM2 en modo cluster). Nginx y Docker corren en
+el mismo host como reverse proxy / contenedores — su configuración vive en el
+servidor, no en este repo.
 
-- `/api/cron/cleanup` — diario a las 00:00 (limpieza de salas Watch Party y datos caducados)
-- `/api/cron/notifications` — diario a las 09:00
-- `/api/cron/rss` — diario a las 06:00 (ingestión RSS editorial)
+Cloudflare Workers (`wrangler.jsonc`, `open-next.config.ts`) **no sirve
+tráfico de producción**: solo verifica que el build compile como Worker, y
+Cloudflare gestiona el dominio/DNS de `filmify.me`. Un deploy verde en
+Cloudflare no implica que producción esté actualizada.
+
+Las tareas programadas corren desde el **crontab del propio servidor EC2**
+(no desde `wrangler.jsonc`, que solo documenta la intención pero nunca se
+dispara contra producción):
+
+- `/api/cron/cleanup` — diario a las 00:00 UTC (limpieza de salas Watch Party y datos caducados)
+- `/api/cron/rss` — diario a las 06:00 UTC (ingestión RSS editorial)
+- `/api/cron/notifications` — diario a las 09:00 UTC
 
 Las rutas de cron están protegidas por `CRON_SECRET`.
 

@@ -1,7 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseServerClient as createClient, createSupabaseStatelessAdminClient as createAdminClient } from '@/server/repositories/supabase';
 import { getSupabaseConfig } from '@/lib/env';
 import { redirect } from 'next/navigation';
 

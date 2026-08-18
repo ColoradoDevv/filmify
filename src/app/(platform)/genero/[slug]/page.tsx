@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Clapperboard } from 'lucide-react';
-import { discoverMovies } from '@/lib/tmdb/service';
+import { discoverMovies } from '@/server/services/tmdb';
 import { filterAvailableMovies } from '@/server/services/vimeus';
 import { GENRE_PAGES, getGenreBySlug } from '@/lib/genres';
 import { getOptionalApiKeys } from '@/lib/env';

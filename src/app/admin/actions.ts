@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient, createAdminClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient, createSupabaseAdminClient as createAdminClient, createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 
 export type AdminAction =
     | 'BAN_USER'

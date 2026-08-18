@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
+import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
 
 /** Generate a cryptographically random base64 nonce using the Web Crypto API.
  *  Works in both Edge Runtime and Node.js — no 'crypto' module import needed. */
@@ -70,6 +71,26 @@ export default async function middleware(request: NextRequest) {
 
     if (isMatch(pathname, PASSTHROUGH_PREFIXES)) {
         return NextResponse.next();
+    }
+
+    // ── /tv/[tmdbId] de anime → /anime/[anilistId] (308 permanente) ─────────
+    // El anime tiene módulo propio; estas URLs siguen indexadas y deben
+    // consolidar su autoridad en la ruta nueva.
+    //
+    // Va aquí y no en la página porque cuando el redirect se resuelve dentro
+    // del Server Component, Next ya ha empezado a hacer streaming y degrada a
+    // un `<meta http-equiv="refresh">` en vez de un 308 HTTP. El middleware
+    // corre antes de renderizar, así que sí emite el status correcto.
+    //
+    // El mapa es un snapshot compacto (~57 KB) generado con
+    // `node scripts/generate-anime-redirects.mjs`; lo que no esté en él lo
+    // cubre el redirect de la propia página, que consulta el mapa completo.
+    const tvIdMatch = /^\/tv\/(\d+)\/?$/.exec(pathname);
+    if (tvIdMatch) {
+        const anilistId = (ANIME_TMDB_REDIRECTS as Record<string, number>)[tvIdMatch[1]];
+        if (anilistId) {
+            return NextResponse.redirect(new URL(`/anime/${anilistId}`, request.url), 308);
+        }
     }
 
     const nonce = generateNonce();

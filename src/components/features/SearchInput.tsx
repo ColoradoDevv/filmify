@@ -7,7 +7,7 @@ import Image from 'next/image';
 import {
     Search, Film, Tv, User, Loader2, Clock, X, CornerDownLeft,
 } from 'lucide-react';
-import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getPosterUrl, getProfileUrl } from '@/server/services/tmdb';
 import type { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
 import { searchTitles, type SearchResultItem } from '@/app/actions/search';
 import {
@@ -160,9 +160,18 @@ export default function SearchInput({
                 try { await addToHistory(name); } catch {}
             }
 
-            if (item.media_type === 'movie') router.push(`/movie/${item.id}`);
-            else if (item.media_type === 'tv' || item.media_type === 'anime') router.push(`/tv/${item.id}`);
-            else if (item.media_type === 'person') router.push(`/search?q=${encodeURIComponent(name)}`);
+            if (item.media_type === 'movie') {
+                router.push(`/movie/${item.id}`);
+            } else if (item.media_type === 'anime') {
+                // Módulo de anime propio. Si no tenemos el id de AniList,
+                // /tv/[tmdbId] redirige al mismo sitio.
+                const anilistId = (item as SearchResultItem).anilist_id;
+                router.push(anilistId ? `/anime/${anilistId}` : `/tv/${item.id}`);
+            } else if (item.media_type === 'tv') {
+                router.push(`/tv/${item.id}`);
+            } else if (item.media_type === 'person') {
+                router.push(`/search?q=${encodeURIComponent(name)}`);
+            }
 
             setShowSuggestions(false);
             setActiveIndex(-1);
@@ -368,7 +377,13 @@ export default function SearchInput({
                                                 <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5">
                                                     {getIcon(item.media_type)}
                                                     <span className="capitalize">
-                                                        {item.media_type === 'tv' ? 'Serie' : item.media_type === 'movie' ? 'Película' : 'Persona'}
+                                                        {item.media_type === 'tv'
+                                                            ? 'Serie'
+                                                            : item.media_type === 'anime'
+                                                            ? 'Anime'
+                                                            : item.media_type === 'movie'
+                                                            ? 'Película'
+                                                            : 'Persona'}
                                                     </span>
                                                 </div>
                                             </div>

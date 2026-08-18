@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 
 export type ResetPasswordState = {
     error: string;

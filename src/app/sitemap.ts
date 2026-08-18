@@ -5,6 +5,7 @@ import {
     getVimeusSeriesCatalog,
     getVimeusAnimeCatalog,
 } from '@/server/services/vimeus';
+import { anilistFromTmdb } from '@/server/services/anime';
 import { GENRE_PAGES } from '@/lib/genres';
 import { getPublishedArticles, CATEGORIES } from '@/lib/editorial';
 import { getOptionalApiKeys, hasRequiredEnv } from '@/lib/env';
@@ -59,10 +60,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.8,
         },
         {
-            url: `${BASE_URL}/live-tv`,
+            url: `${BASE_URL}/anime`,
             lastModified: currentDate,
-            changeFrequency: 'weekly',
-            priority: 0.7,
+            changeFrequency: 'daily',
+            priority: 0.8,
         },
         {
             url: `${BASE_URL}/browse?category=anime`,
@@ -151,12 +152,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 priority: 0.8,
             });
         });
-        // Anime — también viven en /tv/[id] en TMDB; se deduplican con series.
-        animeCatalog.forEach(a => {
-            if (blacklist.has(a.tmdb_id) || seenShows.has(a.tmdb_id)) return;
-            seenShows.add(a.tmdb_id);
-            tvUrls.push({
-                url: `${BASE_URL}/tv/${a.tmdb_id}`,
+        // Anime — módulo propio en /anime/[anilistId]. NO se listan bajo /tv:
+        // esa ruta ahora redirige (308) al módulo de anime, y un sitemap lleno
+        // de URLs que redirigen desperdicia presupuesto de rastreo.
+        // La traducción tmdb→anilist es un lookup en memoria (el dataset de
+        // mapeo se descarga una vez cada 24 h), así que no añade latencia por
+        // título como haría sondear embeds.
+        const animeUrls: MetadataRoute.Sitemap = [];
+        const seenAnime = new Set<number>();
+        const animeMatches = await Promise.all(
+            animeCatalog
+                .filter((a) => !blacklist.has(a.tmdb_id))
+                .map((a) => anilistFromTmdb(a.tmdb_id).catch(() => [])),
+        );
+        animeMatches.flat().forEach((m) => {
+            if (seenAnime.has(m.anilistId)) return;
+            seenAnime.add(m.anilistId);
+            animeUrls.push({
+                url: `${BASE_URL}/anime/${m.anilistId}`,
                 lastModified: currentDate,
                 changeFrequency: 'weekly' as const,
                 priority: 0.8,
@@ -191,6 +204,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             ...genreUrls,
             ...movieUrls,
             ...tvUrls,
+            ...animeUrls,
             ...articleUrls,
         ];
     } catch (error) {

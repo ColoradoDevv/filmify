@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 
 // ── POST /api/watch-party/[code]/message — send a chat message ───────────────
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {

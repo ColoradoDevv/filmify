@@ -11,9 +11,20 @@ search, and playback work for anonymous visitors; an account (Supabase Auth)
 unlocks favorites, lists, reviews, watch parties, and notifications. There is
 also an admin dashboard for content/user/editorial moderation.
 
-Additional bolted-on features: a Live TV section, an editorial/blog section
-(SEO articles), a synchronized "Watch Party" feature, and a World Cup 2026
-live-scores/streaming section (`/mundial`).
+Additional bolted-on features: an editorial/blog section (SEO articles) and
+a synchronized "Watch Party" feature.
+
+**Live TV is temporarily disabled** (2026-08-17): the channel source it
+depended on became unreliable, so `/live-tv` and `/api/channels` now render
+a "coming soon" placeholder / return 503 for everyone, regardless of auth.
+The implementation is untouched on disk — `src/app/(platform)/live-tv/`,
+`src/components/live-tv/`, `src/services/liveTV.ts`,
+`src/server/services/live-tv.ts` — only the entry points (page, API route,
+and every nav link to `/live-tv`) were disabled/removed. To re-enable:
+restore `LiveTVClient` in `live-tv/page.tsx`, restore the `fetchAllChannels`
+call in `api/channels/route.ts`, and re-add the nav links (Navbar,
+MobileMenu, Footer, TVSidebar, TVNavBar, FilterBar) once the channel source
+is fixed.
 
 ## Tech stack
 
@@ -23,7 +34,7 @@ live-scores/streaming section (`/mundial`).
 - **Auth/DB**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Content data**: TMDB (The Movie Database) API
 - **AI**: Groq SDK for recommendations
-- **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics, football-data.org (World Cup)
+- **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics
 - **Player**: hls.js + third-party embed providers (Vimeus, SuperEmbed, "Latino" proxy)
 
 ## Repository structure
@@ -33,7 +44,7 @@ src/
 ├── app/                      # Next.js App Router
 │   ├── (auth)/               # Route group: login, register, password reset, confirm-email
 │   ├── (platform)/           # Route group: browse, search, favorites, lists, profile,
-│   │                          #   settings, live-tv, watch-party, mundial (World Cup)
+│   │                          #   settings, watch-party (live-tv exists but is disabled — see note above)
 │   ├── admin/                 # Admin dashboard (RBAC-gated: admin/super_admin role)
 │   ├── api/                   # Route handlers (proxies, cron jobs, watch-party, stream health…)
 │   ├── actions/               # Top-level Server Actions (catalog, search, streams, ai, vidsrc)
@@ -44,7 +55,7 @@ src/
 │   ├── ui/                   # shadcn/ui primitives (button, card, dropdown, table, …)
 │   ├── features/             # Movie/TV cards, players, hero, AI recommendations, search
 │   ├── layout/                # Navbar, Sidebar, Footer, TV layout wrappers, mobile tab bar
-│   ├── admin/, ads/, auth/, editorial/, live-tv/, tv/, worldcup/
+│   ├── admin/, ads/, auth/, editorial/, live-tv/, tv/
 ├── server/                    # Backend layer — see "Server layer" below
 │   ├── services/              # tmdb, ai, embed-extractor, live-tv, admin-settings, admin-logger
 │   ├── repositories/          # supabase (server/admin/service-role clients), history
@@ -60,7 +71,7 @@ src/
 │   └── ...editorial, genres, rss, scraper, referrals, notifications, og/ (OG image gen)
 ├── hooks/                     # useFavoritesSync, useKeyboardNavigation, useSpatialNavigation,
 │                              #   useFocusManagement, useTVDetection (smart-TV / D-pad support)
-├── services/                  # Older service modules (embedExtractor, liveTV, worldcup)
+├── services/                  # Older service modules (embedExtractor, liveTV)
 ├── types/                     # Shared TS types (tmdb.ts, watch-party.ts)
 └── styles/                    # tw-animate.css
 
@@ -214,11 +225,38 @@ npm run check-env            # verifies required vars exist in .env.local
 
 ## Deployment
 
-- Target platform: Vercel (`vercel.json` defines cron schedules):
-  - `/api/cron/cleanup` — daily at 00:00 (stale watch-party rooms, expired data)
-  - `/api/cron/notifications` — daily at 09:00
-  - `/api/cron/rss` — daily at 06:00 (editorial RSS ingestion)
-  - Cron routes are protected by `CRON_SECRET`.
+- **Real production runs on AWS EC2** (inside a VPC), not Vercel or Cloudflare.
+  `.github/workflows/deploy.yml` triggers on push to `main`: it SSHes into the
+  EC2 host and runs `git pull origin main`, `npm install`, `npm run build`,
+  then `pm2 reload filmify` (PM2 in cluster mode). Docker and Nginx sit on the
+  EC2 host in front of/around the app (Nginx as reverse proxy) — their config
+  is **not** in this repo; it's managed directly on the host.
+- **Cloudflare Workers is not the production runtime.** The `wrangler.jsonc` /
+  `open-next.config.ts` / `custom-worker.ts` setup exists to (1) verify the
+  build compiles/deploys cleanly as a Worker, and (2) Cloudflare manages the
+  `filmify.me` domain/DNS. A green Cloudflare deploy does not mean prod is
+  updated — the EC2 deploy via GitHub Actions is what actually matters.
+  - `wrangler.jsonc`'s `triggers.crons` is dead documentation — it describes
+    the intent but nothing actually invokes it; it never fires against
+    production. **The real cron trigger is the `ubuntu` user's crontab on the
+    EC2 host** (`crontab -l` / `/var/spool/cron/crontabs/ubuntu`, server
+    timezone `Etc/UTC` so schedule times below are literal UTC):
+    ```
+    0 0 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/cleanup
+    0 6 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/rss
+    0 9 * * * /home/ubuntu/scripts/run-cron.sh /api/cron/notifications
+    ```
+    `run-cron.sh` loads `/home/ubuntu/filmify/.env.local`, calls
+    `https://filmify.me$ROUTE` with `Authorization: Bearer $CRON_SECRET` and
+    an `X-Cron-Trigger: system-cron` header, and logs to
+    `/home/ubuntu/logs/cron-<route>.log`. Confirmed via nginx access logs
+    (exactly one request per route per day, no Cloudflare-triggered
+    duplicates) and journald timing (cron fires at :00:01, nginx receives the
+    request 1-4s later — the Cloudflare round trip).
+  - Cron routes are protected by `CRON_SECRET`, sourced from `.env.local` on
+    the EC2 host (same file the app reads, so it can't drift out of sync).
+- `vercel.json` is fully unused (`_LEGACY`, kept only for its cron-schedule
+  reference) — Vercel is not part of the deployment pipeline at all.
 - `poweredByHeader: false` and no framework fingerprinting — keep it that way for SEO/security hygiene.
 
 ## Git workflow

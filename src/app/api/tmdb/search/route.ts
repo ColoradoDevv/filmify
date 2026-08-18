@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchMulti } from '@/lib/tmdb/service';
+import { searchMulti } from '@/server/services/tmdb';
 
 /**
  * Thin proxy for TMDB multi-search.

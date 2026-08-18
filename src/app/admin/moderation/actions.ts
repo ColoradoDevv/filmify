@@ -1,7 +1,7 @@
 'use server';
 
 import { requireAdmin } from '../actions';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient as createAdminClient } from '@/server/repositories/supabase';
 import { revalidatePath } from 'next/cache';
 
 export async function getLatestReviews() {

@@ -1,16 +1,27 @@
 'use server';
 
-import { searchMulti } from '@/lib/tmdb/service';
+import { searchMulti } from '@/server/services/tmdb';
 import {
     filterAvailableMovies,
     filterAvailableSeries,
     filterAvailableAnimes,
     getAnimeIdSet,
 } from '@/server/services/vimeus';
+import { anilistFromTmdb } from '@/server/services/anime';
 import type { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
 
-/** Resultado de búsqueda unificado: película, serie o anime, con su tipo. */
-export type SearchResultItem = (Movie | TVShow) & { media_type: 'movie' | 'tv' | 'anime' };
+/**
+ * Resultado de búsqueda unificado: película, serie o anime, con su tipo.
+ *
+ * Los resultados de anime llevan además `anilist_id`: el módulo de anime es
+ * independiente del de series y vive en /anime/[anilistId], así que la UI
+ * necesita ese id para enlazar al sitio correcto en vez de a /tv/[tmdbId].
+ */
+export type SearchResultItem = (Movie | TVShow) & {
+    media_type: 'movie' | 'tv' | 'anime';
+    /** Solo en resultados de anime que el dataset de mapeo sabe traducir. */
+    anilist_id?: number;
+};
 
 /**
  * Busca títulos (películas, series y anime) y devuelve SOLO los reproducibles
@@ -72,20 +83,42 @@ export async function searchTitles(query: string): Promise<SearchResultItem[]> {
     }
 
     // Conserva el orden de relevancia de TMDB; solo deja disponibles.
-    // Los anime se marcan con media_type 'anime' para que MovieCard enlace a /tv/[id]
-    // (que es donde están en TMDB) pero la UI los puede distinguir si hace falta.
-    return results
-        .filter((r) => {
-            if (r.media_type === 'movie') return availMovieIds.has(r.id);
-            if (r.media_type === 'tv') {
-                return availSeriesIds.has(r.id) || availAnimeIds.has(r.id);
-            }
-            return false;
-        })
-        .map((r) => ({
+    const visible = results.filter((r) => {
+        if (r.media_type === 'movie') return availMovieIds.has(r.id);
+        if (r.media_type === 'tv') {
+            return availSeriesIds.has(r.id) || availAnimeIds.has(r.id);
+        }
+        return false;
+    });
+
+    // Los anime se marcan con media_type 'anime' y se les adjunta su id de
+    // AniList para que la UI enlace a /anime/[anilistId] — el módulo de anime
+    // ya no vive dentro del de series.
+    const animeTmdbIds = visible
+        .filter((r) => r.media_type === 'tv' && availAnimeIds.has(r.id))
+        .map((r) => r.id);
+
+    const anilistByTmdb = new Map<number, number>();
+    if (animeTmdbIds.length > 0) {
+        const matches = await Promise.all(
+            animeTmdbIds.map((id) =>
+                anilistFromTmdb(id)
+                    .then((list) => [id, list[0]?.anilistId] as const)
+                    .catch(() => [id, undefined] as const),
+            ),
+        );
+        for (const [tmdbId, anilistId] of matches) {
+            if (anilistId) anilistByTmdb.set(tmdbId, anilistId);
+        }
+    }
+
+    return visible.map((r) => {
+        const isAnime = r.media_type === 'tv' && availAnimeIds.has(r.id);
+        if (!isAnime) return r as SearchResultItem;
+        return {
             ...r,
-            media_type: (r.media_type === 'tv' && availAnimeIds.has(r.id))
-                ? 'anime'
-                : r.media_type,
-        })) as SearchResultItem[];
+            media_type: 'anime',
+            anilist_id: anilistByTmdb.get(r.id),
+        } as SearchResultItem;
+    });
 }
