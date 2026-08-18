@@ -11,8 +11,20 @@ search, and playback work for anonymous visitors; an account (Supabase Auth)
 unlocks favorites, lists, reviews, watch parties, and notifications. There is
 also an admin dashboard for content/user/editorial moderation.
 
-Additional bolted-on features: a Live TV section, an editorial/blog section
-(SEO articles), and a synchronized "Watch Party" feature.
+Additional bolted-on features: an editorial/blog section (SEO articles) and
+a synchronized "Watch Party" feature.
+
+**Live TV is temporarily disabled** (2026-08-17): the channel source it
+depended on became unreliable, so `/live-tv` and `/api/channels` now render
+a "coming soon" placeholder / return 503 for everyone, regardless of auth.
+The implementation is untouched on disk — `src/app/(platform)/live-tv/`,
+`src/components/live-tv/`, `src/services/liveTV.ts`,
+`src/server/services/live-tv.ts` — only the entry points (page, API route,
+and every nav link to `/live-tv`) were disabled/removed. To re-enable:
+restore `LiveTVClient` in `live-tv/page.tsx`, restore the `fetchAllChannels`
+call in `api/channels/route.ts`, and re-add the nav links (Navbar,
+MobileMenu, Footer, TVSidebar, TVNavBar, FilterBar) once the channel source
+is fixed.
 
 ## Tech stack
 
@@ -32,7 +44,7 @@ src/
 ├── app/                      # Next.js App Router
 │   ├── (auth)/               # Route group: login, register, password reset, confirm-email
 │   ├── (platform)/           # Route group: browse, search, favorites, lists, profile,
-│   │                          #   settings, live-tv, watch-party
+│   │                          #   settings, watch-party (live-tv exists but is disabled — see note above)
 │   ├── admin/                 # Admin dashboard (RBAC-gated: admin/super_admin role)
 │   ├── api/                   # Route handlers (proxies, cron jobs, watch-party, stream health…)
 │   ├── actions/               # Top-level Server Actions (catalog, search, streams, ai, vidsrc)

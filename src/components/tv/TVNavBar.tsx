@@ -3,14 +3,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Home, Search, Heart, Settings, Tv, TrendingUp, Radio } from 'lucide-react';
+import { Home, Search, Heart, Settings, Tv, TrendingUp } from 'lucide-react';
 
 const NAV_ITEMS = [
     { label: 'Inicio',      href: '/browse',              icon: Home,       exact: true },
     { label: 'Buscar',      href: '/search',              icon: Search },
     { label: 'Tendencias',  href: '/browse?category=trending', icon: TrendingUp },
     { label: 'Series',      href: '/browse?category=tv',  icon: Tv },
-    { label: 'TV en Vivo',  href: '/live-tv',             icon: Radio },
     { label: 'Favoritos',   href: '/favorites',           icon: Heart },
     { label: 'Ajustes',     href: '/settings',            icon: Settings },
 ];

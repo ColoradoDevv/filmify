@@ -82,14 +82,6 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
 
                         <div className="space-y-2">
                             <Link
-                                href="/live-tv"
-                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
-                                onClick={onClose}
-                            >
-                                <Tv className="w-5 h-5 text-primary" />
-                                <span className="font-medium">TV en Vivo</span>
-                            </Link>
-                            <Link
                                 href="/favorites"
                                 className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
                                 onClick={onClose}
@@ -139,14 +131,6 @@ export default function MobileMenu({ isOpen, onClose, user, onLogoutClick }: Mob
                             >
                                 <Tv className="w-5 h-5 text-primary" />
                                 <span className="font-medium">Series</span>
-                            </Link>
-                            <Link
-                                href="/live-tv"
-                                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-surface/50 transition-all focus:outline-none focus:bg-surface/50 text-gray-300 hover:text-white"
-                                onClick={onClose}
-                            >
-                                <Tv className="w-5 h-5 text-primary" />
-                                <span className="font-medium">TV en Vivo</span>
                             </Link>
                             <Link
                                 href="/editorial"

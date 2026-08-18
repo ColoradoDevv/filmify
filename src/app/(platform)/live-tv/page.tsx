@@ -1,35 +1,21 @@
-import LiveTVClient from './LiveTVClient';
-import { AdSlot } from '@/components/ads';
+import ComingSoon from '@/components/features/ComingSoon';
 
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'TV en Vivo gratis - Canales de todo el mundo | FilmiFy',
-    description: 'Mira canales de TV en vivo gratis de todo el mundo: noticias, deportes, entretenimiento y más, organizados por categoría.',
-    alternates: { canonical: '/live-tv' },
-    openGraph: {
-        title: 'TV en Vivo gratis - Canales de todo el mundo | FilmiFy',
-        description: 'Mira canales de TV en vivo gratis de todo el mundo: noticias, deportes, entretenimiento y más.',
-        url: '/live-tv',
-        type: 'website',
-        images: [{ url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/opengraph-image?type=page&title=${encodeURIComponent('TV en Vivo gratis - Canales de todo el mundo | FilmiFy')}` }],
-    },
-
+    title: 'TV en Vivo | FilmiFy',
+    robots: { index: false, follow: false },
 };
 
-// ISR: rebuild at most once per day. The channel list is cached in Supabase
-// so the actual M3U download only happens on the first request after the cache
-// expires — subsequent requests within the window are instant.
-export const revalidate = 86400;
-
-export default async function LiveTVPage() {
+// Temporarily disabled — the channel source this page depended on stopped
+// working reliably. The implementation (LiveTVClient, ChannelCard,
+// LiveTVGrid/Player, src/services/liveTV.ts) is left in place for when it's
+// fixed; this route just stops sending users into a broken player until then.
+export default function LiveTVPage() {
     return (
-        <div className="min-h-screen bg-background">
-            {/* 📢 Banner publicitario */}
-            <div className="px-3 sm:px-6 lg:px-8">
-                <AdSlot />
-            </div>
-            <LiveTVClient />
-        </div>
+        <ComingSoon
+            title="TV en Vivo"
+            description="Estamos resolviendo un problema con esta sección. Vuelve pronto."
+        />
     );
 }

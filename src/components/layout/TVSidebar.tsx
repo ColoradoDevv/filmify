@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, Heart, Settings, Film, Search, TrendingUp, Tv, Radio } from 'lucide-react';
+import { Home, Heart, Settings, Film, Search, TrendingUp, Tv } from 'lucide-react';
 import { useRef } from 'react';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 
@@ -11,7 +11,6 @@ const navigation = [
     { name: 'Buscar',     href: '/search',                  icon: Search },
     { name: 'Tendencias', href: '/browse?category=trending', icon: TrendingUp },
     { name: 'Series',     href: '/browse?category=tv',       icon: Tv },
-    { name: 'TV en Vivo', href: '/live-tv',                  icon: Radio },
     { name: 'Favoritos',  href: '/favorites',                icon: Heart },
     { name: 'Ajustes',    href: '/settings',                 icon: Settings },
 ];

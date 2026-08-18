@@ -210,7 +210,7 @@ Masters of the Universe está **disponible solo en cines**. Y si lo que te apete
 
 ## 1. FilmiFy: catálogo gratis y sin registro
 
-Empezamos por casa, porque para eso estamos: en [FilmiFy puedes explorar miles de películas y series gratis](/browse), **sin crear cuenta y sin introducir ninguna tarjeta**. El catálogo se actualiza a diario con estrenos, tendencias y clásicos, organizado [por géneros](/genero/accion) para que encuentres algo en segundos. Y si lo tuyo es la televisión de toda la vida, también tienes [canales de TV en vivo de todo el mundo](/live-tv).
+Empezamos por casa, porque para eso estamos: en [FilmiFy puedes explorar miles de películas y series gratis](/browse), **sin crear cuenta y sin introducir ninguna tarjeta**. El catálogo se actualiza a diario con estrenos, tendencias y clásicos, organizado [por géneros](/genero/accion) para que encuentres algo en segundos.
 
 ## 2. Las plataformas FAST: televisión gratis con anuncios
 

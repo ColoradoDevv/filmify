@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Catálogo de "dónde ver" películas y series — descubre, busca y reproduce, con cuentas, listas, reseñas, Watch Party, TV en vivo y un panel de administración.
+  Catálogo de "dónde ver" películas y series — descubre, busca y reproduce, con cuentas, listas, reseñas, Watch Party y un panel de administración.
 </p>
 
 <p align="center">
@@ -26,8 +26,8 @@ visitantes anónimos. Crear una cuenta (Supabase Auth) desbloquea favoritos,
 listas, reseñas, salas de "Watch Party" y notificaciones. También incluye un
 panel de administración para moderación de contenido, usuarios y editorial.
 
-Funcionalidades adicionales: sección de **TV en Vivo**, un blog/editorial
-(artículos SEO), y una función de **Watch Party** sincronizada.
+Funcionalidades adicionales: un blog/editorial (artículos SEO) y una función
+de **Watch Party** sincronizada.
 
 ## 🧱 Stack técnico
 
@@ -46,7 +46,8 @@ Funcionalidades adicionales: sección de **TV en Vivo**, un blog/editorial
 src/
 ├── app/              # Next.js App Router (rutas, layouts, server actions)
 │   ├── (auth)/        # login, registro, recuperación de contraseña
-│   ├── (platform)/    # browse, búsqueda, favoritos, listas, perfil, live-tv, watch-party
+│   ├── (platform)/    # browse, búsqueda, favoritos, listas, perfil, watch-party
+│   │                  #   (live-tv existe en el código pero está deshabilitado temporalmente)
 │   ├── admin/          # Panel de administración (RBAC: admin/super_admin)
 │   ├── api/            # Route handlers (proxies, crons, watch-party, salud de streams…)
 │   └── actions/        # Server Actions de nivel superior (catálogo, búsqueda, streams, IA)
