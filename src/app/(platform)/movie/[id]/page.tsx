@@ -1,4 +1,4 @@
-import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
+import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/services/vimeus';
 import MoviePlayer from '@/components/features/MoviePlayer';

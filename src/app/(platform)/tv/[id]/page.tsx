@@ -1,4 +1,4 @@
-import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/lib/tmdb/service';
+import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
 import {

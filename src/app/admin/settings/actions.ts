@@ -2,7 +2,7 @@
 
 import { unstable_cache, revalidatePath } from 'next/cache';
 import { getSettings, saveSettings, AdminSettings } from '@/lib/admin-settings';
-import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient, createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 
 export const fetchSettings = unstable_cache(async () => {
     return await getSettings();

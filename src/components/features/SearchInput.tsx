@@ -7,7 +7,7 @@ import Image from 'next/image';
 import {
     Search, Film, Tv, User, Loader2, Clock, X, CornerDownLeft,
 } from 'lucide-react';
-import { getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getPosterUrl, getProfileUrl } from '@/server/services/tmdb';
 import type { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
 import { searchTitles, type SearchResultItem } from '@/app/actions/search';
 import {

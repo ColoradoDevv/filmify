@@ -18,7 +18,7 @@
  * repetir la búsqueda en cada visita a la ficha.
  */
 
-import { searchMulti } from '@/lib/tmdb/service';
+import { searchMulti } from './tmdb';
 import {
     getAnimeIdSet, getAnimeTitleIndex,
     isAnimeAvailableOnVimeus, isSeriesAvailableOnVimeus,

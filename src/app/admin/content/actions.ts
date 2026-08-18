@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient as createAdminClient, createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 import { revalidatePath } from 'next/cache';
 import { logAdminAction, requireAdmin } from '@/app/admin/actions';
 

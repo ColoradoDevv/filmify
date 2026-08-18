@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import type { Article, NewsItem } from '@/lib/editorial-types';
 import { CATEGORIES } from '@/lib/editorial-types';
 

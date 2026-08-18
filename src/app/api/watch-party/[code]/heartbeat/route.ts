@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient, createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 
 /**
  * POST /api/watch-party/[code]/heartbeat — latido de presencia.

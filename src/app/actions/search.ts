@@ -1,6 +1,6 @@
 'use server';
 
-import { searchMulti } from '@/lib/tmdb/service';
+import { searchMulti } from '@/server/services/tmdb';
 import {
     filterAvailableMovies,
     filterAvailableSeries,

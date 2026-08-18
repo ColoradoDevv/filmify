@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/lib/tmdb/service';
+import { getTrending, discoverMovies, getGenres, discoverTV, getTVGenres } from '@/server/services/tmdb';
 import { filterAvailableMovies, filterAvailableSeries, filterAvailableAnimes, getQualityMap, getVimeusAnimeCatalog } from '@/server/services/vimeus';
 import type { Movie } from '@/types/tmdb';
 import type { TVShow } from '@/types/tmdb';

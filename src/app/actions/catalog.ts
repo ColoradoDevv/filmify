@@ -1,6 +1,6 @@
 'use server';
 
-import { getTrending, discoverMovies, discoverTV } from '@/lib/tmdb/service';
+import { getTrending, discoverMovies, discoverTV } from '@/server/services/tmdb';
 import { filterAvailableMovies, filterAvailableSeries } from '@/server/services/vimeus';
 import type { Movie, TVShow } from '@/types/tmdb';
 

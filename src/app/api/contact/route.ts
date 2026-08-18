@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
 
 // Escape HTML so user-supplied values can't inject markup/links into the

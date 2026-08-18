@@ -1,7 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
 
 export type ForgotPasswordState = {

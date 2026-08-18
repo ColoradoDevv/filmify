@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getBackdropUrl, getPosterUrl, getProfileUrl } from '@/lib/tmdb/service';
+import { getBackdropUrl, getPosterUrl, getProfileUrl } from '@/server/services/tmdb';
 import Image from 'next/image';
 import { Play, Star, Clock, Calendar, Heart, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';

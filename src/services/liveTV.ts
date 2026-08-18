@@ -2,7 +2,7 @@
 // Channels are cached in Supabase (cached_channels table) for 24 hours to avoid
 // re-downloading ~29 MB of M3U data on every request.
 
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 
 export interface LiveChannel {
     id: string;

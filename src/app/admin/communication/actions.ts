@@ -1,6 +1,6 @@
 'use server';
 
-import { createServiceRoleClient, createClient } from '@/lib/supabase/server';
+import { createSupabaseServiceRoleClient as createServiceRoleClient, createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 
 export async function getBroadcastHistory() {
     const supabaseAuth = await createClient();

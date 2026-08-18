@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Users, LogIn } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/server/repositories/supabase';
 import WatchPartyLobby from './WatchPartyLobby';
 import { AdSlot } from '@/components/ads';
 
