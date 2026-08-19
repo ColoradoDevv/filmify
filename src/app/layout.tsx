@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import dynamic from 'next/dynamic';
 
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
-import AnalyticsClient from "@/components/AnalyticsClient";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
@@ -185,9 +182,7 @@ export default async function RootLayout({
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
 
-        <SpeedInsights />
         <GoogleAnalytics gaId={gaId} />
-        <AnalyticsClient />
         <CookieConsent />
 
         <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
