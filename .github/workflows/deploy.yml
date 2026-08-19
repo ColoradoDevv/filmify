@@ -16,9 +16,19 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # Sin esto, un comando que falla NO detiene el script: el 4-ago-2026
+          # `git pull` empezó a abortar (package-lock.json modificado en el
+          # host por `npm install`) y el deploy siguió con build + reload,
+          # reconstruyendo código viejo y saliendo verde durante dos semanas.
+          script_stop: true
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
-            git pull origin main
-            npm install
+            git fetch origin main
+            # --ff-only: si el checkout ha divergido, el deploy falla y se ve,
+            # en vez de desplegar algo que no es lo que hay en main.
+            git merge --ff-only origin/main
+            # npm ci en lugar de npm install: instala exactamente el lockfile y
+            # no lo reescribe, así que el checkout no vuelve a ensuciarse.
+            npm ci
             npm run build
             pm2 reload filmify
