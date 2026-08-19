@@ -125,6 +125,33 @@ export function isDoramasEnabled(): boolean {
     return process.env.NODE_ENV !== 'production';
 }
 
+/**
+ * Claves de las zonas publicitarias de Adsterra.
+ *
+ * Cada zona ("ad unit") del panel de Adsterra tiene su propia clave y solo
+ * sirve el tamaño con el que fue creada: reutilizar la del 728x90 para un
+ * hueco de 320x50 no lo rellena, devuelve vacío. Por eso hay una variable por
+ * formato y el slot correspondiente simplemente no se renderiza si falta.
+ *
+ * Son claves PÚBLICAS (viajan en el HTML como cualquier tag publicitario), no
+ * secretos — no aplica SEC-017.
+ *
+ * El 728x90 conserva su clave histórica como valor por defecto para que
+ * producción no se quede sin anuncios mientras las variables no estén puestas
+ * en el `.env.local` del host.
+ */
+export function getAdsConfig() {
+    return {
+        // Banners "iframe sync": se inyectan vía atOptions + invoke.js.
+        leaderboardKey: process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90 ?? '7deb51e34387a0c43737578eb16dfe23',
+        rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? '',
+        mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '',
+        // Native Banner: script async + <div> contenedor con id propio.
+        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
+        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
+    };
+}
+
 // Back-compat helpers (discouraged — prefer the typed accessors above).
 export function getRequiredEnv(key: string): string {
     const value = process.env[key];

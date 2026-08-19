@@ -17,7 +17,29 @@ export type ConsentState = {
 
 export const CONSENT_EVENT = 'cookie-consent-changed';
 
-const DEFAULT: ConsentState = { analytics: false, marketing: false };
+/** Estado inicial en el régimen estricto (EEE/UK/CH): nada hasta que elija. */
+const DEFAULT_STRICT: ConsentState = { analytics: false, marketing: false };
+
+/** Estado inicial fuera del EEE: modelo de exclusión, activo hasta que rechace. */
+const DEFAULT_OPT_OUT: ConsentState = { analytics: true, marketing: true };
+
+/**
+ * ¿Este visitante necesita dar consentimiento PREVIO?
+ *
+ * Lo decide el middleware por geo (`cf-ipcountry`) y lo publica en el atributo
+ * `data-consent-required` del <html>. Si el atributo no está —render fuera del
+ * layout, HTML cacheado antiguo, o el dominio sin proxy de Cloudflare— se
+ * asume que sí, que es el lado seguro.
+ */
+export function isConsentRequired(): boolean {
+    if (typeof document === 'undefined') return true;
+    return document.documentElement.dataset.consentRequired !== '0';
+}
+
+/** Estado inicial aplicable a este visitante mientras no haya decidido. */
+function defaultState(): ConsentState {
+    return isConsentRequired() ? DEFAULT_STRICT : DEFAULT_OPT_OUT;
+}
 
 function parse(raw: string | null): ConsentState | null {
     if (!raw) return null;
@@ -34,11 +56,13 @@ function parse(raw: string | null): ConsentState | null {
     }
 }
 
-/** Lee el consentimiento actual. Si el usuario aún no decidió, todo es false
- *  (nada de terceros no esenciales hasta que haya una elección explícita). */
+/** Lee el consentimiento actual.
+ *
+ *  Si el usuario aún no decidió, el valor por defecto depende de su región:
+ *  denegado en el EEE/UK/CH, concedido (con opción de rechazo) fuera. */
 export function getConsent(): ConsentState {
-    if (typeof window === 'undefined') return DEFAULT;
-    return parse(localStorage.getItem('cookie_consent')) ?? DEFAULT;
+    if (typeof window === 'undefined') return DEFAULT_STRICT;
+    return parse(localStorage.getItem('cookie_consent')) ?? defaultState();
 }
 
 /** ¿El usuario ya tomó una decisión (aceptar/rechazar/personalizar)? */

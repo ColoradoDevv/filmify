@@ -12,10 +12,9 @@ import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
 import MovieDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
-import dynamic from 'next/dynamic';
+import { AdSlot } from '@/components/ads';
 
-// Importar AdBanner2 dinámicamente (client component)
-const AdBanner2 = dynamic(() => import('@/components/ads/AdBanner2'));
+
 
 interface PageProps {
     params: Promise<{
@@ -354,6 +353,13 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         trailerKey={trailer?.key ?? null}
                     />
 
+                    {/* 📢 Anuncio bajo el reproductor.
+                        Es el hueco con más tiempo en pantalla de todo el sitio:
+                        el visitante se queda aquí mientras carga el player. Va
+                        DESPUÉS del reproductor a propósito — encima empujaría
+                        el contenido por el que ha venido. */}
+                    <AdSlot variant="inline" className="mt-6 mb-0" />
+
                     {/* Mobile quick facts */}
                     <div className="lg:hidden flex items-center gap-3 mt-3 mb-4 text-sm flex-wrap">
                         <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
@@ -564,9 +570,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                     )}
 
                     {/* 📢 Banner publicitario — discreto, antes de reviews */}
-                    <div className="mt-12 mb-12 opacity-90 hover:opacity-100 transition-opacity">
-                        <AdBanner2 />
-                    </div>
+                    <AdSlot className="my-12" />
 
                     {/* ── Reviews ────────────────────────────────── */}
                     <div className="mt-12">

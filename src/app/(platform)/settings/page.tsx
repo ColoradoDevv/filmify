@@ -21,7 +21,6 @@ import { PrivacySection } from './sections/PrivacySection';
 import { PreferencesSection } from './sections/PreferencesSection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { SupportSection } from './sections/SupportSection';
-import { AdSlot } from '@/components/ads';
 
 export default function SettingsPage() {
     const supabase = createClient();
@@ -128,8 +127,6 @@ export default function SettingsPage() {
                         {activeTab === 'support' && <SupportSection />}
                     </div>
 
-                    {/* 📢 Banner publicitario */}
-                    <AdSlot />
                 </div>
             </div>
         </div>

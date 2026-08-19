@@ -842,8 +842,6 @@ export default function ProfilePage() {
                 )}
             </section>
 
-            {/* 📢 Segundo banner — al final del perfil (página con mucho contenido) */}
-            <AdSlot className="my-0" />
         </div>
     );
 }

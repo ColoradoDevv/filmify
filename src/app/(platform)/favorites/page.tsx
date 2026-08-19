@@ -49,8 +49,6 @@ export default function FavoritesPage() {
                     ))}
                 </div>
 
-                {/* 📢 Segundo banner — solo cuando hay muchos favoritos */}
-                {favorites.length > 10 && <AdSlot className="my-0" />}
                 </>
             ) : (
                 <div className="text-center py-16">

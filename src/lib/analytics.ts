@@ -105,3 +105,18 @@ export function trackPlaybackError(params: { mediaType: MediaType; tmdbId: numbe
         tmdb_id: params.tmdbId,
     });
 }
+
+/**
+ * Un hueco publicitario ha entrado en pantalla.
+ *
+ * Es la única forma de saber qué páginas generan impresiones reales: el panel
+ * de Adsterra agrega por dominio, no por ruta, así que sin esto no se puede
+ * calcular el RPM por página ni decidir qué slot sobra. Se dispara una vez por
+ * montaje, cuando el slot es visible de verdad — no al renderizarse.
+ */
+export function trackAdView(params: { format: string; path: string }) {
+    track('ad_slot_view', {
+        ad_format: params.format,
+        page_path: params.path,
+    });
+}
