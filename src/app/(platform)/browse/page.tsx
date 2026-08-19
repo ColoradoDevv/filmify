@@ -6,7 +6,7 @@ import type { TVShow } from '@/types/tmdb';
 import FilterBar from '@/components/features/FilterBar';
 import MovieGrid from '@/components/features/MovieGrid';
 import ComingSoon from '@/components/features/ComingSoon';
-import HeroPosterCollage from '@/components/features/HeroPosterCollage';
+import ModuleHero from '@/components/features/ModuleHero';
 import { TrendingUp, Tv, Film, Swords } from 'lucide-react';
 import BrowsePageTV from './page-tv';
 import TVLayoutWrapper from '@/components/layout/TVLayoutWrapper';
@@ -195,42 +195,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     return (
         <div className="space-y-6 sm:space-y-8 pb-20">
             {/* ── Hero Section ────────────────────────────────── */}
-            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 shadow-2xl min-h-[200px] sm:min-h-[260px] flex items-center">
-                {/* Fondo: mosaico de pósters del catálogo (estilo Netflix) */}
-                <HeroPosterCollage posters={content.map((m) => m.poster_path)} />
-
-                <div className="relative z-10 p-5 sm:p-12">
-                    <div className="max-w-2xl">
-                        {/* Etiqueta de categoría */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 mb-3 sm:mb-4">
-                            {isAnime ? (
-                                <Swords className="w-4 h-4 text-orange-400" />
-                            ) : isTV ? (
-                                <Tv className="w-4 h-4 text-primary" />
-                            ) : (
-                                <TrendingUp className="w-4 h-4 text-primary" />
-                            )}
-                            <span className="text-xs font-medium text-white/90">
-                                {isAnime ? 'Catálogo de Anime' : isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
-                            </span>
-                        </div>
-
-                        <h1 className="text-2xl sm:text-5xl font-bold text-white tracking-tight mb-2 sm:mb-3 drop-shadow-lg">
-                            Explora{' '}
-                            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                                {isAnime ? 'Anime' : isTV ? 'Series' : 'Películas'}
-                            </span>
-                        </h1>
-                        <p className="text-white/80 text-sm sm:text-lg leading-relaxed drop-shadow">
-                            {isAnime
-                                ? 'Catálogo completo de anime disponible para ver online, actualizado a diario.'
-                                : isTV
-                                    ? 'Descubre las series más populares y aclamadas del momento.'
-                                    : 'Explora las películas que están definiendo la conversación cinematográfica.'}
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <ModuleHero
+                posters={content.map((m) => m.poster_path)}
+                icon={isAnime ? Swords : isTV ? Tv : TrendingUp}
+                iconClassName={isAnime ? 'text-orange-400' : 'text-primary'}
+                badgeLabel={isAnime ? 'Catálogo de Anime' : isTV ? 'Series Destacadas' : 'Películas en Tendencia'}
+                titlePrefix="Explora "
+                titleHighlight={isAnime ? 'Anime' : isTV ? 'Series' : 'Películas'}
+                description={
+                    isAnime
+                        ? 'Catálogo completo de anime disponible para ver online, actualizado a diario.'
+                        : isTV
+                            ? 'Descubre las series más populares y aclamadas del momento.'
+                            : 'Explora las películas que están definiendo la conversación cinematográfica.'
+                }
+            />
 
             {/* Filtros y contenido */}
             <FilterBar genres={genres} />
