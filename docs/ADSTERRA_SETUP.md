@@ -49,7 +49,10 @@ Son **públicas** (viajan en el HTML como cualquier tag publicitario), así que
 no aplica SEC-017. Se leen en tiempo de build: hay que redesplegar tras
 cambiarlas en el `.env.local` del host EC2.
 
-Si una variable falta, ese hueco no se renderiza y no deja espacio vacío.
+Las tres zonas de banner ya llevan su clave real como valor por defecto en
+`getAdsConfig()`, así que funcionan sin configurar nada; las variables sirven
+para rotar una zona sin tocar código. El Native Banner sí depende de sus dos
+variables: mientras estén vacías, `variant="native"` no renderiza nada.
 
 ## Códigos: "iFrame Sync" vs "JSAsync"
 

@@ -136,16 +136,18 @@ export function isDoramasEnabled(): boolean {
  * Son claves PÚBLICAS (viajan en el HTML como cualquier tag publicitario), no
  * secretos — no aplica SEC-017.
  *
- * El 728x90 conserva su clave histórica como valor por defecto para que
- * producción no se quede sin anuncios mientras las variables no estén puestas
- * en el `.env.local` del host.
+ * Las tres zonas de banner llevan su clave real como valor por defecto: se
+ * leen en tiempo de build, así que dejarlas vacías obligaría a editar el
+ * `.env.local` del host y redesplegar solo para encender un hueco. Las
+ * variables siguen mandando cuando existen, que es lo que permite rotar una
+ * zona sin tocar código.
  */
 export function getAdsConfig() {
     return {
         // Banners "iframe sync": se inyectan vía atOptions + invoke.js.
         leaderboardKey: process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90 ?? '7deb51e34387a0c43737578eb16dfe23',
-        rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? '',
-        mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '',
+        rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? 'ce6550c9d52abc55fc5d11ca46514dc1',
+        mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '9b1015654b33c71d45a8ff4989d0654d',
         // Native Banner: script async + <div> contenedor con id propio.
         nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
         nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
