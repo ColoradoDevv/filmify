@@ -453,6 +453,42 @@ export async function getVimeusAnimeCatalog(limit = 500): Promise<VimeusAnime[]>
     return items.slice(0, limit);
 }
 
+// ── Series id-Set memoizado (pre-filtro del catálogo de doramas) ─────────────
+// El listing de series son 11 páginas de 100 (~1100 títulos), así que cabe
+// entero en memoria — nada que ver con las 152 páginas de películas que
+// obligaron a retirar el Set global (ver la nota de diseño de arriba).
+//
+// Sirve de PRE-FILTRO, no de veredicto: si un tmdb_id no está en el listing,
+// Vimeus no lo tiene y nos ahorramos descargar su embed; si está, se sigue
+// verificando con `probeEmbed`, porque el listing incluye títulos aún sin
+// embeds resueltos. Filtrar una página de 20 doramas pasa de 20 descargas de
+// HTML a las dos o tres que de verdad pueden salir bien.
+const SERIES_SET_TTL_MS = 10 * 60 * 1000;
+let _seriesIdSet: Set<number> = new Set();
+let _seriesIdSetAt = 0;
+let _seriesIdSetInflight: Promise<Set<number>> | null = null;
+
+export async function getSeriesIdSet(limit = 2000): Promise<Set<number>> {
+    if (!API_KEY) return new Set();
+    if (Date.now() - _seriesIdSetAt < SERIES_SET_TTL_MS && _seriesIdSet.size > 0) {
+        return _seriesIdSet;
+    }
+    if (_seriesIdSetInflight) return _seriesIdSetInflight;
+    _seriesIdSetInflight = (async () => {
+        try {
+            const catalog = await getVimeusSeriesCatalog(limit);
+            if (catalog.length > 0) {
+                _seriesIdSet = new Set(catalog.map((s) => s.tmdb_id));
+                _seriesIdSetAt = Date.now();
+            }
+            return _seriesIdSet;
+        } finally {
+            _seriesIdSetInflight = null;
+        }
+    })();
+    return _seriesIdSetInflight;
+}
+
 // ── Anime id-Set memoizado (para clasificar resultados de búsqueda) ───────────
 // La búsqueda cruza cada resultado 'tv' contra el catálogo de anime para
 // distinguir anime de serie. Antes reconstruía el Set (recorriendo el catálogo)
