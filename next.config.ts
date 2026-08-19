@@ -65,7 +65,28 @@ const nextConfig = {
       destination,
       permanent: true,
     });
+    // Módulo de doramas cerrado — ver `isDoramasEnabled` en src/lib/env.ts.
+    // Va aquí y no en middleware.ts porque ese archivo NO se está cargando
+    // (Next lo busca junto a `app/`, es decir en src/, y está en la raíz):
+    // los redirects de next.config sí se aplican siempre. Se evalúa en build,
+    // así que cambiar NEXT_PUBLIC_DORAMAS_ENABLED exige recompilar — que es
+    // justo lo que hace el deploy.
+    const doramasEnabled = process.env.NEXT_PUBLIC_DORAMAS_ENABLED === '1'
+      || process.env.NEXT_PUBLIC_DORAMAS_ENABLED === 'true'
+      || (process.env.NEXT_PUBLIC_DORAMAS_ENABLED !== '0'
+        && process.env.NEXT_PUBLIC_DORAMAS_ENABLED !== 'false'
+        && process.env.NODE_ENV !== 'production');
+
+    const doramasClosed = doramasEnabled
+      ? []
+      : [
+        // Temporal (307): la sección vuelve cuando haya proveedor.
+        { source: '/doramas', destination: '/browse?category=tv', permanent: false },
+        { source: '/doramas/:path*', destination: '/browse?category=tv', permanent: false },
+      ];
+
     return [
+      ...doramasClosed,
       // BD antigua → sucesores directos
       gone('avengers-doomsday-todo-lo-que-sabemos', '/editorial/avengers-doomsday-rdj-doctor-doom-diciembre'),
       gone('toy-story-5-fecha-estreno-2026', '/editorial/toy-story-5-estreno-19-junio-woody-buzz'),

@@ -8,13 +8,14 @@ import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
     Home, Film, Tv, BookOpen,
-    Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee, Swords,
+    Heart, Settings, ChevronLeft, ChevronRight, Users, Coffee, Swords, Drama,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import type { LucideIcon } from 'lucide-react';
 import { DONATE_URL } from '@/components/ui/DonateButton';
+import { isDoramasEnabled } from '@/lib/env';
 
 interface NavItem {
     name: string;
@@ -67,6 +68,15 @@ const SECTIONS: NavSection[] = [
                 icon: Swords,
                 isActive: (p) => p.startsWith('/anime'),
             },
+            // Doramas: solo cuando el módulo está abierto (ver `isDoramasEnabled`).
+            ...(isDoramasEnabled()
+                ? [{
+                    name: 'Doramas',
+                    href: '/doramas',
+                    icon: Drama,
+                    isActive: (p: string) => p.startsWith('/doramas'),
+                }]
+                : []),
             {
                 name: 'Editorial',
                 href: '/editorial',

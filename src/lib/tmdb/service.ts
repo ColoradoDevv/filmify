@@ -234,6 +234,46 @@ export const discoverTV = async (
     return fetchFromTMDB('/discover/tv', params, TMDB_TTL.discover);
 };
 
+/** Filtros de `/discover/tv` que `discoverTV` no expone. */
+export interface DiscoverTVOptions {
+    page?: number;
+    sortBy?: string;
+    /** Códigos ISO 3166-1 separados por '|' (OR) o ',' (AND). Ej: 'KR|JP|CN'. */
+    originCountry?: string;
+    /** Códigos ISO 639-1 separados por '|'. Ej: 'ko|ja|zh'. */
+    originalLanguage?: string;
+    withGenres?: string | number;
+    /** Géneros a excluir. Se usa para sacar la animación del catálogo de doramas. */
+    withoutGenres?: string | number;
+    firstAirDateGte?: string;
+    firstAirDateLte?: string;
+    voteCountGte?: number;
+}
+
+/**
+ * `/discover/tv` con los filtros completos.
+ *
+ * `discoverTV` solo admite género y año, que no basta para construir un
+ * catálogo por región: los doramas se identifican por país de origen
+ * (`with_origin_country`), no por género.
+ */
+export const discoverTVBy = async (
+    opts: DiscoverTVOptions = {},
+): Promise<PaginatedResponse<TVShow>> => {
+    const params: Record<string, string | number | undefined> = {
+        page: Math.max(1, Math.floor(opts.page || 1)),
+        sort_by: opts.sortBy || 'popularity.desc',
+        with_origin_country: opts.originCountry,
+        with_original_language: opts.originalLanguage,
+        with_genres: opts.withGenres,
+        without_genres: opts.withoutGenres,
+        'first_air_date.gte': opts.firstAirDateGte,
+        'first_air_date.lte': opts.firstAirDateLte,
+        'vote_count.gte': opts.voteCountGte,
+    };
+    return fetchFromTMDB('/discover/tv', params, TMDB_TTL.discover);
+};
+
 // ── Popular / Top Rated / Now Playing / Upcoming ────────────────────────────
 export const getPopular = async (page: number = 1): Promise<PaginatedResponse<Movie>> =>
     fetchFromTMDB('/movie/popular', { page: Math.max(1, Math.floor(page)) }, TMDB_TTL.list);

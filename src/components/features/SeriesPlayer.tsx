@@ -4,9 +4,11 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import {
     Play, Loader2, AlertCircle, RefreshCw, Tv, Youtube, Maximize,
-    ChevronLeft, ChevronRight, Layers, X,
+    ChevronLeft, ChevronRight, Layers, X, Check,
 } from 'lucide-react';
 import { trackPlay, trackTrailer } from '@/lib/analytics';
+import { getSeriesSourcesAction } from '@/app/actions/series';
+import type { DoramaSource } from '@/server/services/dorama';
 
 export interface SeasonEpisodes {
     season: number;
@@ -26,6 +28,14 @@ interface SeriesPlayerProps {
     seasons: SeasonEpisodes[];
     /** Usa el endpoint /e/anime en lugar de /e/serie */
     isAnime?: boolean;
+    /**
+     * Fuentes del episodio inicial, resueltas en servidor contra el registro
+     * de proveedores. Si viene vacío o ausente, el reproductor se comporta
+     * como siempre: un único embed de Vimeus, sin selector de servidor.
+     */
+    initialSources?: DoramaSource[];
+    /** Títulos, para los proveedores que buscan por texto (KissKH). */
+    titles?: { name?: string | null; originalName?: string | null };
 }
 
 const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
@@ -40,11 +50,17 @@ type Mode = 'idle' | 'serie' | 'trailer';
  * Inline series player, Cuevana-style: embedded in the page, no login.
  * Season/episode pickers reload the embed at the exact episode.
  */
-export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, seasons, isAnime = false }: SeriesPlayerProps) {
+export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, seasons, isAnime = false, initialSources = [], titles }: SeriesPlayerProps) {
     const [mode, setMode] = useState<Mode>('idle');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
+
+    // Fuentes del episodio actual y servidor elegido. Con la lista vacía el
+    // reproductor cae al comportamiento histórico (solo Vimeus).
+    const [sources, setSources] = useState<DoramaSource[]>(initialSources);
+    const [activeSourceIdx, setActiveSourceIdx] = useState(0);
+    const sourcesSeqRef = useRef(0);
 
     const [season, setSeason] = useState<number>(seasons[0]?.season ?? 1);
     const [episode, setEpisode] = useState<number>(seasons[0]?.episodes[0] ?? 1);
@@ -102,10 +118,14 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     }, [seasons, season]);
 
     const embedUrl = useMemo(() => {
+        // Con selector de servidor manda la fuente elegida; si no hay ninguna
+        // (o el servidor no devolvió nada) se conserva el embed de Vimeus.
+        const picked = sources[activeSourceIdx];
+        if (picked) return picked.url;
         const endpoint = isAnime ? 'anime' : 'serie';
         const base = `https://vimeus.com/e/${endpoint}?tmdb=${tmdbId}&view_key=${VIMEUS_VIEW_KEY}&${VIMEUS_STYLE}`;
         return seasons.length > 0 ? `${base}&se=${season}&ep=${episode}` : base;
-    }, [tmdbId, isAnime, seasons.length, season, episode]);
+    }, [sources, activeSourceIdx, tmdbId, isAnime, seasons.length, season, episode]);
 
     const trailerUrl = trailerKey
         ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`
@@ -115,13 +135,26 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
     const loadSerie = useCallback((s: number, e: number) => {
         setSeason(s);
         setEpisode(e);
+        // Las URLs de los proveedores llevan temporada/episodio dentro, así
+        // que hay que volver a resolverlas. Solo si ya había selector: sin él
+        // el embed de Vimeus se reconstruye solo en el useMemo.
+        if (sources.length > 0) {
+            const seq = ++sourcesSeqRef.current;
+            setActiveSourceIdx(0);
+            getSeriesSourcesAction(tmdbId, s, e, titles)
+                .then((pb) => {
+                    if (seq !== sourcesSeqRef.current) return; // respuesta obsoleta
+                    if (pb.sources.length > 0) setSources(pb.sources);
+                })
+                .catch(() => { /* nos quedamos con las fuentes anteriores */ });
+        }
         setMode('serie');
         setIsLoading(true);
         setError(false);
         setShowNextUp(false);
         setReloadKey((k) => k + 1);
         trackPlay({ mediaType: 'serie', tmdbId, title, season: s, episode: e });
-    }, [tmdbId, title]);
+    }, [tmdbId, title, sources.length, titles]);
 
     const startSerie = useCallback(() => loadSerie(season, episode), [loadSerie, season, episode]);
 
@@ -268,6 +301,38 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                         <Youtube className="w-4 h-4" />
                         Tráiler
                     </button>
+                )}
+
+                {/* Selector de servidor — solo si el registro devolvió varias fuentes */}
+                {sources.length > 1 && (
+                    <>
+                        <span className="w-px h-5 bg-outline-variant mx-1 shrink-0" />
+                        {sources.map((src, i) => (
+                            <button
+                                key={`${src.provider}-${i}`}
+                                onClick={() => {
+                                    setActiveSourceIdx(i);
+                                    setMode('serie');
+                                    setIsLoading(true);
+                                    setError(false);
+                                    setReloadKey((k) => k + 1);
+                                }}
+                                title={
+                                    src.subtitleLanguages.length > 0
+                                        ? `Subtítulos: ${src.subtitleLanguages.slice(0, 8).join(', ')}`
+                                        : undefined
+                                }
+                                className={`flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+                                    i === activeSourceIdx && mode !== 'trailer'
+                                        ? 'bg-primary/20 border border-primary/40 text-primary'
+                                        : 'text-text-secondary hover:text-white hover:bg-white/5'
+                                }`}
+                            >
+                                {src.verified && <Check className="w-3.5 h-3.5" />}
+                                {src.label}
+                            </button>
+                        ))}
+                    </>
                 )}
 
                 <div className="flex-1" />

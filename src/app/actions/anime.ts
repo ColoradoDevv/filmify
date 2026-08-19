@@ -4,46 +4,29 @@
  * Server Actions del apartado de Anime.
  *
  * Dos bloques:
- *  - Descubrimiento (AniList): búsqueda en vivo, paginación, filtro por género.
+ *  - Descubrimiento (AniList): catálogo paginado, búsqueda en vivo y filtro
+ *    por género — todo a través de una sola acción.
  *  - Reproducción: resolver las fuentes de un episodio contra el registro de
  *    proveedores. El anime NO pasa por el módulo de series: se identifica por
  *    su id de AniList de principio a fin.
  */
 
-import {
-    getTrendingAnime, getPopularAnime, getTopRatedAnime, getSeasonalAnime,
-    searchAnime, getAnimeByGenre,
-} from '@/server/services/anilist';
-import { filterPlayableAnimeCards, getAnimePlayback } from '@/server/services/anime';
-import type { AnimePlayback } from '@/server/services/anime';
-import type { AnimeCard } from '@/lib/anilist/types';
+import { getAnimePlayback, loadAnimeCatalog } from '@/server/services/anime';
+import type { AnimeCatalogOptions, AnimeCatalogPage, AnimePlayback } from '@/server/services/anime';
 
-export async function searchAnimeAction(query: string, page = 1): Promise<AnimeCard[]> {
-    // La búsqueda respeta lo que el usuario pide, pero solo devuelve lo que
-    // realmente puede ver (evita fichas muertas en los resultados).
-    const results = await searchAnime(query, 40, page);
-    return filterPlayableAnimeCards(results).catch(() => results);
-}
-
-export async function animeByGenreAction(genre: string, page = 1): Promise<AnimeCard[]> {
-    const results = await getAnimeByGenre(genre, 40, page);
-    return filterPlayableAnimeCards(results).then((a) => a.slice(0, 24)).catch(() => results.slice(0, 24));
-}
-
-export async function trendingAnimeAction(page = 1): Promise<AnimeCard[]> {
-    return getTrendingAnime(24, page);
-}
-
-export async function popularAnimeAction(page = 1): Promise<AnimeCard[]> {
-    return getPopularAnime(24, page);
-}
-
-export async function topRatedAnimeAction(page = 1): Promise<AnimeCard[]> {
-    return getTopRatedAnime(24, page);
-}
-
-export async function seasonalAnimeAction(page = 1): Promise<AnimeCard[]> {
-    return getSeasonalAnime(24, page);
+/**
+ * Una página del catálogo: búsqueda, género o listado general.
+ *
+ * Es la única puerta de entrada del explorador: recorre AniList hasta juntar
+ * un mínimo de títulos reproducibles y dice por dónde seguir, igual que
+ * `loadMoreMovies` en películas y series.
+ */
+export async function animeCatalogAction(opts: AnimeCatalogOptions = {}): Promise<AnimeCatalogPage> {
+    return loadAnimeCatalog({
+        page: Number.isFinite(opts.page) ? opts.page : 1,
+        query: typeof opts.query === 'string' ? opts.query.slice(0, 100) : null,
+        genre: typeof opts.genre === 'string' ? opts.genre.slice(0, 60) : null,
+    });
 }
 
 /**

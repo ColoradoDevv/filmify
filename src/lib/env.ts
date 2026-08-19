@@ -100,6 +100,31 @@ export function getPortalDeviceSecret(): string {
     return secret ?? '';
 }
 
+/**
+ * ¿Está abierto el módulo de doramas (/doramas y sus enlaces de navegación)?
+ *
+ * Cerrado temporalmente en producción (2026-08-18): APIPlayer, el proveedor
+ * que daba la mitad de la cobertura, empezó a exigir verificación antibot a
+ * todas las peticiones — comprobado también desde el EC2 — y sin él el
+ * catálogo se queda en lo que tenga Vimeus (11-17 títulos por región). Se
+ * reabre cuando haya una fuente de disponibilidad decente, ya sea porque
+ * APIPlayer vuelva o porque se añada otra señal.
+ *
+ * En desarrollo sigue abierto para poder seguir trabajando en él. El override
+ * por entorno permite abrirlo en producción sin desplegar código
+ * (NEXT_PUBLIC_DORAMAS_ENABLED=1) o cerrarlo en local (=0).
+ *
+ * OJO: esto solo apaga el CATÁLOGO. La capa `@/server/services/dorama` sigue
+ * activa y es la que resuelve la reproducción de TODAS las series en
+ * /tv/[id] — apagarla dejaría el sitio sin proveedores de series.
+ */
+export function isDoramasEnabled(): boolean {
+    const flag = process.env.NEXT_PUBLIC_DORAMAS_ENABLED;
+    if (flag === '1' || flag === 'true') return true;
+    if (flag === '0' || flag === 'false') return false;
+    return process.env.NODE_ENV !== 'production';
+}
+
 // Back-compat helpers (discouraged — prefer the typed accessors above).
 export function getRequiredEnv(key: string): string {
     const value = process.env[key];

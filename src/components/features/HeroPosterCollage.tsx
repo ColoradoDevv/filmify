@@ -1,8 +1,13 @@
 import Image from 'next/image';
 import { getPosterUrl } from '@/lib/tmdb/helpers';
 
+/** Resuelve un póster a URL: rutas TMDB (poster_path) o URLs absolutas (ej. CDN de AniList) tal cual. */
+function resolvePosterSrc(path: string): string {
+  return path.startsWith('http') ? path : getPosterUrl(path, 'w185') || '';
+}
+
 interface HeroPosterCollageProps {
-  /** Rutas de póster de TMDB (poster_path). Las nulas se descartan. */
+  /** Rutas de póster de TMDB (poster_path) o URLs absolutas de imagen. Las nulas se descartan. */
   posters: (string | null | undefined)[];
   /** Contenido que se mostrará sobre el collage (ej. en página 404) */
   children?: React.ReactNode;
@@ -60,7 +65,7 @@ export default function HeroPosterCollage({
         {tiles.map((path, i) => (
           <div key={i} className="relative aspect-[2/3]">
             <Image
-              src={getPosterUrl(path, 'w185') || ''}
+              src={resolvePosterSrc(path)}
               alt=""
               fill
               className="object-cover"

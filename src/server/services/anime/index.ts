@@ -6,6 +6,7 @@
  * tiene su propia ruta (/anime/[id]). Nada de aquí debe depender de que un
  * anime exista como serie en TMDB.
  *
+ *   catalog   → qué anime mostrar (AniList, ya filtrado y paginado)
  *   registry  → qué fuentes hay para reproducir un episodio
  *   mapping   → traducción exacta de ids (AniList ↔ TMDB ↔ MAL)
  *   episodes  → cuántos episodios ofrecer
@@ -28,6 +29,9 @@ export {
     filterPlayableAnimeCards,
     listEnabledProviders,
 } from './registry';
+
+export { loadAnimeCatalog } from './catalog';
+export type { AnimeCatalogOptions, AnimeCatalogPage } from './catalog';
 
 export {
     tmdbFromAnilist,

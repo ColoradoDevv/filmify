@@ -8,6 +8,7 @@ import {
     getSeriesEpisodeMap,
 } from '@/server/services/vimeus';
 import { canonicalAnilistForTmdbIfWarm } from '@/server/services/anime';
+import { getSeriesPlayback } from '@/server/services/dorama';
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
@@ -168,14 +169,25 @@ export default async function TVDetailsPage({ params }: PageProps) {
     // Availability gate + datos de Vimeus en paralelo.
     // Algunos títulos están en Vimeus solo como anime (/e/anime), no como serie
     // (/e/serie) — si el probe de serie falla, intentamos el de anime.
-    const [seriesAvail, animeAvail, episodeMap, recommendations] = await Promise.all([
+    const [seriesAvail, animeAvail, episodeMap, recommendations, playback] = await Promise.all([
         isSeriesAvailableOnVimeus(tvId),
         isAnimeAvailableOnVimeus(tvId),
         getSeriesEpisodeMap(tvId),
         filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 18)),
+        // Registro de proveedores (Vimeus + APIPlayer + KissKH si está activo).
+        // Es lo que permite servir títulos que Vimeus no tiene: medido sobre
+        // 22 doramas, la cobertura pasa de 6/22 a 11/22.
+        getSeriesPlayback({
+            tmdbId: tvId,
+            season: 1,
+            episode: 1,
+            titles: { name: tvShow.name, originalName: tvShow.original_name },
+        }).catch(() => ({ sources: [], hasVerifiedSource: false, subtitleLanguages: [] })),
     ]);
     const isAnime = !seriesAvail && animeAvail;
-    if (!seriesAvail && !animeAvail) notFound();
+    // Antes bastaba con que Vimeus fallara para devolver 404. Ahora la ficha
+    // existe si CUALQUIER proveedor la tiene.
+    if (!seriesAvail && !animeAvail && playback.sources.length === 0) notFound();
 
     const backdropUrl = getBackdropUrl(tvShow.backdrop_path);
     const posterUrl = getPosterUrl(tvShow.poster_path);
@@ -331,6 +343,8 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         trailerKey={trailer?.key ?? null}
                         seasons={seasons}
                         isAnime={isAnime}
+                        initialSources={playback.sources}
+                        titles={{ name: tvShow.name, originalName: tvShow.original_name }}
                     />
 
                     {/* Mobile quick facts */}
