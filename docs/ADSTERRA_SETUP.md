@@ -103,6 +103,40 @@ cual. Suelen ser varias líneas, no una.
 Verificar tras desplegar: `https://filmify.me/ads.txt` debe devolver texto
 plano (el `matcher` del middleware ya excluye `.txt`).
 
+## CSP: nada de scripts inline en el anuncio
+
+El panel entrega el banner como dos `<script>`: uno inline con `atOptions` y
+otro externo con `invoke.js`. **El inline no funciona en este sitio.** El
+iframe hereda el CSP de la página, que usa nonce por petición, así que el
+navegador rechaza cualquier inline sin él:
+
+```
+Refused to execute inline script because it violates the following
+Content Security Policy directive: "script-src 'self' 'nonce-…' https:"
+```
+
+El fallo es silencioso: la página se ve bien y el hueco aparece, pero
+`window.atOptions` nunca llega a existir y la red no recibe ni el formato ni
+el tamaño de la zona.
+
+Por eso `AdBanner` escribe `atOptions` directamente sobre el `contentWindow`
+del iframe (es same-origin) y añade el script externo por DOM. Sin inline no
+hay nada que bloquear, y `script-src https:` ya permite el script de la red.
+
+**Al pegar código nuevo del panel, no lo copies tal cual**: quédate solo con
+la URL de `invoke.js` y mete la clave en la variable de entorno.
+
+## Puntos de corte
+
+| Ancho | `auto` | `inline` | `player` |
+|---|---|---|---|
+| < 768px | 320x50 | 320x50 | 320x50 |
+| 768–1023px | 300x250 | 300x250 | Native 4:1 |
+| ≥ 1024px | 728x90 | 300x250 | Native 4:1 |
+
+El 728x90 no entra por debajo de 1024px: necesita 728px **libres** y con los
+márgenes de página se desborda por el lado derecho a 768px.
+
 ## Consentimiento
 
 Los anuncios solo cargan con consentimiento de marketing. Desde agosto 2026 el

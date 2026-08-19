@@ -14,9 +14,20 @@ import { cn } from '@/lib/utils';
  *
  * IMPORTANT: el código "iFrame Sync" de esta red usa `document.write()`, que
  * los navegadores ignoran en silencio si el script se inyecta de forma
- * asíncrona en <head>. El patrón fiable es ejecutarlo dentro de un iframe
- * same-origin propio, donde `document.write` funciona con normalidad y el
- * anuncio no puede tocar nuestro DOM/CSS.
+ * asíncrona en <head>. Por eso se ejecuta dentro de un iframe same-origin
+ * propio, donde `document.write` funciona con normalidad y el anuncio no
+ * puede tocar nuestro DOM/CSS.
+ *
+ * Lo que NO se puede hacer es montar el `atOptions` de la red como un
+ * `<script>` inline dentro de ese iframe, que es como lo entrega el panel: el
+ * iframe hereda el CSP de la página y nuestra política lleva nonce, así que el
+ * navegador rechaza todo inline sin él ("Refused to execute inline script").
+ * El resultado era silencioso y grave — `window.atOptions` nunca llegaba a
+ * definirse y la red no recibía ni el formato ni el tamaño de la zona.
+ * Como el iframe es same-origin, se puede escribir la variable directamente
+ * sobre su `contentWindow` y añadir el script externo por DOM: sin inline no
+ * hay nada que el CSP pueda bloquear, y `script-src https:` ya permite el
+ * script de la red.
  *
  * Cada formato lleva su PROPIA clave de zona: una clave creada como 728x90 no
  * rellena un hueco de 320x50, devuelve vacío. Antes se escalaba el 728x90 con
@@ -82,23 +93,24 @@ export default function AdBanner({ format, className }: AdBannerProps) {
         try {
             const doc = iframe.contentDocument;
             doc.open();
-            doc.write(`<!DOCTYPE html>
-<html>
-<head><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent}</style></head>
-<body>
-<script type="text/javascript">
-  window.atOptions = {
-    'key': '${adKey}',
-    'format': 'iframe',
-    'height': ${h},
-    'width': ${w},
-    'params': {}
-  };
-</script>
-<script type="text/javascript" src="https://www.highperformanceformat.com/${adKey}/invoke.js"></script>
-</body>
-</html>`);
+            doc.write('<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent}</style></head><body></body></html>');
             doc.close();
+
+            const win = iframe.contentWindow as (Window & { atOptions?: unknown }) | null;
+            if (!win) return;
+
+            win.atOptions = {
+                key: adKey,
+                format: 'iframe',
+                height: h,
+                width: w,
+                params: {},
+            };
+
+            const script = doc.createElement('script');
+            script.type = 'text/javascript';
+            script.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
+            doc.body.appendChild(script);
         } catch (err) {
             console.error('Error al cargar anuncio:', err);
         }
