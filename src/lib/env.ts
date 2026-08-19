@@ -149,10 +149,23 @@ export function getAdsConfig() {
         rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? 'ce6550c9d52abc55fc5d11ca46514dc1',
         mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '9b1015654b33c71d45a8ff4989d0654d',
         // Native Banner: script async + <div> contenedor con id propio.
-        // Configurado como widget 4:1, que es lo que la guía de Adsterra
-        // recomienda para el hueco "bajo el reproductor" en escritorio.
-        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? 'https://pl29700108.effectivecpmnetwork.com/88c8fb19b1910255dd80c81c6c09fcfc/invoke.js',
-        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? 'container-88c8fb19b1910255dd80c81c6c09fcfc',
+        //
+        // ⚠️ DESACTIVADO A PROPÓSITO — no le pongas valor por defecto.
+        //
+        // Este formato no puede correr dentro del iframe con sandbox, así que
+        // su script se ejecuta en el documento principal con privilegios
+        // completos sobre la página. En junio de 2026 eso dejó el sitio
+        // inservible en móvil: el primer toque en cualquier parte redirigía a
+        // una página de anuncios. Se desactivó el 13/06 (AdBanner1), cuando
+        // era el único script publicitario suelto en la página — el 728x90 ya
+        // corría entonces dentro del iframe y nunca dio ese problema, porque
+        // un sandbox sin `allow-top-navigation` ni `allow-popups` no puede
+        // navegar la ventana principal.
+        //
+        // Para reactivarlo hay que servirlo antes desde un iframe aislado
+        // (ver docs/ADSTERRA_SETUP.md), no basta con rellenar estas variables.
+        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
+        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
     };
 }
 

@@ -22,24 +22,46 @@ import { AdSlot } from '@/components/ads';
 
 <AdSlot />                      {/* 728x90 en escritorio, 320x50 en móvil */}
 <AdSlot variant="inline" />     {/* 300x250 en escritorio, 320x50 en móvil */}
-<AdSlot variant="player" />     {/* Native Banner 4:1 en escritorio, 320x50 en móvil */}
+<AdSlot variant="player" />     {/* bajo el reproductor — hoy igual que inline */}
 ```
 
-### Por qué el nativo va bajo el reproductor
+### ⚠️ El Native Banner está DESACTIVADO
 
-Es lo que recomienda la guía de Native Ads de Adsterra para páginas con vídeo:
-*"Under the player — 4x1 widget"* en escritorio. El widget ocupa el ancho del
-player y se lee como contenido del sitio, que es justo de donde sale su CTR.
+`variant="player"` cae al rectángulo 300x250 porque `nativeSrc` está vacío a
+propósito. **No rellenes esa variable sin leer esto.**
 
-En móvil ese hueco sirve el 320x50, no el nativo: el layout del widget es
-**único por zona** (una sola unidad Native Banner por sitio) y está en 4:1,
-que en un ancho de móvil sale apretado — la propia guía avisa de que el widget
-hay que ajustarlo por dispositivo o "se verá raro". La guía sugiere 1x1 o 1x4
-para móvil; si algún día Adsterra permite una segunda unidad nativa, ese es el
-cambio que toca.
+**Qué pasó.** En junio de 2026 el sitio quedó inservible en móvil: el primer
+toque en cualquier parte de la página redirigía a una página de anuncios. El
+componente que lo provocaba era `AdBanner1`, que servía este mismo Native
+Banner (mismo script `pl29700108.effectivecpmnetwork.com/88c8fb19…`, mismo
+`container-88c8fb19…`). Se comentó entero el 13/06/2026 y se borró el 16/06.
 
-El layout se cambia desde el propio panel (**GET CODE → Widget layout → SAVE**),
-sin tocar código: la URL del script y el id del contenedor no cambian.
+**Por qué el 728x90 nunca dio ese problema.** Corre dentro de un
+`<iframe sandbox="allow-scripts allow-same-origin">`. Un sandbox sin
+`allow-top-navigation` ni `allow-popups` no puede navegar la ventana principal
+ni abrir pop-ups, haga lo que haga el creativo. El Native Banner, en cambio,
+se inyecta en el documento principal — es el formato el que exige estar en la
+página para heredar tipografía y colores — y ahí tiene privilegios completos.
+
+La cronología descarta al Social Bar: el 13/06, cuando se apagó el nativo, el
+Social Bar todavía no existía en el repo (llegó el 15/06, y también acabó
+retirado). El único script publicitario suelto en la página era el nativo.
+
+**Cómo reactivarlo bien.** No basta con poner las variables. Hay que servir el
+anuncio desde una ruta propia same-origin (p. ej. `/ads/frame?zone=…`) que
+devuelva el HTML del anuncio con su `atOptions` inline **nonceado**, y montar
+esa ruta en un `<iframe sandbox="allow-scripts">` **sin** `allow-same-origin`:
+con origen opaco el creativo no alcanza el DOM del padre, no puede navegar la
+página ni abrir pop-ups. Se pierde la herencia de tipografía del widget (se
+puede imitar copiando la fuente y los colores dentro del iframe) y hay que
+ajustar la altura leyendo el contenido, pero el formato deja de ser un riesgo.
+
+Mismo razonamiento para el **Social Bar**: es un overlay a página completa por
+diseño, así que no se puede aislar en un iframe. Antes de volver a montarlo
+hay que probarlo en un móvil real y estar dispuesto a quitarlo rápido.
+
+El layout del widget se cambia desde el panel (**GET CODE → Widget layout →
+SAVE**) sin tocar código: la URL del script y el id del contenedor no cambian.
 
 **Una sola zona por hueco.** Renderizar la variante de móvil y la de
 escritorio a la vez escondiendo una con CSS genera impresiones de anuncios que
@@ -131,8 +153,11 @@ la URL de `invoke.js` y mete la clave en la variable de entorno.
 | Ancho | `auto` | `inline` | `player` |
 |---|---|---|---|
 | < 768px | 320x50 | 320x50 | 320x50 |
-| 768–1023px | 300x250 | 300x250 | Native 4:1 |
-| ≥ 1024px | 728x90 | 300x250 | Native 4:1 |
+| 768–1023px | 300x250 | 300x250 | 300x250 |
+| ≥ 1024px | 728x90 | 300x250 | 300x250 |
+
+(`player` serviría el Native Banner 4:1 en tablet y escritorio si estuviera
+activo — ver arriba por qué no lo está.)
 
 El 728x90 no entra por debajo de 1024px: necesita 728px **libres** y con los
 márgenes de página se desborda por el lado derecho a 768px.

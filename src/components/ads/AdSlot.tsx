@@ -62,8 +62,10 @@ function resolveFormat(variant: SlotVariant, bucket: Bucket): AdFormat | null {
         return ads.mobileKey ? 'mobile' : null;
     }
 
-    // Bajo el reproductor Adsterra recomienda su widget nativo 4:1: ocupa el
-    // ancho del player y se lee como contenido del sitio, no como banner.
+    // Bajo el reproductor Adsterra recomienda su widget nativo 4:1, pero ese
+    // formato está desactivado por seguridad (secuestraba el primer toque en
+    // móvil; ver getAdsConfig en @/lib/env). Mientras `nativeSrc` esté vacío
+    // este hueco cae al rectángulo, que es la reserva correcta.
     if (variant === 'player' && ads.nativeSrc) return 'native';
 
     // El rectángulo es el formato natural dentro del contenido, y en tablet es
