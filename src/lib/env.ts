@@ -149,8 +149,10 @@ export function getAdsConfig() {
         rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? 'ce6550c9d52abc55fc5d11ca46514dc1',
         mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '9b1015654b33c71d45a8ff4989d0654d',
         // Native Banner: script async + <div> contenedor con id propio.
-        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
-        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
+        // Configurado como widget 4:1, que es lo que la guía de Adsterra
+        // recomienda para el hueco "bajo el reproductor" en escritorio.
+        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? 'https://pl29700108.effectivecpmnetwork.com/88c8fb19b1910255dd80c81c6c09fcfc/invoke.js',
+        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? 'container-88c8fb19b1910255dd80c81c6c09fcfc',
     };
 }
 

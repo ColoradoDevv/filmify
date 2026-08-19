@@ -27,6 +27,8 @@ type SlotVariant =
     | 'auto'
     /** Dentro del contenido: rectángulo en escritorio, banner móvil en móvil. */
     | 'inline'
+    /** Bajo el reproductor: Native Banner en escritorio, banner móvil en móvil. */
+    | 'player'
     /** Formato fijo, sin adaptación. */
     | AdFormat;
 
@@ -36,20 +38,27 @@ interface AdSlotProps {
     className?: string;
 }
 
+const RESPONSIVE_VARIANTS = new Set<SlotVariant>(['auto', 'inline', 'player']);
+
 /** Resuelve el formato final, con reserva si la zona no está configurada. */
 function resolveFormat(variant: SlotVariant, isDesktop: boolean): AdFormat | null {
     const ads = getAdsConfig();
 
-    if (variant !== 'auto' && variant !== 'inline') return variant;
+    if (!RESPONSIVE_VARIANTS.has(variant)) return variant as AdFormat;
 
     if (!isDesktop) {
-        // En móvil el 728x90 no cabe: si no hay zona móvil, el Native Banner
-        // es el único formato que se adapta al ancho disponible.
+        // En móvil el 728x90 no cabe. Y el Native Banner tampoco vale de
+        // reserva aquí: está configurado como widget 4:1, que en un ancho de
+        // móvil sale apretado — la propia guía de Adsterra avisa de que el
+        // widget hay que ajustarlo por dispositivo, y el layout es único por
+        // zona. Con el 320x50 cubierto, no hace falta.
         if (ads.mobileKey) return 'mobile';
-        if (ads.nativeSrc) return 'native';
         return null;
     }
 
+    // Bajo el reproductor Adsterra recomienda su widget nativo 4:1: ocupa el
+    // ancho del player y se lee como contenido del sitio, no como banner.
+    if (variant === 'player' && ads.nativeSrc) return 'native';
     if (variant === 'inline' && ads.rectangleKey) return 'rectangle';
     return 'leaderboard';
 }

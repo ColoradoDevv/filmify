@@ -22,8 +22,24 @@ import { AdSlot } from '@/components/ads';
 
 <AdSlot />                      {/* 728x90 en escritorio, 320x50 en móvil */}
 <AdSlot variant="inline" />     {/* 300x250 en escritorio, 320x50 en móvil */}
-<AdSlot variant="native" />     {/* Native Banner, se adapta al contenedor */}
+<AdSlot variant="player" />     {/* Native Banner 4:1 en escritorio, 320x50 en móvil */}
 ```
+
+### Por qué el nativo va bajo el reproductor
+
+Es lo que recomienda la guía de Native Ads de Adsterra para páginas con vídeo:
+*"Under the player — 4x1 widget"* en escritorio. El widget ocupa el ancho del
+player y se lee como contenido del sitio, que es justo de donde sale su CTR.
+
+En móvil ese hueco sirve el 320x50, no el nativo: el layout del widget es
+**único por zona** (una sola unidad Native Banner por sitio) y está en 4:1,
+que en un ancho de móvil sale apretado — la propia guía avisa de que el widget
+hay que ajustarlo por dispositivo o "se verá raro". La guía sugiere 1x1 o 1x4
+para móvil; si algún día Adsterra permite una segunda unidad nativa, ese es el
+cambio que toca.
+
+El layout se cambia desde el propio panel (**GET CODE → Widget layout → SAVE**),
+sin tocar código: la URL del script y el id del contenedor no cambian.
 
 **Una sola zona por hueco.** Renderizar la variante de móvil y la de
 escritorio a la vez escondiendo una con CSS genera impresiones de anuncios que
