@@ -5,6 +5,7 @@ import { unstable_cache } from 'next/cache';
 import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
+import { GROQ_MODEL, GROQ_REASONING_OPTS } from '@/server/services/ai-model';
 
 const { groqApiKey: apiKey } = getOptionalApiKeys();
 
@@ -46,9 +47,10 @@ Do not include markdown formatting or explanations.`;
     try {
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
+            model: GROQ_MODEL,
+            ...GROQ_REASONING_OPTS,
             temperature: 0.7,
-            max_tokens: 1000,
+            max_completion_tokens: 2048,
         });
 
         const text = completion.choices[0]?.message?.content || '';
@@ -184,9 +186,10 @@ export async function getMovieRecommendationsJSON(prompt: string): Promise<Movie
                 { role: 'system', content: MOVIE_JSON_SYSTEM },
                 { role: 'user', content: userLine },
             ],
-            model: 'llama-3.3-70b-versatile',
+            model: GROQ_MODEL,
+            ...GROQ_REASONING_OPTS,
             temperature: 0.45,
-            max_tokens: 1200,
+            max_completion_tokens: 2048,
             ...(useJsonObject ? { response_format: { type: 'json_object' as const } } : {}),
         });
     };
@@ -241,9 +244,10 @@ export async function generateAIResponse(prompt: string): Promise<string> {
     try {
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
+            model: GROQ_MODEL,
+            ...GROQ_REASONING_OPTS,
             temperature: 0.7,
-            max_tokens: 500,
+            max_completion_tokens: 1024,
         });
 
         return completion.choices[0]?.message?.content || '';
@@ -277,9 +281,10 @@ async function fetchSearchCorrection(query: string): Promise<string> {
     try {
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
+            model: GROQ_MODEL,
+            ...GROQ_REASONING_OPTS,
             temperature: 0.1,
-            max_tokens: 50,
+            max_completion_tokens: 512,
         });
 
         const text = completion.choices[0]?.message?.content?.trim() || 'null';
@@ -354,9 +359,10 @@ export async function getYouTubeTrailerId(title: string, year: string, type: 'mo
     try {
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
+            model: GROQ_MODEL,
+            ...GROQ_REASONING_OPTS,
             temperature: 0.1,
-            max_tokens: 20,
+            max_completion_tokens: 512,
         });
 
         const text = completion.choices[0]?.message?.content?.trim() || 'null';

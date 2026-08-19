@@ -9,6 +9,7 @@
 import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
+import { GROQ_MODEL, GROQ_REASONING_OPTS } from '@/server/services/ai-model';
 
 export type MovieRecommendationPick = {
     tmdbQuery: string;
@@ -103,9 +104,10 @@ export async function getAIRecommendations(prompt: string): Promise<MovieRecomme
             for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                 try {
                     const res = await groq!.chat.completions.create({
-                        model: 'llama-3.3-70b-versatile',
+                        model: GROQ_MODEL,
+                        ...GROQ_REASONING_OPTS,
                         temperature: 0.4,
-                        max_tokens: 1000,
+                        max_completion_tokens: 2048,
                         ...(useJsonMode ? { response_format: { type: 'json_object' as const } } : {}),
                         messages: [
                             { role: 'system', content: SYSTEM_PROMPT },
