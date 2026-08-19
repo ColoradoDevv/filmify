@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import {
     DORAMA_REGIONS,
@@ -9,6 +10,7 @@ import {
 import DoramaCatalog from '@/components/features/DoramaCatalog';
 import ModuleHero from '@/components/features/ModuleHero';
 import { AdSlot } from '@/components/ads';
+import { isDoramasEnabled } from '@/lib/env';
 
 /**
  * Lobby de doramas — capa de DESCUBRIMIENTO.
@@ -45,6 +47,12 @@ function isRegionId(v: string | undefined): v is DoramaRegionId {
 }
 
 export default async function DoramasPage({ searchParams }: Props) {
+    // Módulo cerrado en producción — ver `isDoramasEnabled`. Devolvemos 404 en
+    // lugar de una página "próximamente" porque /doramas nunca llegó a estar
+    // publicada: una URL nueva que solo dice "vuelve pronto" es una soft-404
+    // que Google indexaría para una sección que no existe.
+    if (!isDoramasEnabled()) notFound();
+
     const { region: rawRegion } = await searchParams;
     const region = isRegionId(rawRegion) ? rawRegion : null;
 

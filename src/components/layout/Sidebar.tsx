@@ -15,6 +15,7 @@ import { useIsSidebarCollapsed, useToggleSidebar } from '@/lib/store/useStore';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import type { LucideIcon } from 'lucide-react';
 import { DONATE_URL } from '@/components/ui/DonateButton';
+import { isDoramasEnabled } from '@/lib/env';
 
 interface NavItem {
     name: string;
@@ -67,12 +68,15 @@ const SECTIONS: NavSection[] = [
                 icon: Swords,
                 isActive: (p) => p.startsWith('/anime'),
             },
-            {
-                name: 'Doramas',
-                href: '/doramas',
-                icon: Drama,
-                isActive: (p) => p.startsWith('/doramas'),
-            },
+            // Doramas: solo cuando el módulo está abierto (ver `isDoramasEnabled`).
+            ...(isDoramasEnabled()
+                ? [{
+                    name: 'Doramas',
+                    href: '/doramas',
+                    icon: Drama,
+                    isActive: (p: string) => p.startsWith('/doramas'),
+                }]
+                : []),
             {
                 name: 'Editorial',
                 href: '/editorial',

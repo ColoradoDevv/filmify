@@ -7,6 +7,7 @@ import { Home, Clapperboard, Search, Heart, User, Swords, Drama } from 'lucide-r
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { LucideIcon } from 'lucide-react';
+import { isDoramasEnabled } from '@/lib/env';
 
 const supabase = createClient();
 
@@ -54,7 +55,10 @@ export default function MobileTabBar() {
             ]
             : [
                 { name: 'Anime', icon: Swords, href: '/anime', isActive: (p: string) => p.startsWith('/anime') },
-                { name: 'Doramas', icon: Drama, href: '/doramas', isActive: (p: string) => p.startsWith('/doramas') },
+                // Doramas: solo cuando el módulo está abierto (ver `isDoramasEnabled`).
+                ...(isDoramasEnabled()
+                    ? [{ name: 'Doramas', icon: Drama, href: '/doramas', isActive: (p: string) => p.startsWith('/doramas') }]
+                    : []),
             ]),
     ];
 
