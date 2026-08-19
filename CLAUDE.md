@@ -26,9 +26,32 @@ call in `api/channels/route.ts`, and re-add the nav links (Navbar,
 MobileMenu, Footer, TVSidebar, TVNavBar, FilterBar) once the channel source
 is fixed.
 
+**Doramas is temporarily closed in production** (2026-08-18): the module
+lives at `src/app/(platform)/doramas/` (catalog) and
+`src/server/services/dorama/` (playback for *all* TV series, not just
+doramas — `/tv/[id]` resolves its sources through this registry, so **never
+disable the service layer**). Only the public route and its nav links are
+closed: `next.config.ts` redirects `/doramas` → `/browse?category=tv` and
+`isDoramasEnabled()` in `src/lib/env.ts` hides the Sidebar/MobileTabBar
+entries. It stays open in development.
+
+Why: APIPlayer (`apiplayer.ru`), which covered about half the catalog,
+started answering every manifest request with `403 turnstile_required` —
+verified from the EC2 host too, so it is not an IP-specific block. Without
+it only Vimeus-listed doramas survive the availability filter (11-17 per
+region). The provider probe now reads a challenge as "cannot tell" instead
+of "does not have it", and a circuit breaker stops calling for 5 minutes
+after a block, so coverage returns on its own if they stop challenging us.
+To reopen: set `NEXT_PUBLIC_DORAMAS_ENABLED=1` on the EC2 host and redeploy
+(the flag is read at build time).
+
+Note the dorama availability filter degrades **closed**, unlike anime's:
+`/tv/[id]` calls `notFound()` when no provider has a title, so an optimistic
+catalog fills the grid with links to 404s.
+
 ## Tech stack
 
-- **Framework**: Next.js 15.5 (App Router), Turbopack, React 19, TypeScript (strict)
+- **Framework**: Next.js 16.3 (App Router), Turbopack, React 19, TypeScript (strict)
 - **Styling**: Tailwind CSS v4, shadcn/ui ("new-york" style, Radix primitives), `lucide-react` icons
 - **State**: Zustand (`src/lib/store/useStore.ts`), persisted to localStorage
 - **Auth/DB**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
@@ -44,10 +67,12 @@ src/
 ├── app/                      # Next.js App Router
 │   ├── (auth)/               # Route group: login, register, password reset, confirm-email
 │   ├── (platform)/           # Route group: browse, search, favorites, lists, profile,
-│   │                          #   settings, watch-party (live-tv exists but is disabled — see note above)
+│   │                          #   settings, watch-party, anime, doramas
+│   │                          #   (live-tv and doramas exist but are closed — see notes above)
 │   ├── admin/                 # Admin dashboard (RBAC-gated: admin/super_admin role)
 │   ├── api/                   # Route handlers (proxies, cron jobs, watch-party, stream health…)
-│   ├── actions/               # Top-level Server Actions (catalog, search, streams, ai, vidsrc)
+│   ├── actions/               # Top-level Server Actions (catalog, search, streams, ai,
+│   │                          #   vidsrc, anime, doramas, series)
 │   ├── editorial/             # SEO blog/news articles
 │   ├── legal/, about/, contact/, donar/, security/, tv/
 │   └── layout.tsx, page.tsx, sitemap.ts, robots.ts, manifest.ts, opengraph-image.tsx
@@ -57,7 +82,8 @@ src/
 │   ├── layout/                # Navbar, Sidebar, Footer, TV layout wrappers, mobile tab bar
 │   ├── admin/, ads/, auth/, editorial/, live-tv/, tv/
 ├── server/                    # Backend layer — see "Server layer" below
-│   ├── services/              # tmdb, ai, embed-extractor, live-tv, admin-settings, admin-logger
+│   ├── services/              # tmdb, ai, embed-extractor, live-tv, admin-settings, admin-logger,
+│   │                          #   anime/ y dorama/ (catálogo + registro de proveedores)
 │   ├── repositories/          # supabase (server/admin/service-role clients), history
 │   └── index.ts               # Public re-export surface (`@/server`)
 ├── lib/                       # Legacy/utility modules (many still actively used — see below)
@@ -75,7 +101,9 @@ src/
 ├── types/                     # Shared TS types (tmdb.ts, watch-party.ts)
 └── styles/                    # tw-animate.css
 
-middleware.ts                  # Auth gating, RBAC, CSP w/ per-request nonce, IP bans, security headers
+src/middleware.ts              # Auth gating, RBAC, CSP w/ per-request nonce, IP bans, security headers
+                               # ⚠️ Must live in src/ — Next looks for it next to `app/`. At the repo
+                               # root it is silently ignored from Next 16.3 on (no error, no headers).
 supabase/migrations/           # SQL migrations (applied to the Supabase project)
 scripts/                       # check-env, editorial seeding, watch-party test scripts, security verification
 docs/                          # AdSense/ads.txt setup, ad integration guide, public-access migration notes
@@ -105,7 +133,7 @@ This is the **designated single entry point for backend logic** — see
 - **Route groups**: `(auth)` = login/register/password flows (redirect to
   `/browse` if already authenticated); `(platform)` = the main authenticated +
   anonymous-friendly app shell.
-- **`middleware.ts`** is the central gatekeeper. It:
+- **`src/middleware.ts`** is the central gatekeeper. It:
   - Generates a per-request CSP nonce (`x-nonce` header) — **do not add a
     static CSP in `next.config.ts`**, it would override the nonce-based policy.
   - Applies security headers (HSTS, X-Frame-Options, Permissions-Policy, COOP/CORP, etc.) to all responses.
@@ -161,13 +189,13 @@ This is the **designated single entry point for backend logic** — see
 - **Open-redirect protection (`SEC-016`)**: any `?next=` / redirect-target
   param must be validated with the `isSafeRedirectPath`-style check (resolve
   against `https://filmify.me` and confirm hostname match) — see
-  `middleware.ts` and `src/app/(auth)/login/actions.ts`.
+  `src/middleware.ts` and `src/app/(auth)/login/actions.ts`.
 - **No secrets in source** (`SEC-017`): test/admin scripts read credentials
   from env vars (`.env.local`), never hardcode them.
 - Comment markers like `SEC-0XX` reference items from the November 2025 Red
   Team audit (see `SECURITY.md`) — preserve these comments when refactoring
   the code they document.
-- CSP, security headers, and IP-ban checks live in `middleware.ts` — see
+- CSP, security headers, and IP-ban checks live in `src/middleware.ts` — see
   "Routing & access control" above.
 
 ## State management & UI
@@ -227,10 +255,20 @@ npm run check-env            # verifies required vars exist in .env.local
 
 - **Real production runs on AWS EC2** (inside a VPC), not Vercel or Cloudflare.
   `.github/workflows/deploy.yml` triggers on push to `main`: it SSHes into the
-  EC2 host and runs `git pull origin main`, `npm install`, `npm run build`,
-  then `pm2 reload filmify` (PM2 in cluster mode). Docker and Nginx sit on the
+  EC2 host and runs `git fetch origin main`, `git merge --ff-only`, `npm ci`,
+  `npm run build`, then `pm2 reload filmify` (PM2 in cluster mode). The step
+  sets `script_stop: true`: without it `appleboy/ssh-action` keeps going after
+  a failed command, which is how the deploy spent 2026-08-04 → 08-18 aborting
+  on `git pull` (a `package-lock.json` dirtied by `npm install` on the host)
+  and then happily rebuilding the same stale commit, reporting green. `npm ci`
+  instead of `npm install` keeps the lockfile from drifting again. Docker and Nginx sit on the
   EC2 host in front of/around the app (Nginx as reverse proxy) — their config
   is **not** in this repo; it's managed directly on the host.
+- **Watch the disk.** `.next/cache/fetch-cache` (Next's Data Cache) is never
+  pruned and every `revalidate`d fetch lands there — TMDB, AniList and every
+  per-title availability probe. It reached 11 GB of a 28 GB volume by
+  2026-08-19. Deleting it is safe (it regenerates); a nightly
+  `find … -mtime +2 -delete` keeps it bounded.
 - **Cloudflare Workers is not the production runtime.** The `wrangler.jsonc` /
   `open-next.config.ts` / `custom-worker.ts` setup exists to (1) verify the
   build compiles/deploys cleanly as a Worker, and (2) Cloudflare manages the
