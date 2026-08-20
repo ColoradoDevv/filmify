@@ -193,8 +193,22 @@ for (const width of [320, 375, 768, 1280]) {
 // ──────────────────────────── 3. Creativo hostil ─────────────────────────────
 console.log('\n═══ 3. CREATIVO HOSTIL (intenta secuestrar la página) ═══\n');
 setMode('hostile');
+
+// Navegador con el bloqueador de pop-ups ACTIVO, como el de un usuario real:
+// Playwright lo desactiva por defecto y eso convertiría en fallo algo que en
+// la práctica el navegador ya impide (abrir un pop-up sin gesto del usuario).
+const realista = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium',
+  ignoreDefaultArgs: ['--disable-popup-blocking'],
+  args: [
+    '--host-resolver-rules=MAP www.highperformanceformat.com 127.0.0.1:8443,MAP pl29700108.effectivecpmnetwork.com 127.0.0.1:8443',
+    '--ignore-certificate-errors',
+    '--no-proxy-server',
+  ],
+});
+
 for (const width of [375, 1280]) {
-  const ctx = await browser.newContext({
+  const ctx = await realista.newContext({
     viewport: { width, height: 900 }, isMobile: width < 768, hasTouch: width < 768, ignoreHTTPSErrors: true,
   });
   await ctx.addInitScript(() => {
@@ -251,6 +265,7 @@ for (const width of [375, 1280]) {
   await ctx.close();
 }
 
+await realista.close();
 await browser.close();
 setMode('normal');
 

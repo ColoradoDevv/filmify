@@ -187,7 +187,9 @@ export default async function RootLayout({
             Persistente, descartable por 7 días (recordado en localStorage). */}
         {!isTV && <DonateFloating />}
 
-        <GoogleAnalytics gaId={gaId} />
+        {/* nonce: el componente inyecta un <script> inline y nuestro CSP lo
+            rechaza sin él. Sin esto GA4 no llegaba a inicializarse. */}
+        <GoogleAnalytics gaId={gaId} nonce={nonce} />
         <CookieConsent />
 
         <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
@@ -203,7 +205,9 @@ export default async function RootLayout({
           `}
         </Script>
 
-        <Script id="register-sw" strategy="afterInteractive">
+        {/* nonce: sin él el CSP bloquea el script y el service worker nunca
+            se registra (la PWA deja de instalarse y de cachear). */}
+        <Script id="register-sw" strategy="afterInteractive" nonce={nonce}>
           {`
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.register('/sw.js')

@@ -166,6 +166,14 @@ export function getAdsConfig() {
         // (ver docs/ADSTERRA_SETUP.md), no basta con rellenar estas variables.
         nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
         nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
+        // Origen desde el que servir /ads/frame. Vacío = el mismo del sitio,
+        // que obliga a sandbox de origen opaco y por tanto a shimear cookie y
+        // storage. Apuntándolo a un subdominio propio (p. ej.
+        // https://ads.filmify.me, mismo servidor) el frame conserva SU origen
+        // real —cookies de verdad, sin shim— y sigue siendo ajeno al de la
+        // página, así que no puede tocarla. Es la configuración correcta;
+        // requiere DNS + proxy en el host.
+        frameOrigin: (process.env.NEXT_PUBLIC_ADS_FRAME_ORIGIN ?? '').replace(/\/$/, ''),
     };
 }
 

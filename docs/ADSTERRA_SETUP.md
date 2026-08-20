@@ -146,6 +146,29 @@ verificado con un creativo hostil de prueba, que consiguió escribir en el
 inyectar un `<script>` en el padre para escapar del sandbox por completo. Es
 la misma clase de fallo que dejó el sitio inservible en móvil en junio de 2026.
 
+### El shim de cookie y storage
+
+En un origen opaco, `document.cookie` y `localStorage` **lanzan
+`SecurityError`** en vez de devolver vacío. El `invoke.js` de Adsterra lee la
+cookie nada más arrancar, así que la excepción abortaba el script y no se
+renderizaba ningún anuncio:
+
+```
+Uncaught SecurityError: Failed to read the 'cookie' property from 'Document':
+The document is sandboxed and lacks the 'allow-same-origin' flag.
+```
+
+`/ads/frame` inyecta antes un shim con almacén en memoria. El anuncio se
+renderiza y el aislamiento se mantiene; lo que se pierde es la persistencia
+entre cargas, así que la red no puede limitar frecuencia por cookie.
+
+**La solución sin ese compromiso: servir el frame desde OTRO origen propio.**
+Apunta `NEXT_PUBLIC_ADS_FRAME_ORIGIN=https://ads.filmify.me` (un subdominio al
+mismo servidor, vía DNS + proxy en el host) y el componente añade
+`allow-same-origin` automáticamente: el frame recupera SU origen real —cookies
+de verdad, sin shim— y sigue siendo ajeno al de la página, así que no puede
+tocarla. Es la configuración correcta; solo requiere el DNS.
+
 `allow-popups` está puesto a propósito: es lo que permite que un clic legítimo
 abra la página del anunciante en una pestaña nueva. Sin él, los clics no
 llevaban a ninguna parte — la red los contaba, el anunciante no recibía la
