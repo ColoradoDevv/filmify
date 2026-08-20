@@ -146,6 +146,45 @@ verificado con un creativo hostil de prueba, que consiguió escribir en el
 inyectar un `<script>` en el padre para escapar del sandbox por completo. Es
 la misma clase de fallo que dejó el sitio inservible en móvil en junio de 2026.
 
+### ⚠️ El script de la red pelea con el aislamiento (producción, 20/08/2026)
+
+Con el frame en origen opaco el anuncio SÍ se renderiza, pero `invoke.js` deja
+la consola así, en bucle desde un `setInterval`:
+
+```
+Uncaught SecurityError: Failed to read a named property 'document' from 'Window':
+Sandbox access violation: Blocked a frame at "https://filmify.me" from accessing
+a frame at "null". Both frames are sandboxed and lack the "allow-same-origin" flag.
+```
+
+Y sus llamadas de estadística/antifraude fallan por CORS, porque van con
+`credentials: include` y desde un origen opaco:
+
+```
+Access to XMLHttpRequest at 'https://protrafficinspector.com/stats' from origin
+'null' has been blocked by CORS policy: ... must not be the wildcard '*' when
+the request's credentials mode is 'include'.
+```
+
+**Qué significa.** El bloqueo es la protección funcionando: el creativo intenta
+alcanzar el documento de la página y no puede. Pero el script no lo maneja, así
+que reintenta en bucle (consume CPU y batería en móvil) y la red no recibe sus
+señales de verificación — lo que puede degradar el fill y el CPM.
+
+**Las tres salidas, sin adornos:**
+
+1. **Subdominio propio** (`NEXT_PUBLIC_ADS_FRAME_ORIGIN=https://ads.filmify.me`).
+   Recupera cookies, storage y las llamadas con credenciales, y el frame sigue
+   sin poder tocar la página. Los errores de acceso a `document` seguirán
+   apareciendo —son inherentes a cualquier iframe cross-origin— pero el script
+   tendrá lo que necesita para operar. **Es la opción recomendada.**
+2. **Volver a same-origin** (`allow-scripts allow-same-origin` sobre nuestro
+   propio origen). Todo funciona sin ruido... y el creativo recupera acceso al
+   DOM de la página. Es la configuración que hizo posible lo de junio de 2026.
+   No.
+3. **Otra red.** Si Adsterra no puede convivir con un iframe aislado, hay redes
+   cuyo tag sí está diseñado para ello.
+
 ### El shim de cookie y storage
 
 En un origen opaco, `document.cookie` y `localStorage` **lanzan
