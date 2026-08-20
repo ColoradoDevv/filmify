@@ -107,23 +107,23 @@ documento principal, sin iframe.
 
 ## ads.txt
 
-⚠️ **Ahora mismo el sitio NO sirve `ads.txt`, a propósito.**
+**El sitio NO sirve `ads.txt`, y ese es el estado correcto.**
 
-Antes existía `public/ads.txt` con una única línea de `google.com`. Según la
-especificación de IAB, cuando un dominio publica `ads.txt` los compradores
-tratan como **no autorizado** a cualquier vendedor que no aparezca en él. O
-sea: el archivo autorizaba a AdSense (que no servía nada) y marcaba como no
-autorizado a Adsterra (que sí sirve). Es candidato serio a explicar el CPM de
-$0.16 que se veía en el panel.
+Antes existía `public/ads.txt` con una única línea de `google.com`: autorizaba
+a AdSense, que nunca llegó a servir un anuncio, y no mencionaba a Adsterra,
+que es quien sí vende el inventario. Se borró junto con AdSense.
 
-Sin archivo no hay restricción, así que el estado actual es mejor que el
-anterior. **El estado correcto es publicar el `ads.txt` de Adsterra**: pídelo
-en el panel (o a tu account manager: *"the ads.txt lines for my publisher
-account"*), crea de nuevo `public/ads.txt` y pega el bloque **completo**, tal
-cual. Suelen ser varias líneas, no una.
+Adsterra **no entrega líneas de `ads.txt`** para las cuentas de publisher.
+Confirmado con su soporte (agosto 2026): *"We don't provide ads.txt lines for
+publisher accounts. Our advertisers don't require an ads.txt file, so there
+are no official lines to add."* Su demanda no pasa por exchanges que verifiquen
+el archivo, así que no influye en el CPM. **No inventes líneas**: autorizar a
+vendedores a ojo no aporta nada y puede describir mal quién puede vender tu
+inventario.
 
-Verificar tras desplegar: `https://filmify.me/ads.txt` debe devolver texto
-plano (el `matcher` del middleware ya excluye `.txt`).
+Cuándo volvería a hacer falta: si algún día se añade una segunda red o se
+monta AdSense/Ezoic en un dominio limpio. Esas redes sí exigen `ads.txt` y sí
+entregan sus líneas — entonces se crea `public/ads.txt` con las que den ellas.
 
 ## Aislamiento del creativo
 
