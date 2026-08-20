@@ -134,7 +134,8 @@ export default async function middleware(request: NextRequest) {
         `media-src 'self' blob: https:`,
         `connect-src 'self' https: wss:`,
         `font-src 'self' data: https:`,
-        `frame-src https:`,
+        // 'self': el iframe aislado de publicidad (/ads/frame) es same-origin.
+        `frame-src 'self' https:`,
         `frame-ancestors 'self'`,
         `object-src 'none'`,
         `base-uri 'self'`,

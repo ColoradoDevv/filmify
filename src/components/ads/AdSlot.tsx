@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AdBanner, { type AdFormat } from './AdBanner';
 import { getAdsConfig } from '@/lib/env';
 import { cn } from '@/lib/utils';
@@ -8,8 +8,13 @@ import { cn } from '@/lib/utils';
 /**
  * Hueco publicitario reutilizable.
  *
- * Elige el formato según el ancho real de la pantalla y centraliza el
+ * Elige el formato según el ancho REAL del contenedor y centraliza el
  * espaciado para no repetir boilerplate en cada página.
+ *
+ * Mide el contenedor, no la ventana, porque no son lo mismo: el sidebar se
+ * come 224px a partir de 1024px y cada página añade su propio `max-w` y sus
+ * paddings. En la ficha de película, a 1024px de ventana solo quedan ~672px
+ * libres — un 728x90 elegido por media query se salía del contenedor.
  *
  * Antes este slot servía siempre un 728x90 y se ocultaba por debajo de 480px,
  * es decir, dejaba sin monetizar justo al grueso del tráfico (móvil). Ahora el
@@ -20,21 +25,22 @@ import { cn } from '@/lib/utils';
  * llega a ver, que es exactamente lo que las redes penalizan como tráfico
  * inválido.
  */
-/** Debajo de esto solo entra el banner móvil. */
-const TABLET_BREAKPOINT = 768;
 
-/** El 728x90 necesita 728px LIBRES: con los márgenes de página se desborda
- *  por debajo de ~1024px, así que ahí manda el rectángulo. */
-const DESKTOP_BREAKPOINT = 1024;
+/** Ancho que necesita cada formato para caber entero. */
+const WIDTHS = { leaderboard: 728, mobile: 320, rectangle: 300 } as const;
 
-type Bucket = 'mobile' | 'tablet' | 'desktop';
+/** Por debajo de esto el hueco se considera estrecho (móvil o columna angosta)
+ *  y se sirve el banner pequeño en vez del rectángulo, que ocuparía 250px de
+ *  alto sobre el contenido. */
+const NARROW_WIDTH = 640;
 
 type SlotVariant =
-    /** Ancho completo: leaderboard en escritorio, banner móvil en móvil. */
+    /** Ancho completo: el formato más grande que quepa. */
     | 'auto'
-    /** Dentro del contenido: rectángulo en escritorio, banner móvil en móvil. */
+    /** Dentro del contenido: rectángulo cuando hay sitio. */
     | 'inline'
-    /** Bajo el reproductor: Native Banner en escritorio, banner móvil en móvil. */
+    /** Bajo el reproductor. Hoy se comporta como `inline`; serviría el Native
+     *  Banner si estuviera activo (ver getAdsConfig en @/lib/env). */
     | 'player'
     /** Formato fijo, sin adaptación. */
     | AdFormat;
@@ -47,61 +53,70 @@ interface AdSlotProps {
 
 const RESPONSIVE_VARIANTS = new Set<SlotVariant>(['auto', 'inline', 'player']);
 
-/** Resuelve el formato final, con reserva si la zona no está configurada. */
-function resolveFormat(variant: SlotVariant, bucket: Bucket): AdFormat | null {
+/** Resuelve el formato final para el ancho disponible, o null si no cabe nada. */
+function resolveFormat(variant: SlotVariant, available: number): AdFormat | null {
     const ads = getAdsConfig();
 
     if (!RESPONSIVE_VARIANTS.has(variant)) return variant as AdFormat;
 
-    if (bucket === 'mobile') {
-        // Aquí no cabe ni el 728x90 ni el 300x250 sin comerse la pantalla. Y
-        // el Native Banner tampoco vale de reserva: está configurado como
-        // widget 4:1, que en un ancho de móvil sale apretado — la propia guía
-        // de Adsterra avisa de que el widget hay que ajustarlo por
-        // dispositivo, y el layout es único por zona.
-        return ads.mobileKey ? 'mobile' : null;
-    }
+    const has = (f: AdFormat) =>
+        f === 'leaderboard' ? !!ads.leaderboardKey
+            : f === 'rectangle' ? !!ads.rectangleKey
+                : f === 'mobile' ? !!ads.mobileKey
+                    : !!ads.nativeSrc;
+
+    const fits = (f: Exclude<AdFormat, 'native'>) => available >= WIDTHS[f] && has(f);
 
     // Bajo el reproductor Adsterra recomienda su widget nativo 4:1, pero ese
     // formato está desactivado por seguridad (secuestraba el primer toque en
     // móvil; ver getAdsConfig en @/lib/env). Mientras `nativeSrc` esté vacío
-    // este hueco cae al rectángulo, que es la reserva correcta.
-    if (variant === 'player' && ads.nativeSrc) return 'native';
+    // este hueco se comporta como `inline`.
+    if (variant === 'player' && has('native')) return 'native';
 
-    // El rectángulo es el formato natural dentro del contenido, y en tablet es
-    // además el único que cabe.
-    if ((variant === 'inline' || bucket === 'tablet') && ads.rectangleKey) return 'rectangle';
+    if (available < NARROW_WIDTH) {
+        // Aquí no cabe el 728x90 y el rectángulo se comería la pantalla.
+        if (fits('mobile')) return 'mobile';
+        return fits('rectangle') ? 'rectangle' : null;
+    }
 
-    return bucket === 'desktop' ? 'leaderboard' : null;
+    if (variant !== 'auto') return fits('rectangle') ? 'rectangle' : null;
+
+    if (fits('leaderboard')) return 'leaderboard';
+    return fits('rectangle') ? 'rectangle' : null;
 }
 
 export default function AdSlot({ variant = 'auto', className }: AdSlotProps) {
-    // `null` hasta montar: el ancho de pantalla no existe en el servidor y
-    // adivinarlo provocaría un desajuste de hidratación.
-    const [bucket, setBucket] = useState<Bucket | null>(null);
+    const hostRef = useRef<HTMLDivElement>(null);
+    // `null` hasta medir: el ancho no existe en el servidor y adivinarlo
+    // provocaría un desajuste de hidratación.
+    const [available, setAvailable] = useState<number | null>(null);
 
     useEffect(() => {
-        const tablet = window.matchMedia(`(min-width: ${TABLET_BREAKPOINT}px)`);
-        const desktop = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
-        const sync = () => setBucket(desktop.matches ? 'desktop' : tablet.matches ? 'tablet' : 'mobile');
+        const host = hostRef.current;
+        if (!host) return;
+
+        const sync = () => setAvailable(host.clientWidth);
         sync();
-        tablet.addEventListener('change', sync);
-        desktop.addEventListener('change', sync);
-        return () => {
-            tablet.removeEventListener('change', sync);
-            desktop.removeEventListener('change', sync);
-        };
+
+        if (typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(sync);
+        observer.observe(host);
+        return () => observer.disconnect();
     }, []);
 
-    if (bucket === null) return null;
+    const format = available === null ? null : resolveFormat(variant, available);
 
-    const format = resolveFormat(variant, bucket);
-    if (!format) return null;
-
+    // El host va sin estilos y siempre presente: es la regla de medir. Los
+    // márgenes viajan en el propio banner para que un hueco sin anuncio no
+    // deje un espacio vacío.
     return (
-        <AdBanner
-            format={format}
-            className={cn('my-6 opacity-90 hover:opacity-100 transition-opacity', className)}
-        />
+        <div ref={hostRef}>
+            {format && (
+                <AdBanner
+                    format={format}
+                    className={cn('my-6 opacity-90 hover:opacity-100 transition-opacity', className)}
+                />
+            )}
+        </div>
     );
 }

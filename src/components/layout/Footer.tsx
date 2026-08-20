@@ -36,7 +36,11 @@ export default function Footer() {
     };
 
     return (
-        <footer className="relative mt-auto border-t border-surface-light/30">
+        // overflow-hidden: los dos círculos decorativos de abajo miden 384px
+        // (w-96) y están anclados a left-1/4 y right-1/4, así que en móvil se
+        // salen del viewport y sacaban ~100px de scroll horizontal en TODA
+        // página con footer. Se recortan aquí, que es donde nacen.
+        <footer className="relative mt-auto border-t border-surface-light/30 overflow-hidden">
             {/* Decorative background elements */}
             <div className="absolute inset-0 bg-background/80 backdrop-blur-xl -z-10" />
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />

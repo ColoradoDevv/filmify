@@ -7,35 +7,32 @@ import { trackAdView } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
 /**
- * Banner de Adsterra en sus cuatro formatos.
+ * Banner de Adsterra, aislado en un iframe de origen opaco.
  *
  * CUMPLIMIENTO: solo se carga con consentimiento de marketing. Fuera del EEE
  * ese consentimiento viene concedido por defecto (ver `@/lib/cookie-consent`).
  *
- * IMPORTANT: el código "iFrame Sync" de esta red usa `document.write()`, que
- * los navegadores ignoran en silencio si el script se inyecta de forma
- * asíncrona en <head>. Por eso se ejecuta dentro de un iframe same-origin
- * propio, donde `document.write` funciona con normalidad y el anuncio no
- * puede tocar nuestro DOM/CSS.
+ * AISLAMIENTO: el creativo se sirve desde `/ads/frame`, montado con
+ * `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` y
+ * **sin `allow-same-origin`**. Eso deja el documento del anuncio en un origen
+ * opaco: no puede leer ni escribir el DOM de la página, no puede navegar la
+ * pestaña y no puede registrar listeners sobre nuestro documento. `allow-popups`
+ * está a propósito — es lo que permite que un clic legítimo abra la página del
+ * anunciante en una pestaña nueva; sin él los clics no llevaban a ninguna parte
+ * y se perdían los ingresos que generan.
  *
- * Lo que NO se puede hacer es montar el `atOptions` de la red como un
- * `<script>` inline dentro de ese iframe, que es como lo entrega el panel: el
- * iframe hereda el CSP de la página y nuestra política lleva nonce, así que el
- * navegador rechaza todo inline sin él ("Refused to execute inline script").
- * El resultado era silencioso y grave — `window.atOptions` nunca llegaba a
- * definirse y la red no recibía ni el formato ni el tamaño de la zona.
- * Como el iframe es same-origin, se puede escribir la variable directamente
- * sobre su `contentWindow` y añadir el script externo por DOM: sin inline no
- * hay nada que el CSP pueda bloquear, y `script-src https:` ya permite el
- * script de la red.
+ * El montaje anterior escribía el anuncio con `document.write` en un iframe
+ * `allow-scripts allow-same-origin`. Bloqueaba la navegación y los pop-ups,
+ * pero al compartir origen el creativo sí llegaba al documento de la página
+ * (verificado con un creativo hostil de prueba), y desde ahí se escapa del
+ * sandbox inyectando un <script> en el padre. Es la misma clase de fallo que
+ * dejó el sitio inservible en móvil en junio de 2026, cuando el Native Banner
+ * corría suelto en la página.
  *
- * Cada formato lleva su PROPIA clave de zona: una clave creada como 728x90 no
- * rellena un hueco de 320x50, devuelve vacío. Antes se escalaba el 728x90 con
- * `transform: scale()` para que cupiera en pantallas pequeñas; eso servía un
- * creativo a un tamaño que el anunciante no compró y encima provocaba salto de
- * layout, porque la altura reservada dependía de un `scale` que se calculaba
- * tras el primer render. Ahora cada tamaño se sirve a su tamaño nativo y solo
- * en los anchos donde cabe entero.
+ * Cada formato lleva su PROPIA zona: una clave creada como 728x90 no rellena un
+ * hueco de 320x50, devuelve vacío. El tamaño se sirve siempre nativo — nada de
+ * escalar con transform, que servía un creativo a un tamaño que el anunciante
+ * no compró.
  */
 export type AdFormat = 'leaderboard' | 'rectangle' | 'mobile' | 'native';
 
@@ -56,7 +53,7 @@ interface AdBannerProps {
     className?: string;
 }
 
-/** Devuelve la clave configurada para el formato, o '' si no la hay. */
+/** Devuelve la clave/URL configurada para el formato, o '' si no la hay. */
 function keyFor(format: AdFormat): string {
     const ads = getAdsConfig();
     switch (format) {
@@ -69,7 +66,6 @@ function keyFor(format: AdFormat): string {
 
 export default function AdBanner({ format, className }: AdBannerProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
     const nativeRef = useRef<HTMLDivElement>(null);
     const [marketingOk, setMarketingOk] = useState(false);
 
@@ -81,44 +77,10 @@ export default function AdBanner({ format, className }: AdBannerProps) {
         return onConsentChange((c) => setMarketingOk(c.marketing));
     }, []);
 
-    // Banners iframe: se escribe el tag dentro del iframe con document.write.
-    useEffect(() => {
-        if (!marketingOk || !adKey || format === 'native') return;
-
-        const iframe = iframeRef.current;
-        if (!iframe?.contentDocument) return;
-
-        const { w, h } = IFRAME_SIZES[format];
-
-        try {
-            const doc = iframe.contentDocument;
-            doc.open();
-            doc.write('<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent}</style></head><body></body></html>');
-            doc.close();
-
-            const win = iframe.contentWindow as (Window & { atOptions?: unknown }) | null;
-            if (!win) return;
-
-            win.atOptions = {
-                key: adKey,
-                format: 'iframe',
-                height: h,
-                width: w,
-                params: {},
-            };
-
-            const script = doc.createElement('script');
-            script.type = 'text/javascript';
-            script.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
-            doc.body.appendChild(script);
-        } catch (err) {
-            console.error('Error al cargar anuncio:', err);
-        }
-    }, [marketingOk, adKey, format]);
-
     // Native Banner: script async + <div> contenedor que la red rellena.
     // Va en el documento principal (no en un iframe) porque su script busca el
-    // contenedor por id en el mismo documento donde se ejecuta.
+    // contenedor por id en el mismo documento donde se ejecuta — y por eso
+    // mismo está desactivado por defecto (ver getAdsConfig en @/lib/env).
     useEffect(() => {
         if (!marketingOk || format !== 'native' || !adKey) return;
 
@@ -164,7 +126,7 @@ export default function AdBanner({ format, className }: AdBannerProps) {
         return (
             <div
                 ref={wrapperRef}
-                className={cn('w-full', className)}
+                className={cn('w-full overflow-hidden', className)}
                 style={{ minHeight: NATIVE_MIN_HEIGHT }}
             >
                 <div ref={nativeRef} />
@@ -178,18 +140,23 @@ export default function AdBanner({ format, className }: AdBannerProps) {
     return (
         <div
             ref={wrapperRef}
-            className={cn('w-full flex justify-center', className)}
+            // overflow-hidden como red de seguridad: si el hueco midiera mal,
+            // el anuncio se recorta antes que sacar scroll horizontal a la página.
+            className={cn('w-full flex justify-center overflow-hidden', className)}
             // Altura fija desde el primer render: sin esto el anuncio empuja el
             // contenido al llegar y penaliza CLS.
             style={{ height: h }}
         >
             <iframe
-                ref={iframeRef}
                 title="Publicidad"
+                src={`/ads/frame?zone=${format}`}
                 width={w}
                 height={h}
                 scrolling="no"
-                sandbox="allow-scripts allow-same-origin"
+                loading="lazy"
+                // Origen opaco: sin allow-same-origin el creativo no alcanza la
+                // página. allow-popups permite el clic legítimo al anunciante.
+                sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
                 className="border-0"
                 style={{ width: w, height: h, display: 'block', flex: 'none' }}
             />

@@ -125,6 +125,56 @@ cual. Suelen ser varias líneas, no una.
 Verificar tras desplegar: `https://filmify.me/ads.txt` debe devolver texto
 plano (el `matcher` del middleware ya excluye `.txt`).
 
+## Aislamiento del creativo
+
+Cada banner se sirve desde `/ads/frame?zone=…` (`src/app/ads/frame/route.ts`)
+dentro de un iframe con:
+
+```
+sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+```
+
+**Sin `allow-same-origin`**, que es lo que importa: el documento del anuncio
+queda en un origen opaco y no puede leer ni escribir el DOM de la página, ni
+navegar la pestaña, ni registrar listeners sobre nuestro documento.
+
+El montaje anterior escribía el anuncio con `document.write` en un iframe
+`allow-scripts allow-same-origin`. Bloqueaba la navegación y los pop-ups, pero
+al compartir origen el creativo **sí** llegaba al documento de la página —
+verificado con un creativo hostil de prueba, que consiguió escribir en el
+`<body>` del padre y registrar un listener de click. Desde ahí basta con
+inyectar un `<script>` en el padre para escapar del sandbox por completo. Es
+la misma clase de fallo que dejó el sitio inservible en móvil en junio de 2026.
+
+`allow-popups` está puesto a propósito: es lo que permite que un clic legítimo
+abra la página del anunciante en una pestaña nueva. Sin él, los clics no
+llevaban a ninguna parte — la red los contaba, el anunciante no recibía la
+visita, y el eCPM de la zona se hunde. El riesgo que añade es acotado: con el
+bloqueador de pop-ups normal del navegador, un creativo que intente abrir uno
+**sin gesto del usuario** obtiene cero (verificado en `scripts/ads/audit.mjs`).
+
+La zona se pide por NOMBRE (`leaderboard` / `rectangle` / `mobile`), nunca por
+clave ni por URL, y la clave se valida contra `/^[a-f0-9]{16,64}$/` antes de
+entrar en el HTML: ningún parámetro externo puede acabar cargando un script de
+terceros arbitrario.
+
+## Auditoría automática
+
+```bash
+npm i -D playwright
+npm run dev                          # terminal 1
+node scripts/ads/mock-network.mjs    # terminal 2
+node scripts/ads/audit.mjs           # terminal 3
+```
+
+Recorre trece anchos de pantalla comprobando que ningún anuncio se desborda ni
+queda tapado por la UI flotante, que un creativo sobredimensionado (1600x800
+en un hueco de 320x50) se recorta sin sacar scroll horizontal, y que un
+creativo hostil no puede tocar la página. Sale con código 1 si algo falla.
+
+`mock-network.mjs` simula la red en tres modos (`normal`, `oversize`,
+`hostile`) para no depender de qué creativo sirva Adsterra ese día.
+
 ## CSP: nada de scripts inline en el anuncio
 
 El panel entrega el banner como dos `<script>`: uno inline con `atOptions` y
@@ -141,26 +191,32 @@ El fallo es silencioso: la página se ve bien y el hueco aparece, pero
 `window.atOptions` nunca llega a existir y la red no recibe ni el formato ni
 el tamaño de la zona.
 
-Por eso `AdBanner` escribe `atOptions` directamente sobre el `contentWindow`
-del iframe (es same-origin) y añade el script externo por DOM. Sin inline no
-hay nada que bloquear, y `script-src https:` ya permite el script de la red.
+Por eso el anuncio se sirve desde `/ads/frame`, una ruta nuestra: ahí sí
+podemos firmar el `atOptions` inline con el nonce de la petición. `frame-src`
+incluye `'self'` para poder montar esa ruta en un iframe.
 
 **Al pegar código nuevo del panel, no lo copies tal cual**: quédate solo con
 la URL de `invoke.js` y mete la clave en la variable de entorno.
 
 ## Puntos de corte
 
-| Ancho | `auto` | `inline` | `player` |
-|---|---|---|---|
-| < 768px | 320x50 | 320x50 | 320x50 |
-| 768–1023px | 300x250 | 300x250 | 300x250 |
-| ≥ 1024px | 728x90 | 300x250 | 300x250 |
+`AdSlot` mide el **contenedor**, no la ventana, y sirve el formato más grande
+que quepa:
 
-(`player` serviría el Native Banner 4:1 en tablet y escritorio si estuviera
-activo — ver arriba por qué no lo está.)
+| Ancho disponible | `auto` | `inline` / `player` |
+|---|---|---|
+| < 320px | nada | nada |
+| 320–639px | 320x50 | 320x50 |
+| 640–727px | 300x250 | 300x250 |
+| ≥ 728px | 728x90 | 300x250 |
 
-El 728x90 no entra por debajo de 1024px: necesita 728px **libres** y con los
-márgenes de página se desborda por el lado derecho a 768px.
+Medir la ventana no vale: el sidebar se come 224px a partir de 1024px y cada
+página añade su `max-w` y sus paddings. En la ficha de película, a 1024px de
+ventana solo quedan ~672px libres — un 728x90 elegido por media query se salía
+del contenedor.
+
+(`player` serviría el Native Banner 4:1 si estuviera activo — ver arriba por
+qué no lo está.)
 
 ## Consentimiento
 
