@@ -66,7 +66,24 @@ const hostileJs = `(function(){
   try { parent.postMessage({ adTest: log }, '*'); } catch (e) {}
 })();`;
 
-const bodies = { normal: normalJs, oversize: oversizeJs, hostile: hostileJs };
+// Reproduce lo que hace el invoke.js real: leer document.cookie (y storage)
+// nada más arrancar. En un origen opaco eso LANZA SecurityError y aborta el
+// script — así se detecta si el shim del frame cumple su función.
+const cookieJs = `(function(){
+  var pasos = [];
+  try { var c = document.cookie; document.cookie = 'ad_test=1'; pasos.push('cookie:OK("' + document.cookie + '")'); }
+  catch (e) { pasos.push('cookie:LANZA ' + e.name); throw e; }
+  try { localStorage.setItem('k','v'); pasos.push('localStorage:OK(' + localStorage.getItem('k') + ')'); }
+  catch (e) { pasos.push('localStorage:LANZA ' + e.name); throw e; }
+  try { sessionStorage.setItem('k','v'); pasos.push('sessionStorage:OK'); }
+  catch (e) { pasos.push('sessionStorage:LANZA ' + e.name); throw e; }
+  var d = document.createElement('div');
+  d.setAttribute('style','width:100%;height:100%;background:#065f46;color:#fff;font:11px system-ui;padding:4px;box-sizing:border-box');
+  d.textContent = pasos.join(' | ');
+  document.body.appendChild(d);
+})();`;
+
+const bodies = { normal: normalJs, oversize: oversizeJs, hostile: hostileJs, cookie: cookieJs };
 
 // Certificado autofirmado: el navegador de la auditoría arranca con
 // --ignore-certificate-errors, así que sirve cualquiera.

@@ -136,6 +136,15 @@ export default function AdBanner({ format, className }: AdBannerProps) {
     }
 
     const { w, h } = IFRAME_SIZES[format];
+    const { frameOrigin } = getAdsConfig();
+
+    // Con el frame en un origen PROPIO distinto al de la página,
+    // `allow-same-origin` le devuelve sus cookies reales sin darle acceso a
+    // nosotros: sigue siendo cross-origin. Sirviéndolo desde el mismo origen
+    // no se puede permitir, porque entonces "same-origin" sería el nuestro.
+    const sandbox = frameOrigin
+        ? 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin'
+        : 'allow-scripts allow-popups allow-popups-to-escape-sandbox';
 
     return (
         <div
@@ -149,14 +158,15 @@ export default function AdBanner({ format, className }: AdBannerProps) {
         >
             <iframe
                 title="Publicidad"
-                src={`/ads/frame?zone=${format}`}
+                src={`${frameOrigin}/ads/frame?zone=${format}`}
                 width={w}
                 height={h}
                 scrolling="no"
                 loading="lazy"
-                // Origen opaco: sin allow-same-origin el creativo no alcanza la
-                // página. allow-popups permite el clic legítimo al anunciante.
-                sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                // El creativo nunca comparte origen con la página: o va en un
+                // origen opaco, o en el suyo propio. allow-popups permite el
+                // clic legítimo al anunciante.
+                sandbox={sandbox}
                 className="border-0"
                 style={{ width: w, height: h, display: 'block', flex: 'none' }}
             />
