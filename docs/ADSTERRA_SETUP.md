@@ -171,6 +171,25 @@ alcanzar el documento de la página y no puede. Pero el script no lo maneja, as�
 que reintenta en bucle (consume CPU y batería en móvil) y la red no recibe sus
 señales de verificación — lo que puede degradar el fill y el CPM.
 
+**Cómo queda montado el subdominio.** El código ya lo soporta entero:
+
+- `NEXT_PUBLIC_ADS_FRAME_ORIGIN=https://ads.filmify.me` hace que `AdBanner`
+  apunte el iframe ahí y añada `allow-same-origin` — que en ese contexto
+  significa "su propio origen", no el nuestro.
+- `src/middleware.ts` da a `/ads/frame` una política propia: le quita
+  `X-Frame-Options: SAMEORIGIN` y declara `frame-ancestors` con el dominio del
+  sitio. Sin eso, las cabeceras de seguridad impedirían justamente el uso para
+  el que existe la ruta. También pone `Cross-Origin-Resource-Policy:
+  cross-origin`.
+- Cualquier otra ruta servida bajo el host publicitario se redirige (308) al
+  dominio principal: sin eso el sitio entero quedaría accesible e indexable por
+  duplicado bajo el subdominio.
+
+Verificado con curl que la ruta responde sin `X-Frame-Options`, con
+`frame-ancestors` correcto, y que el resto de rutas del subdominio redirigen.
+La comprobación en navegador con dos orígenes reales solo puede hacerse contra
+el dominio de verdad.
+
 **Las tres salidas, sin adornos:**
 
 1. **Subdominio propio** (`NEXT_PUBLIC_ADS_FRAME_ORIGIN=https://ads.filmify.me`).

@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSupabaseConfig } from '@/lib/env';
+import { getSupabaseConfig, getAdsConfig, getOptionalApiKeys } from '@/lib/env';
 import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
 
 /** Generate a cryptographically random base64 nonce using the Web Crypto API.
@@ -53,6 +53,46 @@ function setCachedBan(ip: string, banned: boolean): void {
     ipBanCache.set(ip, { banned, at: Date.now() });
 }
 
+// ── Marco de publicidad ───────────────────────────────────────────────────────
+/**
+ * El anuncio se sirve desde `/ads/frame`, y la configuración recomendada es
+ * montarlo en un subdominio propio (NEXT_PUBLIC_ADS_FRAME_ORIGIN) para que el
+ * creativo tenga su propio origen —cookies y llamadas con credenciales reales—
+ * sin compartirlo con la página.
+ *
+ * Eso choca con dos de nuestras cabeceras, que asumen un único origen:
+ *   - `X-Frame-Options: SAMEORIGIN` prohibiría a filmify.me incrustar un marco
+ *     servido desde ads.filmify.me.
+ *   - `frame-ancestors 'self'` haría lo mismo por la vía del CSP.
+ * Por eso esta ruta lleva su propia política: se le quita X-Frame-Options y se
+ * declara explícitamente quién puede incrustarla.
+ */
+const ADS_FRAME_PATH = '/ads/frame';
+
+/** Orígenes del sitio autorizados a incrustar el marco publicitario. */
+function frameAncestors(): string {
+    const { appUrl } = getOptionalApiKeys();
+    try {
+        const { protocol, hostname, port } = new URL(appUrl);
+        const bare = hostname.replace(/^www\./, '');
+        const suffix = port ? `:${port}` : '';
+        return [`${protocol}//${bare}${suffix}`, `${protocol}//www.${bare}${suffix}`].join(' ');
+    } catch {
+        return "'self'";
+    }
+}
+
+/** Host del subdominio publicitario, si está configurado. */
+function adsHost(): string {
+    const { frameOrigin } = getAdsConfig();
+    if (!frameOrigin) return '';
+    try {
+        return new URL(frameOrigin).host;
+    } catch {
+        return '';
+    }
+}
+
 // ── Consentimiento por región ─────────────────────────────────────────────────
 /**
  * Países donde el consentimiento PREVIO es obligatorio: EEE (UE + Islandia,
@@ -100,6 +140,49 @@ const SECURITY_HEADERS: Record<string, string> = {
 // ── Middleware ────────────────────────────────────────────────────────────────
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+
+    // ── Subdominio publicitario ───────────────────────────────────────────
+    // Ese host existe solo para servir el marco del anuncio. Cualquier otra
+    // ruta vuelve al dominio principal: sin esto el sitio entero quedaría
+    // accesible (y indexable) por duplicado bajo el subdominio.
+    const ads = adsHost();
+    if (ads && request.headers.get('host') === ads && !pathname.startsWith(ADS_FRAME_PATH)) {
+        const { appUrl } = getOptionalApiKeys();
+        return NextResponse.redirect(new URL(pathname + request.nextUrl.search, appUrl), 308);
+    }
+
+    // El marco del anuncio lleva su propia política: necesita ser incrustable
+    // desde el dominio principal, y no necesita nada del resto del middleware
+    // (ni sesión, ni RBAC, ni consentimiento).
+    if (pathname.startsWith(ADS_FRAME_PATH)) {
+        const frameNonce = generateNonce();
+        const frameHeaders = new Headers(request.headers);
+        frameHeaders.set('x-nonce', frameNonce);
+
+        const frameResponse = NextResponse.next({ request: { headers: frameHeaders } });
+        Object.entries(SECURITY_HEADERS).forEach(([k, v]) => {
+            // Ver el comentario de ADS_FRAME_PATH: esta cabecera impediría
+            // justamente el uso para el que existe la ruta.
+            if (k === 'X-Frame-Options') return;
+            frameResponse.headers.set(k, v);
+        });
+        // El marco se carga desde otro origen; con `same-origin` el navegador
+        // podría rechazarlo como recurso ajeno.
+        frameResponse.headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+        frameResponse.headers.set('Content-Security-Policy', [
+            `default-src 'none'`,
+            `script-src 'nonce-${frameNonce}' https:`,
+            `style-src 'unsafe-inline'`,
+            `img-src https: data:`,
+            `media-src https:`,
+            `connect-src https:`,
+            `font-src https: data:`,
+            `frame-src https:`,
+            `form-action https:`,
+            `frame-ancestors ${frameAncestors()}`,
+        ].join('; '));
+        return frameResponse;
+    }
 
     if (isMatch(pathname, PASSTHROUGH_PREFIXES)) {
         return NextResponse.next();
