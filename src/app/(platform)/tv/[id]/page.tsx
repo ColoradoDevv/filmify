@@ -347,6 +347,13 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         titles={{ name: tvShow.name, originalName: tvShow.original_name }}
                     />
 
+                    {/* 📢 Anuncio bajo el reproductor.
+                        Es el hueco con más tiempo en pantalla de todo el sitio:
+                        el visitante se queda aquí mientras carga el player. Va
+                        DESPUÉS del reproductor a propósito — encima empujaría
+                        el contenido por el que ha venido. */}
+                    <AdSlot variant="player" className="mt-6 mb-0" />
+
                     {/* Mobile quick facts */}
                     <div className="lg:hidden flex items-center gap-3 mt-3 mb-4 text-sm flex-wrap">
                         <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-semibold">
@@ -458,7 +465,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
 
 
                     {/* 📢 Banner publicitario — tras la sinopsis */}
-                    <AdSlot />
+                    <AdSlot variant="inline" />
 
                     {/* ── Reparto: compact horizontal row ── */}
                     {cast.length > 0 && (
@@ -530,8 +537,6 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         </section>
                     )}
 
-                    {/* 📢 Segundo banner — antes de los comentarios (página con mucho contenido) */}
-                    <AdSlot />
 
                     {/* ── Comentarios (login solo aquí, como mejora opcional) ── */}
                     <div className="mt-12">

@@ -115,10 +115,6 @@ export default function AboutPage() {
                     </div>
                 </section>
 
-                {/* 📢 Segundo banner — antes del footer (página con mucho contenido) */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-                    <AdSlot />
-                </div>
             </main>
 
             <Footer />

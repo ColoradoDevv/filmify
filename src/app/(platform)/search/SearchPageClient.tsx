@@ -6,7 +6,7 @@ import { Search, X, Loader2, Sparkles, Frown } from 'lucide-react';
 import MovieCard from '@/components/features/MovieCard';
 import { searchTitles, type SearchResultItem } from '@/app/actions/search';
 import { getSearchCorrection } from '@/lib/ai';
-import AdBanner2 from '@/components/ads/AdBanner2';
+import { AdSlot } from '@/components/ads';
 
 interface SearchPageClientProps {
     initialQuery: string;
@@ -170,9 +170,7 @@ export default function SearchPageClient({
                         </div>
 
                         {/* 📢 Banner publicitario — discreto, entre header y grilla */}
-                        <div className="mb-6 opacity-90 hover:opacity-100 transition-opacity">
-                            <AdBanner2 />
-                        </div>
+                        <AdSlot className="mt-0 mb-6" />
 
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-3">
                             {results.map((item) => (

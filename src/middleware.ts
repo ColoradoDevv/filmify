@@ -53,6 +53,38 @@ function setCachedBan(ip: string, banned: boolean): void {
     ipBanCache.set(ip, { banned, at: Date.now() });
 }
 
+// ── Consentimiento por región ─────────────────────────────────────────────────
+/**
+ * Países donde el consentimiento PREVIO es obligatorio: EEE (UE + Islandia,
+ * Liechtenstein y Noruega), Reino Unido y Suiza.
+ *
+ * Fuera de esa lista el sitio usa un modelo de exclusión: la analítica y los
+ * anuncios cargan por defecto y el visitante puede rechazarlos desde el mismo
+ * banner. Antes el estado inicial era "todo denegado" en el mundo entero, así
+ * que quien ignoraba el banner —la mayoría— no veía anuncios nunca.
+ */
+const CONSENT_REQUIRED_COUNTRIES = new Set([
+    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
+    'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK',
+    'SI', 'ES', 'SE',
+    'IS', 'LI', 'NO',
+    'GB', 'CH',
+]);
+
+/**
+ * ¿Hay que pedir consentimiento previo a este visitante?
+ *
+ * `cf-ipcountry` la inyecta Cloudflare y SOLO existe si el dominio está
+ * proxeado (nube naranja). Sin cabecera no se adivina: se asume que sí hace
+ * falta, que es el lado seguro. Es decir, pasar filmify.me a "solo DNS" deja
+ * el sitio entero en modo estricto y vuelve a hundir las impresiones.
+ */
+function isConsentRequired(request: NextRequest): boolean {
+    const country = request.headers.get('cf-ipcountry')?.toUpperCase();
+    if (!country || country === 'XX' || country === 'T1') return true;
+    return CONSENT_REQUIRED_COUNTRIES.has(country);
+}
+
 // ── Security headers ──────────────────────────────────────────────────────────
 const SECURITY_HEADERS: Record<string, string> = {
     'X-DNS-Prefetch-Control':    'on',
@@ -102,7 +134,8 @@ export default async function middleware(request: NextRequest) {
         `media-src 'self' blob: https:`,
         `connect-src 'self' https: wss:`,
         `font-src 'self' data: https:`,
-        `frame-src https:`,
+        // 'self': el iframe aislado de publicidad (/ads/frame) es same-origin.
+        `frame-src 'self' https:`,
         `frame-ancestors 'self'`,
         `object-src 'none'`,
         `base-uri 'self'`,
@@ -112,6 +145,7 @@ export default async function middleware(request: NextRequest) {
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-nonce', nonce);
+    requestHeaders.set('x-consent-required', isConsentRequired(request) ? '1' : '0');
 
     let response = NextResponse.next({ request: { headers: requestHeaders } });
     Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));

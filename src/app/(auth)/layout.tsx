@@ -1,5 +1,4 @@
 import AuthBackground from '@/components/auth/AuthBackground';
-import { AdSlot } from '@/components/ads';
 import type { Metadata } from 'next';
 
 // Auth pages must never appear in search results.
@@ -19,8 +18,6 @@ export default function AuthLayout({
             <div className="w-full max-w-md relative z-10 p-4">
                 {children}
 
-                {/* 📢 Banner publicitario — común a las páginas de acceso */}
-                <AdSlot />
             </div>
         </div>
     );

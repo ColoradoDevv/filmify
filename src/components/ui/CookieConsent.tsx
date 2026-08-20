@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Cookie, X, ChevronRight, Shield, BarChart3, Megaphone, Check, ChevronLeft } from 'lucide-react';
-import { emitConsentChange } from '@/lib/cookie-consent';
+import { emitConsentChange, isConsentRequired } from '@/lib/cookie-consent';
 
 type ConsentState = {
     analytics: boolean;
@@ -12,6 +12,10 @@ type ConsentState = {
 export const CookieConsent = () => {
     const [isVisible, setIsVisible] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
+    // Régimen estricto = EEE/UK/CH: nada carga hasta que el visitante elija, y
+    // el aviso bloquea la página. Fuera de ahí el aviso informa sin bloquear y
+    // el rechazo sigue estando a un clic.
+    const [isStrict, setIsStrict] = useState(true);
     const [preferences, setPreferences] = useState<ConsentState>({
         analytics: true,
         marketing: false
@@ -82,11 +86,21 @@ export const CookieConsent = () => {
 
     useEffect(() => {
         try {
+            const strict = isConsentRequired();
+            setIsStrict(strict);
+
             const storedLocal = localStorage.getItem('cookie_consent');
             const storedCookie = getCookie('cookie_consent');
             const stored = storedLocal || storedCookie;
 
             if (!stored) {
+                // Fuera del EEE el estado por defecto ya es "concedido" (ver
+                // `@/lib/cookie-consent`); se refleja en gtag y en los toggles
+                // para que el banner no mienta sobre lo que está pasando.
+                if (!strict) {
+                    setPreferences({ analytics: true, marketing: true });
+                    applyConsent({ analytics: true, marketing: true });
+                }
                 const timer = setTimeout(() => setIsVisible(true), 1000);
                 return () => clearTimeout(timer);
             }
@@ -115,8 +129,11 @@ export const CookieConsent = () => {
 
     return (
         <>
-            {/* Blocking Backdrop */}
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] animate-in fade-in duration-500" />
+            {/* Fondo bloqueante — solo donde el consentimiento es previo y
+                obligatorio; en el resto el aviso no debe secuestrar la página. */}
+            {isStrict && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] animate-in fade-in duration-500" />
+            )}
 
             <div className="fixed bottom-0 left-0 right-0 md:bottom-6 md:left-6 md:right-auto md:max-w-[480px] z-[101] p-4 md:p-0">
                 <div className="bg-[#0f1115] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-500">

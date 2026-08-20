@@ -125,6 +125,50 @@ export function isDoramasEnabled(): boolean {
     return process.env.NODE_ENV !== 'production';
 }
 
+/**
+ * Claves de las zonas publicitarias de Adsterra.
+ *
+ * Cada zona ("ad unit") del panel de Adsterra tiene su propia clave y solo
+ * sirve el tamaño con el que fue creada: reutilizar la del 728x90 para un
+ * hueco de 320x50 no lo rellena, devuelve vacío. Por eso hay una variable por
+ * formato y el slot correspondiente simplemente no se renderiza si falta.
+ *
+ * Son claves PÚBLICAS (viajan en el HTML como cualquier tag publicitario), no
+ * secretos — no aplica SEC-017.
+ *
+ * Las tres zonas de banner llevan su clave real como valor por defecto: se
+ * leen en tiempo de build, así que dejarlas vacías obligaría a editar el
+ * `.env.local` del host y redesplegar solo para encender un hueco. Las
+ * variables siguen mandando cuando existen, que es lo que permite rotar una
+ * zona sin tocar código.
+ */
+export function getAdsConfig() {
+    return {
+        // Banners "iframe sync": se inyectan vía atOptions + invoke.js.
+        leaderboardKey: process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90 ?? '7deb51e34387a0c43737578eb16dfe23',
+        rectangleKey:   process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250 ?? 'ce6550c9d52abc55fc5d11ca46514dc1',
+        mobileKey:      process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50 ?? '9b1015654b33c71d45a8ff4989d0654d',
+        // Native Banner: script async + <div> contenedor con id propio.
+        //
+        // ⚠️ DESACTIVADO A PROPÓSITO — no le pongas valor por defecto.
+        //
+        // Este formato no puede correr dentro del iframe con sandbox, así que
+        // su script se ejecuta en el documento principal con privilegios
+        // completos sobre la página. En junio de 2026 eso dejó el sitio
+        // inservible en móvil: el primer toque en cualquier parte redirigía a
+        // una página de anuncios. Se desactivó el 13/06 (AdBanner1), cuando
+        // era el único script publicitario suelto en la página — el 728x90 ya
+        // corría entonces dentro del iframe y nunca dio ese problema, porque
+        // un sandbox sin `allow-top-navigation` ni `allow-popups` no puede
+        // navegar la ventana principal.
+        //
+        // Para reactivarlo hay que servirlo antes desde un iframe aislado
+        // (ver docs/ADSTERRA_SETUP.md), no basta con rellenar estas variables.
+        nativeSrc:         process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC ?? '',
+        nativeContainerId: process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ?? '',
+    };
+}
+
 // Back-compat helpers (discouraged — prefer the typed accessors above).
 export function getRequiredEnv(key: string): string {
     const value = process.env[key];

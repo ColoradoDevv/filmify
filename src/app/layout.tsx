@@ -115,9 +115,14 @@ export default async function RootLayout({
   const isTV = await isTVDevice();
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? undefined;
+  // Régimen de consentimiento del visitante, resuelto por geo en el middleware.
+  // Viaja al cliente como atributo del <html> para que el banner y los
+  // componentes de anuncios lo lean sin una petición extra ni parpadeo.
+  const consentRequired = headersList.get('x-consent-required') !== '0';
+  const consentDefault = consentRequired ? 'denied' : 'granted';
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning data-consent-required={consentRequired ? '1' : '0'}>
       <head>
 
         {/* Apple touch icons. La convención src/app/apple-icon.png ya emite el
@@ -190,10 +195,10 @@ export default async function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('consent', 'default', {
-              'ad_storage': 'denied',
-              'ad_user_data': 'denied',
-              'ad_personalization': 'denied',
-              'analytics_storage': 'denied'
+              'ad_storage': '${consentDefault}',
+              'ad_user_data': '${consentDefault}',
+              'ad_personalization': '${consentDefault}',
+              'analytics_storage': '${consentDefault}'
             });
           `}
         </Script>

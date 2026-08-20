@@ -10,7 +10,6 @@ import { securityPolicyContent } from '@/content/security-policy';
 import Markdown from 'react-markdown';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { AdSlot } from '@/components/ads';
 
 export default function SecurityPage() {
     return (
@@ -21,8 +20,6 @@ export default function SecurityPage() {
                     <Markdown>{securityPolicyContent}</Markdown>
                 </div>
 
-                {/* 📢 Banner publicitario */}
-                <AdSlot />
             </div>
             <Footer />
         </main>
