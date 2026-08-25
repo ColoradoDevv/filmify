@@ -126,9 +126,50 @@ export default async function middleware(request: NextRequest) {
     }
 
     const nonce = generateNonce();
+
+    // React en desarrollo usa eval() para reconstruir stacktraces que cruzan el
+    // límite servidor→cliente. La CSP de nonce lo bloquea y ensucia la consola
+    // en cada carga con un error que no indica ningún fallo real de la app.
+    //
+    // Se permite SOLO en dev: en producción React nunca llama a eval(), y
+    // 'unsafe-eval' ahí reabriría la ejecución de strings arbitrarios que esta
+    // política existe para cerrar. Next inlinea NODE_ENV al compilar, así que el
+    // bundle de producción no contiene ni esta rama.
+    // Orígenes de script del documento principal.
+    //
+    // Antes aquí ponía `https:`, que permite CUALQUIER origen HTTPS y deja el
+    // nonce sirviendo solo para los scripts inline: bastaba con inyectar
+    // `<script src="https://…">` en el HTML para ejecutarlo. Ahora es una lista
+    // explícita, y solo con lo que el documento carga de verdad:
+    //   - googletagmanager: Google Analytics (además va con nonce).
+    //   - analytics.filmify.me: analítica propia; ese <Script> NO lleva nonce,
+    //     así que depende de que su host esté permitido.
+    //
+    // Los anuncios NO entran aquí: viven en /ads/frame, que tiene su propia
+    // política más abajo. Si algún día se activa el formato «native»
+    // (NEXT_PUBLIC_ADSTERRA_NATIVE_SRC, hoy vacío), su script se inyecta en el
+    // documento principal y habrá que añadir su origen a esta lista.
+    const DOCUMENT_SCRIPT_SRC = [
+        `'self'`,
+        'https://www.googletagmanager.com',
+        'https://analytics.filmify.me',
+    ];
+
+    // El creativo publicitario encadena scripts por varios dominios de la red,
+    // imposibles de enumerar. Se le deja `https:` porque está encerrado en un
+    // iframe con sandbox y origen opaco (ver components/ads/AdBanner.tsx): lo
+    // que cargue ahí no puede tocar el documento que lo contiene.
+    const isAdFrame = pathname === '/ads/frame' || pathname.startsWith('/ads/frame/');
+
+    const scriptSrc = [
+        ...(isAdFrame ? [`'self'`, 'https:'] : DOCUMENT_SCRIPT_SRC),
+        `'nonce-${nonce}'`,
+        ...(process.env.NODE_ENV !== 'production' ? [`'unsafe-eval'`] : []),
+    ].join(' ');
+
     const csp = [
         `default-src 'self'`,
-        `script-src 'self' 'nonce-${nonce}' https:`,
+        `script-src ${scriptSrc}`,
         `style-src 'self' 'unsafe-inline' https:`,
         `img-src 'self' data: blob: https:`,
         `media-src 'self' blob: https:`,

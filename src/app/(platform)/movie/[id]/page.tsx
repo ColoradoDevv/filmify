@@ -1,4 +1,5 @@
 import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
+import { serializeJsonLd } from '@/lib/json-ld';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/services/vimeus';
 import MoviePlayer from '@/components/features/MoviePlayer';
@@ -316,7 +317,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
         <>
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
             />
 
             <div className="relative min-h-screen pb-16">
