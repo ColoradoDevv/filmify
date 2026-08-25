@@ -110,19 +110,22 @@ export function getPortalDeviceSecret(): string {
  * reabre cuando haya una fuente de disponibilidad decente, ya sea porque
  * APIPlayer vuelva o porque se añada otra señal.
  *
- * En desarrollo sigue abierto para poder seguir trabajando en él. El override
- * por entorno permite abrirlo en producción sin desplegar código
- * (NEXT_PUBLIC_DORAMAS_ENABLED=1) o cerrarlo en local (=0).
+ * Cerrado ahora en TODOS los entornos (2026-08-21). Antes el valor por defecto
+ * dependía del entorno, así que en producción no se veía pero en local seguía
+ * apareciendo en la navegación: al trabajar en la home daba la falsa impresión
+ * de que la rama iba atrasada respecto a producción. El módulo está incompleto,
+ * así que no debe verse en ningún sitio hasta que se termine.
+ *
+ * Para volver a trabajar en él: `NEXT_PUBLIC_DORAMAS_ENABLED=1` en `.env.local`
+ * (o en el entorno de producción, para reabrirlo sin desplegar código).
  *
  * OJO: esto solo apaga el CATÁLOGO. La capa `@/server/services/dorama` sigue
  * activa y es la que resuelve la reproducción de TODAS las series en
  * /tv/[id] — apagarla dejaría el sitio sin proveedores de series.
  */
 export function isDoramasEnabled(): boolean {
-    const flag = process.env.NEXT_PUBLIC_DORAMAS_ENABLED;
-    if (flag === '1' || flag === 'true') return true;
-    if (flag === '0' || flag === 'false') return false;
-    return process.env.NODE_ENV !== 'production';
+    return process.env.NEXT_PUBLIC_DORAMAS_ENABLED === '1'
+        || process.env.NEXT_PUBLIC_DORAMAS_ENABLED === 'true';
 }
 
 /**

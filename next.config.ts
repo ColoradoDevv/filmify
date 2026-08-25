@@ -66,16 +66,18 @@ const nextConfig = {
       permanent: true,
     });
     // Módulo de doramas cerrado — ver `isDoramasEnabled` en src/lib/env.ts.
-    // Va aquí y no en middleware.ts porque ese archivo NO se está cargando
-    // (Next lo busca junto a `app/`, es decir en src/, y está en la raíz):
-    // los redirects de next.config sí se aplican siempre. Se evalúa en build,
-    // así que cambiar NEXT_PUBLIC_DORAMAS_ENABLED exige recompilar — que es
-    // justo lo que hace el deploy.
+    //
+    // La condición tiene que dar EXACTAMENTE lo mismo que `isDoramasEnabled()`.
+    // Cuando divergían, el módulo desaparecía del menú pero /doramas seguía
+    // respondiendo 200 con la pantalla de "no encontrado": una soft-404, justo
+    // lo que el `notFound()` de la página quería evitar.
+    //
+    // El redirect vive aquí y no en el middleware porque se aplica siempre, sin
+    // depender de que la petición pase por él. Se evalúa en build, así que
+    // cambiar NEXT_PUBLIC_DORAMAS_ENABLED exige recompilar — que es justo lo
+    // que hace el deploy.
     const doramasEnabled = process.env.NEXT_PUBLIC_DORAMAS_ENABLED === '1'
-      || process.env.NEXT_PUBLIC_DORAMAS_ENABLED === 'true'
-      || (process.env.NEXT_PUBLIC_DORAMAS_ENABLED !== '0'
-        && process.env.NEXT_PUBLIC_DORAMAS_ENABLED !== 'false'
-        && process.env.NODE_ENV !== 'production');
+      || process.env.NEXT_PUBLIC_DORAMAS_ENABLED === 'true';
 
     const doramasClosed = doramasEnabled
       ? []

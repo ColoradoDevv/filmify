@@ -47,7 +47,7 @@ function isRegionId(v: string | undefined): v is DoramaRegionId {
 }
 
 export default async function DoramasPage({ searchParams }: Props) {
-    // Módulo cerrado en producción — ver `isDoramasEnabled`. Devolvemos 404 en
+    // Módulo cerrado — ver `isDoramasEnabled`. Devolvemos 404 en
     // lugar de una página "próximamente" porque /doramas nunca llegó a estar
     // publicada: una URL nueva que solo dice "vuelve pronto" es una soft-404
     // que Google indexaría para una sección que no existe.
