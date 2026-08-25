@@ -9,19 +9,39 @@ import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supaba
 import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
+import useWatchHistorySync from '@/hooks/useWatchHistorySync';
 
 const supabase = createClient();
+
+/**
+ * Rutas que traen su propio buscador dentro del contenido. Ahí el del navbar
+ * estorba: son dos cajas que se parecen y no buscan lo mismo (la del navbar va
+ * al catálogo general de TMDB; la del módulo, a su propio índice).
+ *
+ * La coincidencia es EXACTA a propósito. `/anime/[id]` es una ficha y no tiene
+ * buscador propio, así que allí el del navbar es la única forma de buscar y
+ * tiene que seguir estando.
+ */
+const ROUTES_WITH_OWN_SEARCH = new Set(['/search', '/anime']);
+
+function hasOwnSearchBar(pathname: string | null): boolean {
+    if (!pathname) return false;
+    // Normaliza la barra final: '/anime/' y '/anime' son la misma ruta.
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    return ROUTES_WITH_OWN_SEARCH.has(normalized);
+}
 
 export default function PlatformHeader() {
     const router = useRouter();
     const pathname = usePathname();
-    const isSearchPage = pathname?.startsWith('/search') ?? false;
+    const ownSearchBar = hasOwnSearchBar(pathname);
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [searchFocused, setSearchFocused] = useState(false);
 
     useFavoritesSync();
+    useWatchHistorySync();
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -59,9 +79,14 @@ export default function PlatformHeader() {
                     </Link>
                 </div>
 
-                {/* Search — solo visible en desktop (lg+); en móvil se accede desde la pestaña de búsqueda */}
+                {/* Search — solo visible en desktop (lg+); en móvil se accede desde la pestaña
+                    de búsqueda.
+
+                    El contenedor se pinta siempre, aunque el input no: es el `flex-1` que empuja
+                    las acciones al borde derecho. Sin él quedaría un solo hijo visible y
+                    `justify-between` mandaría el botón de sesión a la izquierda. */}
                 <div
-                    className={`flex-1 min-w-0 transition-all duration-300 ease-out hidden lg:block ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out hidden lg:block ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
                     onFocusCapture={() => setSearchFocused(true)}
                     onBlurCapture={(e) => {
                         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -69,7 +94,7 @@ export default function PlatformHeader() {
                         }
                     }}
                 >
-                    <SearchInput className="w-full" placeholder="Buscar…" />
+                    {!ownSearchBar && <SearchInput className="w-full" placeholder="Buscar…" />}
                 </div>
 
                 {/* Actions */}

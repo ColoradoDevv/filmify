@@ -49,6 +49,9 @@ export default function AnimeExplorer({
 }: AnimeExplorerProps) {
     const [query, setQuery] = useState('');
     const [genre, setGenre] = useState<string | null>(null);
+    // Solo tiene efecto visual por debajo de `sm`: a partir de ahí los 18
+    // géneros caben en dos filas y se muestran siempre (ver `max-h` más abajo).
+    const [allGenresOpen, setAllGenresOpen] = useState(false);
 
     const [items, setItems] = useState(initialItems);
     const [nextPage, setNextPage] = useState(initialNextPage);
@@ -155,7 +158,12 @@ export default function AnimeExplorer({
 
     // Solo se vacía la grilla mientras se filtra; el catálogo inicial nunca
     // deja la pantalla en blanco.
-    const showEmptyState = filtering && !loading && items.length === 0;
+    //
+    // Un fallo de la petición se distingue de un género legítimamente vacío: antes
+    // los dos acababan en "Sin resultados" y era imposible saber, desde la
+    // pantalla, si el género no tenía nada o si la llamada había reventado.
+    const showErrorState = filtering && !loading && items.length === 0 && !!error;
+    const showEmptyState = filtering && !loading && items.length === 0 && !error;
 
     return (
         <div className="space-y-6">
@@ -179,25 +187,50 @@ export default function AnimeExplorer({
                 )}
             </div>
 
-            {/* Chips de género */}
+            {/* Chips de género.
+                Antes era una fila con `overflow-x-auto` + `scrollbar-hide`: los 18
+                géneros no cabían y, sin barra visible, con ratón no había forma de
+                desplazarla (la rueda vertical no mueve un contenedor horizontal).
+                Se veían unos ocho y el resto era inalcanzable.
+
+                Ahora envuelven, así que no hay nada que desplazar. En móvil se
+                recortan a dos filas con un botón para abrirlos; de `sm` en adelante
+                caben todos y el recorte se desactiva. */}
             {orderedGenres.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 pb-1">
-                    {orderedGenres.map((g) => {
-                        const active = genre === g;
-                        return (
-                            <button
-                                key={g}
-                                onClick={() => pickGenre(g)}
-                                className={`shrink-0 px-3.5 h-8 rounded-full md3-label-medium border transition-colors ${
-                                    active
-                                        ? 'bg-primary text-on-primary border-primary'
-                                        : 'bg-surface-container text-on-surface-variant border-outline-variant hover:border-primary/40'
-                                }`}
-                            >
-                                {GENRE_ES[g] ?? g}
-                            </button>
-                        );
-                    })}
+                <div>
+                    <div
+                        id="generos-anime"
+                        className={`flex flex-wrap gap-2 overflow-hidden transition-[max-height] duration-300 sm:max-h-none ${
+                            allGenresOpen ? 'max-h-[32rem]' : 'max-h-[4.5rem]'
+                        }`}
+                    >
+                        {orderedGenres.map((g) => {
+                            const active = genre === g;
+                            return (
+                                <button
+                                    key={g}
+                                    onClick={() => pickGenre(g)}
+                                    aria-pressed={active}
+                                    className={`shrink-0 px-3.5 h-8 rounded-full md3-label-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                                        active
+                                            ? 'bg-primary text-on-primary border-primary'
+                                            : 'bg-surface-container text-on-surface-variant border-outline-variant hover:border-primary/40'
+                                    }`}
+                                >
+                                    {GENRE_ES[g] ?? g}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <button
+                        onClick={() => setAllGenresOpen((v) => !v)}
+                        aria-expanded={allGenresOpen}
+                        aria-controls="generos-anime"
+                        className="sm:hidden mt-2 md3-label-medium text-primary hover:text-primary-hover rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                        {allGenresOpen ? 'Ver menos géneros' : `Ver los ${orderedGenres.length} géneros`}
+                    </button>
                 </div>
             )}
 
@@ -208,7 +241,18 @@ export default function AnimeExplorer({
                 </h2>
             )}
 
-            {showEmptyState ? (
+            {showErrorState ? (
+                <div className="text-center py-16 bg-surface-container rounded-[var(--radius-xl)] border border-outline-variant">
+                    <p className="md3-title-small text-on-surface mb-1">No se pudo cargar el filtro</p>
+                    <p className="md3-body-small text-on-surface-variant mb-4">{error}</p>
+                    <button
+                        onClick={() => void runFilter(query, query.trim() ? null : genre)}
+                        className="inline-flex h-9 items-center rounded-full bg-primary px-5 md3-label-large text-on-primary hover:bg-primary-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                        Reintentar
+                    </button>
+                </div>
+            ) : showEmptyState ? (
                 <div className="text-center py-16 bg-surface-container rounded-[var(--radius-xl)] border border-outline-variant">
                     <p className="md3-title-small text-on-surface mb-1">Sin resultados</p>
                     <p className="md3-body-small text-on-surface-variant">Prueba con otro término o género</p>
