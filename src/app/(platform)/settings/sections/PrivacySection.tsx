@@ -1,229 +1,205 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { User, Eye, Star, Users, CheckCircle, AlertCircle, History, FileText, ExternalLink } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Download, Eye, History, ListVideo, Trash2, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { clearHistory as clearSearchHistory } from '@/lib/supabase/history';
+import { patchUserPreferences } from '@/app/actions/settings';
+import type { PrivacyPreferences } from '@/lib/user-preferences';
+import {
+    SettingsPanel, SettingRow, Toggle, Button, StatusBanner, type StatusMessage,
+} from '../components/ui';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-export function PrivacySection({ user }: { user: any }) {
-    const supabase = createClient();
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [privacy, setPrivacy] = useState({
-        publicProfile: true,
-        showWatchHistory: true,
-        showWatchlist: true,
-        allowFriendRequests: true
-    });
+/**
+ * Visibilidad del perfil y control de los datos.
+ *
+ * Fuente única: `profiles.preferences.privacy`. Antes se guardaba por duplicado
+ * —también en `user_metadata.privacy`, que era de donde se leía— y dos sitios
+ * para el mismo dato acaban divergiendo; `/profile` ya leía del segundo.
+ *
+ * `publicProfile` y `allowFriendRequests` siempre gobernaron algo. Los otros
+ * dos no: `showWatchlist` solo pintaba una frase en el perfil ajeno sin ocultar
+ * nada, y `showWatchHistory` no lo leía nadie —«visto» ni siquiera salía del
+ * localStorage—. Y no bastaba con filtrar en el componente: `profiles` era
+ * legible sin sesión, favoritos y amistades incluidos, así que cualquier gate
+ * aquí habría sido decorativo. Ahora los cuatro se aplican en la base de datos
+ * (`can_view_profile_section`, 20260825_privacy_gated_content.sql) y esta
+ * pantalla solo escribe el valor.
+ */
+export function PrivacySection({
+    privacy, onSaved,
+}: {
+    privacy: PrivacyPreferences;
+    onSaved: (next: PrivacyPreferences) => void;
+}) {
+    const [saving, setSaving] = useState<keyof PrivacyPreferences | null>(null);
+    const [busy, setBusy] = useState<'export' | 'history' | null>(null);
+    const [confirmClear, setConfirmClear] = useState(false);
+    const [message, setMessage] = useState<StatusMessage | null>(null);
 
-    useEffect(() => {
-        if (user?.user_metadata?.privacy) {
-            setPrivacy(user.user_metadata.privacy);
-        }
-    }, [user]);
-
-    const handleToggle = async (key: keyof typeof privacy) => {
-        const newPrivacy = { ...privacy, [key]: !privacy[key] };
-        setPrivacy(newPrivacy);
-        setLoading(true);
+    const update = useCallback(async (key: keyof PrivacyPreferences, value: boolean) => {
+        setSaving(key);
         setMessage(null);
+        const res = await patchUserPreferences({ privacy: { [key]: value } });
+        if (res.ok) onSaved(res.preferences.privacy);
+        else setMessage({ type: 'error', text: res.error ?? 'No se pudo guardar el ajuste' });
+        setSaving(null);
+    }, [onSaved]);
 
+    const exportData = useCallback(async () => {
+        setBusy('export');
+        setMessage(null);
         try {
-            const [{ error: authError }, { data: currentProfileData, error: profileFetchError }] = await Promise.all([
-                supabase.auth.updateUser({ data: { privacy: newPrivacy } }),
-                supabase.from('profiles').select('preferences').eq('id', user.id).single(),
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Sesión no iniciada');
+
+            // Columnas explícitas y `preferences` aparte, por RPC: `select('*')`
+            // se expande a TODAS las columnas y `preferences`, `birthdate`,
+            // `role` e `is_banned` están revocadas para `authenticated` (ver
+            // 20260826_close_profiles_read.sql). Con el asterisco, la consulta
+            // fallaría entera y el export saldría sin perfil.
+            const [profile, preferences, reviews, history] = await Promise.all([
+                supabase
+                    .from('profiles')
+                    .select('id, username, full_name, avatar_url, bio, updated_at')
+                    .eq('id', user.id)
+                    .single(),
+                supabase.rpc('get_my_preferences'),
+                supabase.from('reviews').select('*').eq('user_id', user.id),
+                supabase.from('search_history').select('*').eq('user_id', user.id),
             ]);
 
-            if (authError) throw authError;
-            if (profileFetchError) throw profileFetchError;
+            const payload = {
+                exported_at: new Date().toISOString(),
+                account: { id: user.id, email: user.email, created_at: user.created_at },
+                profile: profile.data ?? null,
+                // Va en el export aunque no sea legible por PostgREST: son sus
+                // datos, y aquí incluye favoritos y amistades.
+                preferences: preferences.data ?? null,
+                reviews: reviews.data ?? [],
+                search_history: history.data ?? [],
+            };
 
-            const existingPreferences = currentProfileData?.preferences ?? {};
-            const mergedPreferences = { ...existingPreferences, privacy: newPrivacy };
+            const url = URL.createObjectURL(
+                new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+            );
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `filmify-datos-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
 
-            const { error: profileUpdateError } = await supabase.from('profiles').update({ preferences: mergedPreferences }).eq('id', user.id);
-            if (profileUpdateError) throw profileUpdateError;
-        } catch (error: any) {
-            setMessage({ type: 'error', text: 'Error al guardar: ' + error.message });
-            setPrivacy(privacy);
+            setMessage({ type: 'success', text: 'Descarga iniciada.' });
+        } catch {
+            setMessage({ type: 'error', text: 'No se pudieron exportar tus datos.' });
         } finally {
-            setLoading(false);
+            setBusy(null);
         }
-    };
+    }, []);
 
-    const clearHistory = async () => {
-        if (!confirm('¿Estás seguro de que quieres borrar tu historial de búsqueda?')) return;
-        setLoading(true);
+    const clearHistory = useCallback(async () => {
+        setConfirmClear(false);
+        setBusy('history');
+        setMessage(null);
         try {
             await clearSearchHistory();
-            setMessage({ type: 'success', text: 'Historial borrado correctamente' });
-        } catch (err) {
-            setMessage({ type: 'error', text: 'Error al borrar el historial' });
+            setMessage({ type: 'success', text: 'Historial de búsqueda borrado.' });
+        } catch {
+            setMessage({ type: 'error', text: 'No se pudo borrar el historial.' });
         } finally {
-            setLoading(false);
+            setBusy(null);
         }
-    };
+    }, []);
 
-    const items = [
-        {
-            key: 'publicProfile',
-            label: 'Perfil Público',
-            desc: 'Permitir que otros usuarios vean tu perfil',
-            icon: User,
-            color: 'from-blue-500/20 to-indigo-500/20',
-            iconColor: 'text-blue-400'
-        },
-        {
-            key: 'showWatchHistory',
-            label: 'Mostrar Historial',
-            desc: 'Mostrar lo que has visto en tu perfil público',
-            icon: Eye,
-            color: 'from-green-500/20 to-emerald-500/20',
-            iconColor: 'text-green-400'
-        },
-        {
-            key: 'showWatchlist',
-            label: 'Mostrar Mi Lista',
-            desc: 'Compartir tus listas guardadas públicamente',
-            icon: Star,
-            color: 'from-yellow-500/20 to-orange-500/20',
-            iconColor: 'text-yellow-400'
-        },
-        {
-            key: 'allowFriendRequests',
-            label: 'Solicitudes de Amistad',
-            desc: 'Permitir que otros te envíen solicitudes',
-            icon: Users,
-            color: 'from-purple-500/20 to-pink-500/20',
-            iconColor: 'text-purple-400'
-        }
-    ];
+    const toggle = (key: keyof PrivacyPreferences, label: string) => (
+        <Toggle
+            id={`privacy-${key}`}
+            label={label}
+            checked={privacy[key]}
+            disabled={saving === key}
+            onChange={(v) => void update(key, v)}
+        />
+    );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="pb-4 border-b border-surface-light/30">
-                <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-white to-text-secondary bg-clip-text text-transparent">Privacidad</h2>
-                <p className="text-xs text-text-secondary">Controla quién ve tu actividad</p>
-            </div>
+        <div className="space-y-4">
+            <StatusBanner message={message} />
 
-            {message && (
-                <div className={`p-3 rounded-xl flex items-center gap-3 backdrop-blur-sm border transition-all duration-300 animate-in slide-in-from-top ${message.type === 'success'
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                    : 'bg-red-500/10 text-red-400 border-red-500/20'
-                    }`}>
-                    {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    <span className="text-xs font-medium">{message.text}</span>
-                </div>
-            )}
+            <SettingsPanel
+                title="Visibilidad"
+                description="Qué pueden ver otros usuarios cuando abren tu perfil."
+            >
+                <SettingRow
+                    icon={Eye}
+                    htmlFor="privacy-publicProfile"
+                    label="Perfil público"
+                    description="Sin esto, tu perfil solo eres tú quien lo ve."
+                    control={toggle('publicProfile', 'Perfil público')}
+                />
+                <SettingRow
+                    icon={History}
+                    htmlFor="privacy-showWatchHistory"
+                    label="Mostrar lo que he visto"
+                    description="Tu historial aparece en tu perfil público."
+                    control={toggle('showWatchHistory', 'Mostrar lo que he visto')}
+                />
+                <SettingRow
+                    icon={ListVideo}
+                    htmlFor="privacy-showWatchlist"
+                    label="Mostrar mis listas"
+                    description="Tus favoritos y listas aparecen en tu perfil público."
+                    control={toggle('showWatchlist', 'Mostrar mis listas')}
+                />
+                <SettingRow
+                    icon={UserPlus}
+                    htmlFor="privacy-allowFriendRequests"
+                    label="Aceptar solicitudes de amistad"
+                    description="Al desactivarlo, nadie puede enviarte nuevas solicitudes."
+                    control={toggle('allowFriendRequests', 'Aceptar solicitudes de amistad')}
+                />
+            </SettingsPanel>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                        <div key={item.key} className="p-4 bg-gradient-to-br from-surface-light/30 to-surface-light/10 backdrop-blur-sm rounded-2xl border border-surface-light/30 hover:border-surface-light/50 transition-all duration-300">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1 pr-4">
-                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shrink-0`}>
-                                        <Icon className={`w-5 h-5 ${item.iconColor}`} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-white">{item.label}</h3>
-                                        <p className="text-[10px] text-text-secondary">{item.desc}</p>
-                                    </div>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={privacy[item.key as keyof typeof privacy]}
-                                        onChange={() => handleToggle(item.key as keyof typeof privacy)}
-                                        disabled={loading}
-                                    />
-                                    <div className="w-9 h-5 bg-surface-light/50 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-primary peer-checked:to-primary-hover peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
-                                </label>
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {/* Clear History Danger Zone */}
-                <div className="md:col-span-2 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                            <History className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-red-400 text-sm font-semibold">Historial de Reproducción</h3>
-                            <p className="text-[10px] text-text-secondary">Borrar todos los títulos vistos</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={clearHistory}
-                        disabled={loading}
-                        className="px-4 py-2 bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl text-xs font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50"
-                    >
-                        Borrar Historial
-                    </button>
-                </div>
-
-                {/* Export Data */}
-                <div className="md:col-span-2 p-6 bg-surface-light/30 backdrop-blur-sm rounded-2xl border border-surface-light/30">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                                <FileText className="w-6 h-6 text-primary" />
-                            </div>
-                            <div className="text-left">
-                                <h3 className="text-base font-bold text-white mb-1">Tus Datos y Privacidad (GDPR)</h3>
-                                <p className="text-xs text-text-secondary max-w-md">
-                                    Tienes derecho a obtener una copia de tus datos personales. Prepararemos un archivo JSON con toda tu información.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={async () => {
-                                setLoading(true);
-                                try {
-                                    const supabaseClient = createClient();
-                                    const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
-                                    if (!currentUser) return;
-
-                                    const [{ data: profile }, { data: reviews }, { data: searchHistory }] = await Promise.all([
-                                        supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single(),
-                                        supabaseClient.from('reviews').select('*').eq('user_id', currentUser.id),
-                                        supabaseClient.from('search_history').select('*').eq('user_id', currentUser.id),
-                                    ]);
-
-                                    const exportData = {
-                                        exported_at: new Date().toISOString(),
-                                        account: { email: currentUser.email, created_at: currentUser.created_at },
-                                        profile,
-                                        reviews: reviews ?? [],
-                                        search_history: searchHistory ?? [],
-                                    };
-
-                                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `filmify-datos-${new Date().toISOString().split('T')[0]}.json`;
-                                    a.click();
-                                    URL.revokeObjectURL(url);
-                                    setMessage({ type: 'success', text: 'Datos exportados correctamente' });
-                                } catch {
-                                    setMessage({ type: 'error', text: 'Error al exportar los datos' });
-                                } finally {
-                                    setLoading(false);
-                                }
-                            }}
-                            disabled={loading}
-                            className="w-full md:w-auto px-6 py-2.5 bg-surface-light hover:bg-surface-hover text-white rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 border border-white/5 hover:border-primary/30 disabled:opacity-50"
+            <SettingsPanel
+                title="Tus datos"
+                description="Descarga o elimina la información que guardamos sobre ti."
+            >
+                <SettingRow
+                    icon={Download}
+                    label="Exportar mis datos"
+                    description="Un archivo JSON con tu perfil, tus reseñas y tu historial de búsqueda."
+                    control={
+                        <Button onClick={() => void exportData()} loading={busy === 'export'}>
+                            Descargar
+                        </Button>
+                    }
+                />
+                <SettingRow
+                    icon={Trash2}
+                    danger
+                    label="Borrar historial de búsqueda"
+                    description="Elimina todo lo que has buscado. No se puede deshacer."
+                    control={
+                        <Button
+                            variant="danger"
+                            onClick={() => setConfirmClear(true)}
+                            loading={busy === 'history'}
                         >
-                            <ExternalLink className="w-3 h-3" />
-                            Descargar mis datos
-                        </button>
-                    </div>
-                </div>
-            </div>
+                            Borrar
+                        </Button>
+                    }
+                />
+            </SettingsPanel>
+
+            <ConfirmDialog
+                open={confirmClear}
+                title="Borrar historial de búsqueda"
+                description="Se eliminarán todas tus búsquedas guardadas. Esta acción no se puede deshacer."
+                confirmLabel="Borrar historial"
+                onCancel={() => setConfirmClear(false)}
+                onConfirm={() => void clearHistory()}
+            />
         </div>
     );
 }

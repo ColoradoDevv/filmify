@@ -166,23 +166,38 @@ export async function getTrending<T extends 'movie' | 'tv' | 'all'>(
 export const searchMulti = async (
     query: string,
     page: number = 1,
+    includeAdult: boolean = false,
 ): Promise<PaginatedResponse<MultiSearchResult>> => {
     if (!query.trim()) {
         return { page: 1, results: [], total_pages: 0, total_results: 0 };
     }
     const safePage = Math.max(1, Math.floor(page));
-    return fetchFromTMDB('/search/multi', { query, page: safePage }, TMDB_TTL.search);
+    // TMDB ya excluye el contenido adulto por defecto, así que el parámetro solo
+    // viaja cuando el usuario lo ha activado en sus ajustes. Al formar parte de
+    // la URL entra en la clave de caché: las dos variantes no se pisan.
+    return fetchFromTMDB(
+        '/search/multi',
+        { query, page: safePage, ...(includeAdult ? { include_adult: 'true' } : {}) },
+        TMDB_TTL.search,
+    );
 };
 
 export const searchMovies = async (
     query: string,
     page: number = 1,
+    includeAdult: boolean = false,
 ): Promise<PaginatedResponse<Movie>> => {
     if (!query.trim()) {
         return { page: 1, results: [], total_pages: 0, total_results: 0 };
     }
     const safePage = Math.max(1, Math.floor(page));
-    return fetchFromTMDB('/search/movie', { query, page: safePage }, TMDB_TTL.search);
+    // Mismo criterio que `searchMulti`: el parámetro solo viaja cuando está
+    // activado, así que las dos variantes tienen claves de caché distintas.
+    return fetchFromTMDB(
+        '/search/movie',
+        { query, page: safePage, ...(includeAdult ? { include_adult: 'true' } : {}) },
+        TMDB_TTL.search,
+    );
 };
 
 // ── Details ───────────────────────────────────────────────────────────────────

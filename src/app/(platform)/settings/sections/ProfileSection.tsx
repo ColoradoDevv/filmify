@@ -1,610 +1,459 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { User, Camera, Lock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import { AtSign, CalendarDays, Camera, Check, IdCard, Loader2, Pencil, User, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/ui/Modal';
+import {
+    SettingsPanel, SettingRow, ReadonlyValue, Button, TextField, StatusBanner, type StatusMessage,
+} from '../components/ui';
 
-export function ProfileSection({ user, onUpdate }: { user: any, onUpdate: () => Promise<void> }) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+const COOLDOWNS = { fullName: 30 * DAY_MS, username: 6 * DAY_MS };
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_BIO = 280;
+
+/** Nombres reservados u ofensivos que no pueden usarse como usuario. */
+const BLACKLIST = [
+    'admin', 'administrator', 'root', 'sysadmin', 'system', 'support', 'help', 'mod', 'moderator',
+    'staff', 'official', 'filmify', 'owner', 'ceo', 'webmaster', 'dev', 'developer',
+    'puto', 'puta', 'mierda', 'cabron', 'pendejo', 'verga', 'pito', 'culo', 'coño',
+    'mamaguevo', 'zorra', 'perra', 'maricon', 'marica', 'idiota', 'estupido', 'imbecil',
+    'bastardo', 'polla', 'semen', 'tetas', 'vagina', 'concha', 'chupala', 'gonorrea',
+    'malparido', 'carechimba', 'pajero', 'pajera',
+    'dick', 'ass', 'bitch', 'fuck', 'shit', 'bastard', 'cunt', 'whore', 'slut',
+    'nigger', 'nigga', 'faggot', 'rape', 'sex', 'porn', 'cock', 'pussy', 'tit', 'boob',
+    'anus', 'anal', 'nazi', 'hitler', 'kkk',
+];
+
+type EditableField = 'fullName' | 'username';
+type NameStatus = 'idle' | 'checking' | 'ok' | 'taken' | 'blocked' | 'short';
+
+/**
+ * Perfil público: avatar, nombre, usuario, biografía y fecha de nacimiento.
+ *
+ * Nombre y usuario tienen ventana de espera (30 y 6 días) para que nadie
+ * suplante a otro cambiándose el nombre a diario. El usuario además se valida
+ * contra una lista de reservados y contra los que ya existen.
+ */
+export function ProfileSection({ user, onUpdate }: { user: any; onUpdate: () => Promise<void> }) {
     const supabase = createClient();
+    const [message, setMessage] = useState<StatusMessage | null>(null);
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [uploading, setUploading] = useState(false);
 
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingField, setEditingField] = useState<'fullName' | 'username' | null>(null);
-    const [editValue, setEditValue] = useState('');
-
-    // Validation State
-    const [usernameStatus, setUsernameStatus] = useState<'default' | 'success' | 'error' | 'loading'>('default');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const [formData, setFormData] = useState({
-        fullName: user?.user_metadata?.full_name || '',
-        username: user?.user_metadata?.username || '',
-        bio: user?.user_metadata?.bio || '',
-        birthdate: user?.user_metadata?.birthdate || '',
+    const [profile, setProfile] = useState({
+        fullName: user?.user_metadata?.full_name ?? '',
+        username: user?.user_metadata?.username ?? '',
+        bio: user?.user_metadata?.bio ?? '',
+        birthdate: user?.user_metadata?.birthdate ?? '',
     });
+    const [avatarUrl, setAvatarUrl] = useState<string>(user?.user_metadata?.avatar_url ?? '');
+    const [bioDraft, setBioDraft] = useState(profile.bio);
 
-    // Sync username/fullName from profiles table in case user_metadata is stale
+    const [editing, setEditing] = useState<EditableField | null>(null);
+    const [draft, setDraft] = useState('');
+    const [status, setStatus] = useState<NameStatus>('idle');
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+
+    const fileRef = useRef<HTMLInputElement>(null);
+    const checkRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // `profiles` manda sobre `user_metadata`: es la tabla que leen el resto de
+    // pantallas, y los metadatos de Auth pueden quedarse atrás.
     useEffect(() => {
         if (!user?.id) return;
+        let alive = true;
         supabase
             .from('profiles')
             .select('username, full_name, bio')
             .eq('id', user.id)
             .single()
             .then(({ data }: { data: { username?: string; full_name?: string; bio?: string } | null }) => {
-                if (!data) return;
-                setFormData(prev => ({
+                if (!alive || !data) return;
+                setProfile((prev) => ({
                     ...prev,
                     username: data.username || prev.username,
                     fullName: data.full_name || prev.fullName,
-                    bio: data.bio || prev.bio,
+                    bio: data.bio ?? prev.bio,
                 }));
+                setBioDraft(data.bio ?? '');
             });
-    }, [user?.id]);
-    const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || '');
-    const fileInputRef = useRef<HTMLInputElement>(null);
+        return () => { alive = false; };
+    }, [supabase, user?.id]);
 
-    // Constants for restrictions (in milliseconds)
-    const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
-    const DAYS_6 = 6 * 24 * 60 * 60 * 1000;
+    const cooldownDays = useCallback((field: EditableField) => {
+        const last = user?.user_metadata?.[`last_${field}_change`];
+        if (!last) return 0;
+        const elapsed = Date.now() - new Date(last).getTime();
+        if (elapsed >= COOLDOWNS[field]) return 0;
+        return Math.ceil((COOLDOWNS[field] - elapsed) / DAY_MS);
+    }, [user?.user_metadata]);
 
-    // Blacklist validation
-    const blacklist = useMemo(() => [
-        // Roles & System
-        'admin', 'administrator', 'root', 'sysadmin', 'system', 'support', 'help', 'mod', 'moderator',
-        'staff', 'official', 'filmify', 'owner', 'ceo', 'webmaster', 'dev', 'developer',
-
-        // Offensive (Spanish)
-        'puto', 'puta', 'mierda', 'cabron', 'pendejo', 'verga', 'pito', 'culo', 'coño',
-        'mamaguevo', 'zorra', 'perra', 'maricon', 'marica', 'idiota', 'estupido', 'imbecil',
-        'bastardo', 'polla', 'semen', 'tetas', 'vagina', 'concha', 'chupala', 'gonorrea',
-        'malparido', 'carechimba', 'pajero', 'pajera',
-
-        // Offensive (English)
-        'dick', 'ass', 'bitch', 'fuck', 'shit', 'bastard', 'cunt', 'whore', 'slut',
-        'nigger', 'nigga', 'faggot', 'rape', 'sex', 'porn', 'cock', 'pussy', 'tit', 'boob',
-        'anus', 'anal', 'penis', 'vagina', 'nazi', 'hitler', 'kkk'
-    ], []);
-
-    const checkRestriction = (field: 'fullName' | 'username') => {
-        const lastChange = user?.user_metadata?.[`last_${field}_change`];
-        if (!lastChange) return true;
-
-        const timeDiff = Date.now() - new Date(lastChange).getTime();
-        const limit = field === 'fullName' ? DAYS_30 : DAYS_6;
-
-        if (timeDiff < limit) {
-            const daysRemaining = Math.ceil((limit - timeDiff) / (24 * 60 * 60 * 1000));
-            setMessage({
-                type: 'error',
-                text: `Debes esperar ${daysRemaining} días para cambiar tu ${field === 'fullName' ? 'nombre' : 'usuario'}.`
-            });
-            return false;
-        }
-        return true;
-    };
-
-    const checkUsernameUnique = async (username: string) => {
+    const isUsernameFree = useCallback(async (name: string) => {
         const { data, error } = await supabase
             .from('profiles')
-            .select('username')
-            .eq('username', username)
-            .neq('id', user.id) // Exclude current user
-            .single();
-
+            .select('id')
+            .eq('username', name)
+            .neq('id', user.id)
+            .maybeSingle();
+        // Ante un error de red no afirmamos que está libre: se trata como
+        // ocupado para no dejar que dos cuentas acaben con el mismo usuario.
+        if (error) return false;
         return !data;
-    };
+    }, [supabase, user?.id]);
 
-    const generateSuggestions = async (baseName: string, isBlacklisted: boolean) => {
-        const newSuggestions: string[] = [];
-        const randomSuffix = () => Math.floor(Math.random() * 1000);
-
-        if (isBlacklisted) {
-            // Generate completely different thematic names
-            const prefixes = ['Cinefilo', 'MovieBuff', 'FilmFan', 'Director', 'Actor', 'Viewer'];
-            for (let i = 0; i < 3; i++) {
-                const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-                newSuggestions.push(`${prefix}_${randomSuffix()}`);
-            }
-        } else {
-            // Generate variations of the base name
-            newSuggestions.push(`${baseName}_${randomSuffix()}`);
-            newSuggestions.push(`${baseName}${randomSuffix()}`);
-            newSuggestions.push(`The${baseName}`);
+    const buildSuggestions = useCallback(async (base: string, blocked: boolean) => {
+        const rand = () => Math.floor(Math.random() * 1000);
+        const seeds = blocked
+            ? ['Cinefilo', 'Cinefila', 'ButacaLibre', 'Palomitas'].map((p) => `${p}_${rand()}`)
+            : [`${base}_${rand()}`, `${base}${rand()}`, `el${base}`];
+        const free: string[] = [];
+        for (const s of seeds) {
+            if (await isUsernameFree(s)) free.push(s);
+            if (free.length >= 3) break;
         }
+        return free;
+    }, [isUsernameFree]);
 
-        // Verify suggestions are unique
-        const verifiedSuggestions: string[] = [];
-        for (const suggestion of newSuggestions) {
-            const isUnique = await checkUsernameUnique(suggestion);
-            if (isUnique) verifiedSuggestions.push(suggestion);
-            if (verifiedSuggestions.length >= 3) break;
-        }
+    const validateUsername = useCallback(async (value: string) => {
+        if (value === profile.username) { setStatus('idle'); setSuggestions([]); return; }
+        if (value.length < 3) { setStatus('short'); setSuggestions([]); return; }
 
-        return verifiedSuggestions;
-    };
-
-    const validateUsername = async (username: string) => {
-        if (username === formData.username) {
-            setUsernameStatus('default');
-            setSuggestions([]);
+        setStatus('checking');
+        const lower = value.toLowerCase();
+        if (BLACKLIST.some((w) => lower.includes(w))) {
+            setStatus('blocked');
+            setSuggestions(await buildSuggestions(value, true));
             return;
         }
-
-        if (username.length < 3) {
-            setUsernameStatus('error');
-            setSuggestions([]);
+        if (!(await isUsernameFree(value))) {
+            setStatus('taken');
+            setSuggestions(await buildSuggestions(value, false));
             return;
         }
-
-        setUsernameStatus('loading');
+        setStatus('ok');
         setSuggestions([]);
+    }, [buildSuggestions, isUsernameFree, profile.username]);
 
-        // Check blacklist
-        const lowerVal = username.toLowerCase();
-        const isBlacklisted = blacklist.some(word => lowerVal.includes(word));
+    const onDraftChange = (value: string) => {
+        setDraft(value);
+        if (editing !== 'username') return;
+        if (checkRef.current) clearTimeout(checkRef.current);
+        if (value.length === 0 || value === profile.username) { setStatus('idle'); setSuggestions([]); return; }
+        if (value.length < 3) { setStatus('short'); setSuggestions([]); return; }
+        setStatus('checking');
+        checkRef.current = setTimeout(() => void validateUsername(value), 450);
+    };
 
-        if (isBlacklisted) {
-            setUsernameStatus('error');
-            const newSuggestions = await generateSuggestions(username, true);
-            setSuggestions(newSuggestions);
+    const openEditor = (field: EditableField) => {
+        setMessage(null);
+        const days = cooldownDays(field);
+        if (days > 0) {
+            setMessage({
+                type: 'error',
+                text: `Podrás cambiar tu ${field === 'fullName' ? 'nombre' : 'usuario'} dentro de ${days} día${days === 1 ? '' : 's'}.`,
+            });
             return;
         }
-
-        // Check uniqueness
-        const isUnique = await checkUsernameUnique(username);
-        if (!isUnique) {
-            setUsernameStatus('error');
-            const newSuggestions = await generateSuggestions(username, false);
-            setSuggestions(newSuggestions);
-        } else {
-            setUsernameStatus('success');
-            setSuggestions([]);
-        }
-    };
-
-    const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setEditValue(value);
-
-        if (editingField === 'username') {
-            // Clear previous timeout
-            if (checkTimeoutRef.current) {
-                clearTimeout(checkTimeoutRef.current);
-            }
-
-            // Immediate feedback for length
-            if (value.length > 0 && value.length < 3) {
-                setUsernameStatus('error');
-                setSuggestions([]);
-            } else if (value.length === 0 || value === formData.username) {
-                setUsernameStatus('default');
-                setSuggestions([]);
-            } else {
-                // Debounce validation
-                setUsernameStatus('loading');
-                checkTimeoutRef.current = setTimeout(() => {
-                    validateUsername(value);
-                }, 500);
-            }
-        }
-    };
-
-    const applySuggestion = (suggestion: string) => {
-        setEditValue(suggestion);
-        setUsernameStatus('success');
+        setEditing(field);
+        setDraft(profile[field]);
+        setStatus('idle');
         setSuggestions([]);
     };
 
-    const handleEditClick = (field: 'fullName' | 'username') => {
-        setMessage(null);
-        if (checkRestriction(field)) {
-            setEditingField(field);
-            setEditValue(formData[field]);
-            setUsernameStatus('default');
-            setSuggestions([]);
-            setIsModalOpen(true);
-        }
-    };
+    const saveField = useCallback(async () => {
+        if (!editing) return;
+        const value = draft.trim();
+        if (!value) return;
+        if (editing === 'username' && value !== profile.username && status !== 'ok') return;
 
-    const handleSaveField = async () => {
-        if (!editingField) return;
-
-        // Validation check for username
-        if (editingField === 'username') {
-            if (editValue !== formData.username && usernameStatus !== 'success') {
-                return; // Prevent saving if invalid
-            }
-        }
-
+        const column = editing === 'fullName' ? 'full_name' : 'username';
         setLoading(true);
         setMessage(null);
-
         try {
-            const updates: any = {
-                [editingField === 'fullName' ? 'full_name' : 'username']: editValue,
-                [`last_${editingField}_change`]: new Date().toISOString()
-            };
-
-            // Update Auth User Metadata
             const { error: authError } = await supabase.auth.updateUser({
-                data: updates
+                data: { [column]: value, [`last_${editing}_change`]: new Date().toISOString() },
             });
-
             if (authError) throw authError;
 
-            // Update Profiles Table
-            const { error: profileError } = await supabase
+            const { error: dbError } = await supabase
                 .from('profiles')
-                .update({
-                    [editingField === 'fullName' ? 'full_name' : 'username']: editValue,
-                    updated_at: new Date().toISOString(),
-                })
+                .update({ [column]: value, updated_at: new Date().toISOString() })
                 .eq('id', user.id);
+            if (dbError) throw dbError;
 
-            if (profileError) throw profileError;
-
-            setFormData(prev => ({ ...prev, [editingField]: editValue }));
-            setMessage({ type: 'success', text: 'Perfil actualizado correctamente' });
-            setIsModalOpen(false);
+            setProfile((p) => ({ ...p, [editing]: value }));
+            setEditing(null);
+            setMessage({ type: 'success', text: 'Perfil actualizado.' });
             await onUpdate();
         } catch (error: any) {
-            setMessage({ type: 'error', text: error.message });
+            setMessage({ type: 'error', text: error.message ?? 'No se pudo guardar' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [draft, editing, onUpdate, profile.username, status, supabase, user?.id]);
 
-    const handleBioUpdate = async () => {
+    const saveSimple = useCallback(async (column: 'bio' | 'birthdate', value: string, label: string) => {
         setLoading(true);
         setMessage(null);
-
         try {
-            // Update Auth User Metadata
-            const { error: authError } = await supabase.auth.updateUser({
-                data: { bio: formData.bio }
-            });
-
+            const { error: authError } = await supabase.auth.updateUser({ data: { [column]: value } });
             if (authError) throw authError;
-
-            // Update Profiles Table
-            const { error: profileError } = await supabase
+            const { error: dbError } = await supabase
                 .from('profiles')
-                .update({
-                    bio: formData.bio,
-                    updated_at: new Date().toISOString(),
-                })
+                .update({ [column]: value, updated_at: new Date().toISOString() })
                 .eq('id', user.id);
-
-            if (profileError) throw profileError;
-
-            setMessage({ type: 'success', text: 'Biografía actualizada correctamente' });
+            if (dbError) throw dbError;
+            setProfile((p) => ({ ...p, [column === 'bio' ? 'bio' : 'birthdate']: value }));
+            setMessage({ type: 'success', text: `${label} guardada.` });
             await onUpdate();
         } catch (error: any) {
-            setMessage({ type: 'error', text: error.message });
+            setMessage({ type: 'error', text: error.message ?? 'No se pudo guardar' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [onUpdate, supabase, user?.id]);
 
-    const handleBirthdateUpdate = async () => {
-        if (!formData.birthdate) return;
+    const uploadAvatar = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // permite volver a elegir el mismo archivo
+        if (!file) return;
 
-        setLoading(true);
+        // Validación en cliente: el bucket la repite del lado del servidor, pero
+        // así el error se ve al instante y no tras subir dos megas.
+        if (!AVATAR_TYPES.includes(file.type)) {
+            setMessage({ type: 'error', text: 'Formato no admitido. Usa JPG, PNG o WebP.' });
+            return;
+        }
+        if (file.size > MAX_AVATAR_BYTES) {
+            setMessage({ type: 'error', text: 'La imagen supera los 2 MB.' });
+            return;
+        }
+
+        setUploading(true);
         setMessage(null);
-
         try {
-            // Update Auth User Metadata
-            const { error: authError } = await supabase.auth.updateUser({
-                data: { birthdate: formData.birthdate }
-            });
+            const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+            const path = `${user.id}-${Date.now()}.${ext}`;
 
+            const { error: upErr } = await supabase.storage.from('avatars').upload(path, file);
+            if (upErr) throw upErr;
+
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+
+            const { error: authError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
             if (authError) throw authError;
 
-            // Update Profiles Table
-            const { error: profileError } = await supabase
+            const { error: dbError } = await supabase
                 .from('profiles')
-                .update({
-                    birthdate: formData.birthdate,
-                    updated_at: new Date().toISOString(),
-                })
+                .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
                 .eq('id', user.id);
-
-            if (profileError) throw profileError;
-
-            setMessage({ type: 'success', text: 'Fecha de nacimiento guardada correctamente' });
-            await onUpdate();
-        } catch (error: any) {
-            setMessage({ type: 'error', text: error.message });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) return;
-
-        const file = e.target.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        setLoading(true);
-        setMessage(null);
-
-        try {
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            // Update Auth User Metadata
-            const { error: updateError } = await supabase.auth.updateUser({
-                data: { avatar_url: publicUrl }
-            });
-
-            if (updateError) throw updateError;
-
-            // Update Profiles Table
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                    avatar_url: publicUrl,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', user.id);
-
-            if (profileError) throw profileError;
+            if (dbError) throw dbError;
 
             setAvatarUrl(publicUrl);
-            setMessage({ type: 'success', text: 'Avatar actualizado correctamente' });
+            setMessage({ type: 'success', text: 'Foto actualizada.' });
             await onUpdate();
         } catch (error: any) {
-            setMessage({ type: 'error', text: 'Error al subir la imagen: ' + error.message });
+            setMessage({ type: 'error', text: `No se pudo subir la imagen: ${error.message ?? ''}`.trim() });
         } finally {
-            setLoading(false);
+            setUploading(false);
         }
-    };
+    }, [onUpdate, supabase, user?.id]);
+
+    const usernameHint = useMemo(() => {
+        switch (status) {
+            case 'short': return { error: 'Mínimo 3 caracteres' };
+            case 'taken': return { error: 'Ese usuario ya está cogido' };
+            case 'blocked': return { error: 'Ese usuario no está permitido' };
+            case 'ok': return { hint: 'Disponible' };
+            case 'checking': return { hint: 'Comprobando…' };
+            default: return {};
+        }
+    }, [status]);
+
+    const nameDays = cooldownDays('fullName');
+    const userDays = cooldownDays('username');
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Section Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-surface-light/30">
-                <div>
-                    <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-white to-text-secondary bg-clip-text text-transparent">
-                        Perfil Público
-                    </h2>
-                    <p className="text-xs text-text-secondary">Información visible para otros usuarios</p>
-                </div>
-            </div>
+        <div className="space-y-4">
+            <StatusBanner message={message} />
 
-            {/* Enhanced Messages */}
-            {message && (
-                <div className={`p-3 rounded-xl flex items-center gap-3 backdrop-blur-sm border transition-all duration-300 animate-in slide-in-from-top ${message.type === 'success'
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                    : 'bg-red-500/10 text-red-500/20 text-red-400'
-                    }`}>
-                    {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    <span className="text-xs font-medium">{message.text}</span>
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Avatar Section - Compact */}
-                <div className="lg:col-span-1">
-                    <div className="p-4 bg-gradient-to-br from-surface-light/30 to-surface-light/10 backdrop-blur-sm rounded-2xl border border-surface-light/30 flex flex-col items-center text-center">
-                        <div className="relative group cursor-pointer mb-3" onClick={() => fileInputRef.current?.click()}>
-                            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 overflow-hidden flex items-center justify-center relative border-2 border-surface-light/50 group-hover:border-primary/50 transition-all duration-300 group-hover:scale-105">
+            <SettingsPanel title="Perfil público" description="Lo que ven otros usuarios de FilmiFy.">
+                <SettingRow
+                    icon={Camera}
+                    label="Foto de perfil"
+                    description="JPG, PNG o WebP, hasta 2 MB."
+                    control={
+                        <div className="flex items-center gap-3">
+                            <span className="relative block h-9 w-9 overflow-hidden rounded-full border border-outline-variant bg-surface-container">
                                 {avatarUrl ? (
-                                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                    <Image src={avatarUrl} alt="" fill sizes="36px" className="object-cover" unoptimized />
                                 ) : (
-                                    <User className="w-10 h-10 text-text-muted" />
+                                    <span className="flex h-full w-full items-center justify-center">
+                                        <User className="h-4 w-4 text-on-surface-variant" aria-hidden />
+                                    </span>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                    <div className="text-center">
-                                        <Camera className="w-6 h-6 text-white mx-auto mb-1" />
-                                        <span className="text-[10px] text-white font-medium">Cambiar</span>
-                                    </div>
-                                </div>
-                            </div>
+                            </span>
                             <input
+                                ref={fileRef}
                                 type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleAvatarUpload}
+                                accept={AVATAR_TYPES.join(',')}
+                                onChange={(e) => void uploadAvatar(e)}
+                                className="sr-only"
                             />
+                            <Button onClick={() => fileRef.current?.click()} loading={uploading}>
+                                Cambiar
+                            </Button>
                         </div>
-                        <h3 className="font-semibold text-white text-sm mb-1">Tu Avatar</h3>
-                        <p className="text-xs text-text-secondary mb-3">Max 2MB</p>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={loading}
-                            className="w-full px-3 py-2 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl text-xs font-medium hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? 'Subiendo...' : 'Subir foto'}
-                        </button>
-                    </div>
-                </div>
+                    }
+                />
 
-                {/* Form Fields */}
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-white flex items-center gap-2">
-                                Nombre Completo
-                            </label>
-                            <div className="flex gap-2">
-                                <div className="flex-1 bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-xl py-2.5 px-3 text-sm text-white truncate">
-                                    {formData.fullName || 'No definido'}
-                                </div>
-                                <button
-                                    onClick={() => handleEditClick('fullName')}
-                                    className="px-3 py-2 bg-surface-light/50 hover:bg-surface-hover/50 backdrop-blur-sm border border-surface-light/50 rounded-xl text-xs font-medium transition-all duration-300 hover:scale-105"
-                                >
-                                    Editar
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-text-secondary flex items-center gap-1">
-                                <Lock className="w-3 h-3" />
-                                Cambio cada 30 días
-                            </p>
+                <SettingRow
+                    icon={IdCard}
+                    label="Nombre"
+                    description={nameDays > 0 ? `Podrás cambiarlo en ${nameDays} días.` : 'Se puede cambiar una vez cada 30 días.'}
+                    control={
+                        <div className="flex items-center gap-3">
+                            <ReadonlyValue>{profile.fullName || 'Sin definir'}</ReadonlyValue>
+                            <Button onClick={() => openEditor('fullName')} disabled={nameDays > 0}>
+                                <Pencil className="h-3.5 w-3.5" aria-hidden /> Editar
+                            </Button>
                         </div>
+                    }
+                />
 
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-white flex items-center gap-2">
-                                Nombre de Usuario
-                            </label>
-                            <div className="flex gap-2">
-                                <div className="flex-1 bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-xl py-2.5 px-3 text-sm text-white truncate">
-                                    {formData.username || 'No definido'}
-                                </div>
-                                <button
-                                    onClick={() => handleEditClick('username')}
-                                    className="px-3 py-2 bg-surface-light/50 hover:bg-surface-hover/50 backdrop-blur-sm border border-surface-light/50 rounded-xl text-xs font-medium transition-all duration-300 hover:scale-105"
-                                >
-                                    Editar
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-text-secondary flex items-center gap-1">
-                                <Lock className="w-3 h-3" />
-                                Cambio cada 6 días
-                            </p>
+                <SettingRow
+                    icon={AtSign}
+                    label="Nombre de usuario"
+                    description={userDays > 0 ? `Podrás cambiarlo en ${userDays} días.` : 'Identifica tu perfil. Una vez cada 6 días.'}
+                    control={
+                        <div className="flex items-center gap-3">
+                            <ReadonlyValue>{profile.username ? `@${profile.username}` : 'Sin definir'}</ReadonlyValue>
+                            <Button onClick={() => openEditor('username')} disabled={userDays > 0}>
+                                <Pencil className="h-3.5 w-3.5" aria-hidden /> Editar
+                            </Button>
                         </div>
+                    }
+                />
 
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-white">Fecha de Nacimiento</label>
-                            <div className="flex gap-2">
+                <SettingRow
+                    icon={CalendarDays}
+                    label="Fecha de nacimiento"
+                    description={profile.birthdate ? 'Ya guardada. No se puede modificar.' : 'Solo se puede guardar una vez.'}
+                    control={
+                        profile.birthdate ? (
+                            <ReadonlyValue>{profile.birthdate}</ReadonlyValue>
+                        ) : (
+                            <div className="flex items-center gap-2">
                                 <input
                                     type="date"
-                                    value={formData.birthdate}
-                                    onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                                    disabled={!!user?.user_metadata?.birthdate}
-                                    className={`flex-1 bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all ${!!user?.user_metadata?.birthdate ? 'cursor-not-allowed opacity-60' : ''}`}
+                                    value={profile.birthdate}
+                                    onChange={(e) => setProfile((p) => ({ ...p, birthdate: e.target.value }))}
+                                    className="h-8 rounded-lg border border-outline-variant bg-surface-container px-2 text-xs text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                                 />
-                                {!user?.user_metadata?.birthdate && (
-                                    <button
-                                        onClick={handleBirthdateUpdate}
-                                        disabled={loading || !formData.birthdate}
-                                        className="px-3 py-2 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl font-medium hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 text-xs disabled:opacity-50 flex items-center gap-2 hover:scale-105"
-                                    >
-                                        {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                        Guardar
-                                    </button>
-                                )}
+                                <Button
+                                    variant="primary"
+                                    disabled={!profile.birthdate}
+                                    loading={loading}
+                                    onClick={() => void saveSimple('birthdate', profile.birthdate, 'Fecha de nacimiento')}
+                                >
+                                    Guardar
+                                </Button>
                             </div>
-                            {user?.user_metadata?.birthdate ? (
-                                <p className="text-[10px] text-text-secondary flex items-center gap-1">
-                                    <Lock className="w-3 h-3" />
-                                    Contactar a soporte para cambiar
-                                </p>
-                            ) : (
-                                <p className="text-[10px] text-yellow-400/80 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Acción permanente
-                                </p>
-                            )}
-                        </div>
-                    </div>
+                        )
+                    }
+                />
+            </SettingsPanel>
 
-                    <div className="space-y-2 pt-2">
-                        <label className="text-xs font-semibold text-white">Biografía</label>
-                        <textarea
-                            rows={3}
-                            value={formData.bio}
-                            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                            placeholder="Cuéntanos sobre ti..."
-                            className="w-full bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-xl p-3 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all text-sm resize-none text-white placeholder:text-text-muted"
-                        />
-                        <div className="flex justify-end">
-                            <button
-                                onClick={handleBioUpdate}
-                                disabled={loading}
-                                className="px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl font-medium hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 text-xs disabled:opacity-50 flex items-center gap-2 hover:scale-105"
-                            >
-                                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                Guardar Bio
-                            </button>
-                        </div>
+            <SettingsPanel
+                title="Biografía"
+                description="Un par de líneas sobre ti en tu perfil."
+                footer={
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-on-surface-variant">
+                            {bioDraft.length}/{MAX_BIO}
+                        </span>
+                        <Button
+                            variant="primary"
+                            loading={loading}
+                            disabled={bioDraft === profile.bio}
+                            onClick={() => void saveSimple('bio', bioDraft, 'Biografía')}
+                        >
+                            Guardar biografía
+                        </Button>
                     </div>
+                }
+            >
+                <div className="px-4 py-3 sm:px-5">
+                    <textarea
+                        value={bioDraft}
+                        maxLength={MAX_BIO}
+                        rows={3}
+                        onChange={(e) => setBioDraft(e.target.value)}
+                        placeholder="Cuéntale a la gente qué te gusta ver."
+                        aria-label="Biografía"
+                        className="w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
                 </div>
-            </div>
+            </SettingsPanel>
 
-            {/* Edit Modal */}
+            {/* ── Editor de nombre / usuario ───────────────────────────────── */}
             <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title={`Editar ${editingField === 'fullName' ? 'Nombre Completo' : 'Nombre de Usuario'}`}
+                isOpen={editing !== null}
+                onClose={() => setEditing(null)}
+                title={editing === 'username' ? 'Cambiar nombre de usuario' : 'Cambiar nombre'}
             >
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                            Nuevo {editingField === 'fullName' ? 'Nombre' : 'Usuario'}
-                        </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={editValue}
-                                onChange={handleEditChange}
-                                className={`w-full bg-surface-light border rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 transition-all text-sm text-white ${editingField === 'username' && usernameStatus === 'error'
-                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                                    : editingField === 'username' && usernameStatus === 'success'
-                                        ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
-                                        : 'border-surface-light focus:border-primary focus:ring-primary/20'
-                                    }`}
-                                autoFocus
-                            />
-                            {editingField === 'username' && usernameStatus === 'loading' && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <Loader2 className="w-4 h-4 animate-spin text-text-muted" />
-                                </div>
-                            )}
-                        </div>
+                    <TextField
+                        id="profile-draft"
+                        label={editing === 'username' ? 'Nombre de usuario' : 'Nombre'}
+                        value={draft}
+                        onChange={(e) => onDraftChange(e.target.value)}
+                        autoComplete="off"
+                        {...usernameHint}
+                    />
 
-                        {/* Suggestions */}
-                        {editingField === 'username' && suggestions.length > 0 && (
-                            <div className="mt-2 animate-fade-in-up">
-                                <p className="text-xs text-text-secondary mb-1.5">Sugerencias disponibles:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {suggestions.map((suggestion) => (
-                                        <button
-                                            key={suggestion}
-                                            type="button"
-                                            onClick={() => applySuggestion(suggestion)}
-                                            className="px-3 py-1 text-xs font-medium bg-surface-light/50 hover:bg-primary/20 hover:text-primary border border-surface-light hover:border-primary/30 rounded-full transition-all"
-                                        >
-                                            {suggestion}
-                                        </button>
-                                    ))}
-                                </div>
+                    {suggestions.length > 0 && (
+                        <div>
+                            <p className="mb-1.5 text-xs text-on-surface-variant">Sugerencias libres:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {suggestions.map((s) => (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => { setDraft(s); setStatus('ok'); setSuggestions([]); }}
+                                        className="rounded-full border border-outline-variant bg-surface-container px-2.5 py-1 text-xs text-on-surface-variant transition-colors hover:border-primary/40 hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    >
+                                        {s}
+                                    </button>
+                                ))}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            onClick={() => setIsModalOpen(false)}
-                            className="px-4 py-2 bg-transparent hover:bg-surface-light rounded-lg text-sm font-medium transition-colors text-text-secondary hover:text-white"
+                    <div className="flex items-center justify-end gap-2">
+                        {status === 'checking' && (
+                            <Loader2 className="h-4 w-4 animate-spin text-on-surface-variant" aria-hidden />
+                        )}
+                        {status === 'ok' && <Check className="h-4 w-4 text-emerald-400" aria-hidden />}
+                        {(status === 'taken' || status === 'blocked' || status === 'short') && (
+                            <X className="h-4 w-4 text-red-400" aria-hidden />
+                        )}
+                        <Button variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
+                        <Button
+                            variant="primary"
+                            loading={loading}
+                            disabled={
+                                !draft.trim()
+                                || (editing === 'username' && draft.trim() !== profile.username && status !== 'ok')
+                            }
+                            onClick={() => void saveField()}
                         >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleSaveField}
-                            disabled={loading || !editValue.trim() || (editingField === 'username' && editValue !== formData.username && usernameStatus !== 'success')}
-                            className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            Guardar Cambios
-                        </button>
+                            Guardar
+                        </Button>
                     </div>
                 </div>
             </Modal>

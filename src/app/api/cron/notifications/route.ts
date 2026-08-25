@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
 import { getNowPlaying, getUpcoming, getTrending, getImageUrl } from '@/server/services/tmdb';
+import { normalizePreferences } from '@/lib/user-preferences';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -52,13 +53,20 @@ export async function GET(request: NextRequest) {
             .slice(0, 2);
 
         // ── 2. Get all user IDs ──────────────────────────────────────────────
+        // Traemos también `preferences`: los interruptores de /settings deciden
+        // qué recibe cada quien. Antes se ignoraban por completo y se insertaba
+        // para todo el mundo, así que apagarlos no servía de nada.
         const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, preferences')
             .eq('is_stb', false); // skip STB device accounts
 
         if (profilesError) throw profilesError;
-        const userIds: string[] = (profiles ?? []).map((p: { id: string }) => p.id);
+        const recipients = (profiles ?? []).map((p: { id: string; preferences?: unknown }) => ({
+            id: p.id,
+            notifications: normalizePreferences(p.preferences).notifications,
+        }));
+        const userIds: string[] = recipients.map((r) => r.id);
 
         if (userIds.length === 0) {
             return NextResponse.json({ success: true, message: 'No users to notify' });
@@ -81,9 +89,9 @@ export async function GET(request: NextRequest) {
         // ── 4. Build notification rows ───────────────────────────────────────
         const rows: object[] = [];
 
-        for (const userId of userIds) {
+        for (const { id: userId, notifications: prefs } of recipients) {
             // New release notifications
-            for (const movie of newReleases) {
+            for (const movie of prefs.newReleases ? newReleases : []) {
                 if (recentTmdbIds.has(movie.id)) continue;
                 const title = 'title' in movie ? (movie as any).title : (movie as any).name;
                 const releaseDate = 'release_date' in movie ? (movie as any).release_date : (movie as any).first_air_date;
@@ -107,14 +115,14 @@ export async function GET(request: NextRequest) {
             }
 
             // Weekly trending summary (one per user)
-            if (trendingMovies.length > 0) {
+            if (prefs.recommendations && trendingMovies.length > 0) {
                 const titles = trendingMovies
                     .map((m) => ('title' in m ? (m as any).title : (m as any).name))
                     .join(', ');
                 rows.push({
                     user_id: userId,
                     type: 'news',
-                    title: 'Tendencias de la semana 🎬',
+                    title: 'Tendencias de la semana',
                     message: `Lo más visto: ${titles}`,
                     read: false,
                     metadata: {

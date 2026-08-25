@@ -46,6 +46,7 @@ export function createClient() {
                     signOut: async () => ({ error: notConfigured() }),
                 },
                 from: () => createDummyBuilder(),
+                rpc: async () => ({ data: null, error: notConfigured() }),
                 channel: () => ({
                     on: () => ({ subscribe: () => { } }),
                     subscribe: () => { },

@@ -8,6 +8,7 @@ import {
     getAnimeIdSet,
 } from '@/server/services/vimeus';
 import { anilistFromTmdb } from '@/server/services/anime';
+import { readUserPreferences } from '@/server/repositories/user-preferences';
 import type { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
 
 /**
@@ -38,18 +39,24 @@ export async function searchTitles(query: string): Promise<SearchResultItem[]> {
     const q = query.trim();
     if (!q) return [];
 
-    // Lanzamos TMDB search y el catálogo de anime en paralelo — la segunda
-    // petición está cacheada 1h, así que en hot path no añade latencia real.
+    // El catálogo de anime y la preferencia +18 salen a la vez, no en fila: el
+    // primero está cacheado 1h y la segunda es una lectura por clave primaria,
+    // pero encadenarlas sumaba su latencia a CADA pulsación del autocompletado.
+    //
+    // TMDB sí tiene que esperar a la preferencia: `include_adult` forma parte
+    // de la URL, así que no se puede lanzar la búsqueda antes de saberla.
     let results: MultiSearchResult[] = [];
     let animeIdSet = new Set<number>();
 
     try {
-        const [tmdbData, animeIds] = await Promise.all([
-            searchMulti(q),
+        const [preferences, animeIds] = await Promise.all([
+            readUserPreferences(),
             getAnimeIdSet(1000).catch(() => new Set<number>()),
         ]);
-        results = tmdbData.results ?? [];
         animeIdSet = animeIds;
+
+        const tmdbData = await searchMulti(q, 1, preferences.playback.adultContent);
+        results = tmdbData.results ?? [];
     } catch (error) {
         console.error('[searchTitles] TMDB search failed:', error);
         return [];

@@ -1,567 +1,379 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail, Lock, Smartphone, AlertCircle, AlertTriangle, CheckCircle, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { AtSign, Check, Eye, EyeOff, KeyRound, Trash2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/ui/Modal';
+import {
+    SettingsPanel, SettingRow, ReadonlyValue, Button, TextField, StatusBanner, type StatusMessage,
+} from '../components/ui';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-export function AccountSection({ user, onUpdate }: { user: any, onUpdate: () => Promise<void> }) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EMAIL_COOLDOWN_MS = 30 * DAY_MS;
+
+/** Misma política que register/actions.ts y reset-password/actions.ts. */
+const PASSWORD_RULES: { id: string; label: string; test: (v: string) => boolean }[] = [
+    { id: 'length', label: 'Al menos 8 caracteres', test: (v) => v.length >= 8 },
+    { id: 'uppercase', label: 'Una mayúscula', test: (v) => /[A-Z]/.test(v) },
+    { id: 'lowercase', label: 'Una minúscula', test: (v) => /[a-z]/.test(v) },
+    { id: 'number', label: 'Un número', test: (v) => /[0-9]/.test(v) },
+    { id: 'special', label: 'Un símbolo', test: (v) => /[!@#$%^&*(),.?":{}|<>]/.test(v) },
+];
+
+type PasswordStep = 'request' | 'verify' | 'update';
+
+/**
+ * Cuenta y seguridad: correo, contraseña y baja.
+ *
+ * La lógica es la que ya había —Supabase Auth para correo y contraseña, y
+ * /api/account/delete para la baja—; lo que cambia es la presentación y que los
+ * diálogos ya no usan `alert()`/`confirm()` del navegador.
+ *
+ * El cambio de contraseña es en tres pasos a propósito: pedimos un código al
+ * correo y lo verificamos antes de dejar escribir la nueva, para que quien
+ * encuentre una sesión abierta no pueda quedarse con la cuenta.
+ */
+export function AccountSection({ user, onUpdate }: { user: any; onUpdate: () => Promise<void> }) {
     const supabase = createClient();
+    const [message, setMessage] = useState<StatusMessage | null>(null);
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-    // Modal State
-    const [modalType, setModalType] = useState<'email' | 'password' | 'delete' | null>(null);
+    const [emailOpen, setEmailOpen] = useState(false);
+    const [newEmail, setNewEmail] = useState('');
+
+    const [passwordOpen, setPasswordOpen] = useState(false);
+    const [step, setStep] = useState<PasswordStep>('request');
+    const [otp, setOtp] = useState('');
+    const [passwords, setPasswords] = useState({ next: '', confirm: '' });
+    const [showPassword, setShowPassword] = useState(false);
+
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState('');
 
-    const [passwordStep, setPasswordStep] = useState<'request' | 'verify' | 'update'>('request');
-    const [otpToken, setOtpToken] = useState('');
+    const emailVerified = !!user?.email_confirmed_at;
 
-    const [newEmail, setNewEmail] = useState('');
-    const [passwords, setPasswords] = useState({
-        new: '',
-        confirm: ''
-    });
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    /** Días que faltan para poder volver a cambiar el correo, o 0. */
+    const emailCooldownDays = useMemo(() => {
+        const last = user?.user_metadata?.last_email_change;
+        if (!last) return 0;
+        const elapsed = Date.now() - new Date(last).getTime();
+        if (elapsed >= EMAIL_COOLDOWN_MS) return 0;
+        return Math.ceil((EMAIL_COOLDOWN_MS - elapsed) / DAY_MS);
+    }, [user?.user_metadata?.last_email_change]);
 
-    // Constants
-    const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
+    const ruleState = useMemo(
+        () => PASSWORD_RULES.map((r) => ({ ...r, ok: r.test(passwords.next) })),
+        [passwords.next],
+    );
+    const passwordValid = ruleState.every((r) => r.ok) && passwords.next === passwords.confirm;
 
-    const checkEmailRestriction = () => {
-        const lastChange = user?.user_metadata?.last_email_change;
-        if (!lastChange) return true;
-
-        const timeDiff = Date.now() - new Date(lastChange).getTime();
-        if (timeDiff < DAYS_30) {
-            const daysRemaining = Math.ceil((DAYS_30 - timeDiff) / (24 * 60 * 60 * 1000));
-            setMessage({
-                type: 'error',
-                text: `Debes esperar ${daysRemaining} días para cambiar tu correo electrónico.`
-            });
-            return false;
-        }
-        return true;
-    };
-
-    const handleEmailClick = () => {
+    const openEmail = () => {
         setMessage(null);
-        if (checkEmailRestriction()) {
-            setNewEmail(user?.email || '');
-            setModalType('email');
-        }
+        setNewEmail(user?.email ?? '');
+        setEmailOpen(true);
     };
 
-    const handleUpdateEmail = async () => {
-        if (!newEmail || newEmail === user.email) return;
-
+    const submitEmail = useCallback(async () => {
+        if (!newEmail || newEmail === user?.email) return;
         setLoading(true);
-        setMessage(null);
-
         try {
             const { error } = await supabase.auth.updateUser({
                 email: newEmail,
-                data: { last_email_change: new Date().toISOString() }
+                data: { last_email_change: new Date().toISOString() },
             });
-
             if (error) throw error;
-
-            setMessage({ type: 'success', text: 'Se ha enviado un correo de confirmación a la nueva dirección.' });
-            setModalType(null);
+            setEmailOpen(false);
+            setMessage({ type: 'success', text: 'Te enviamos un correo de confirmación a la dirección nueva. El cambio se aplica al abrirlo.' });
             await onUpdate();
         } catch (error: any) {
-            setMessage({ type: 'error', text: error.message });
+            setMessage({ type: 'error', text: error.message ?? 'No se pudo cambiar el correo' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [newEmail, onUpdate, supabase, user?.email]);
 
-    // Password Flow Handlers
-    const handleSendOtp = async () => {
+    const sendOtp = useCallback(async () => {
         setLoading(true);
         setMessage(null);
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(user.email);
             if (error) throw error;
-            setPasswordStep('verify');
-            setMessage({ type: 'success', text: 'Código enviado a tu correo.' });
+            setStep('verify');
         } catch (error: any) {
-            let errorMessage = error.message;
-            if (errorMessage.includes('For security purposes, you can only request this after')) {
-                const seconds = errorMessage.match(/\d+/)?.[0] || 'unos';
-                errorMessage = `Por seguridad, espera ${seconds} segundos antes de solicitarlo nuevamente.`;
-            }
-            setMessage({ type: 'error', text: errorMessage });
+            const raw = String(error.message ?? '');
+            const wait = raw.match(/after (\d+) seconds/)?.[1];
+            setMessage({
+                type: 'error',
+                text: wait
+                    ? `Por seguridad, espera ${wait} segundos antes de pedir otro código.`
+                    : raw || 'No se pudo enviar el código',
+            });
         } finally {
             setLoading(false);
         }
-    };
+    }, [supabase, user?.email]);
 
-    const handleVerifyOtp = async () => {
+    const verifyOtp = useCallback(async () => {
         setLoading(true);
         setMessage(null);
         try {
-            const { error } = await supabase.auth.verifyOtp({
-                email: user.email,
-                token: otpToken,
-                type: 'recovery'
-            });
+            const { error } = await supabase.auth.verifyOtp({ email: user.email, token: otp, type: 'recovery' });
             if (error) throw error;
-            setPasswordStep('update');
-            setMessage(null);
-        } catch (error: any) {
-            setMessage({ type: 'error', text: 'Código inválido o expirado.' });
+            setStep('update');
+        } catch {
+            setMessage({ type: 'error', text: 'El código no es válido o ha caducado.' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [otp, supabase, user?.email]);
 
-    // Debe coincidir con validatePassword de register/actions.ts y
-    // reset-password/actions.ts — política única de contraseñas del sitio.
-    const checkPasswordRequirements = (password: string) => {
-        return {
-            length: password.length >= 8,
-            uppercase: /[A-Z]/.test(password),
-            lowercase: /[a-z]/.test(password),
-            number: /[0-9]/.test(password),
-            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-        };
-    };
-
-    const handleUpdatePassword = async () => {
-        if (passwords.new !== passwords.confirm) {
-            setMessage({ type: 'error', text: 'Las contraseñas nuevas no coinciden' });
-            return;
-        }
-
-        const reqs = checkPasswordRequirements(passwords.new);
-        if (!Object.values(reqs).every(Boolean)) {
-            setMessage({ type: 'error', text: 'La contraseña no cumple con los requisitos mínimos' });
-            return;
-        }
-
+    const submitPassword = useCallback(async () => {
+        if (!passwordValid) return;
         setLoading(true);
         setMessage(null);
-
         try {
-            const { error } = await supabase.auth.updateUser({
-                password: passwords.new
-            });
-
+            const { error } = await supabase.auth.updateUser({ password: passwords.next });
             if (error) throw error;
-
-            setMessage({ type: 'success', text: 'Contraseña actualizada correctamente' });
-            setTimeout(() => {
-                setModalType(null);
-                setPasswords({ new: '', confirm: '' });
-                setPasswordStep('request');
-                setOtpToken('');
-                setMessage(null);
-            }, 2000);
+            setPasswordOpen(false);
+            setStep('request');
+            setOtp('');
+            setPasswords({ next: '', confirm: '' });
+            setMessage({ type: 'success', text: 'Contraseña actualizada.' });
         } catch (error: any) {
-            setMessage({ type: 'error', text: error.message });
+            setMessage({ type: 'error', text: error.message ?? 'No se pudo actualizar la contraseña' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [passwordValid, passwords.next, supabase]);
 
-    const handleDeleteAccount = async () => {
-        if (deleteConfirm !== user.email) return;
-
+    const deleteAccount = useCallback(async () => {
         setLoading(true);
+        setMessage(null);
         try {
             const res = await fetch('/api/account/delete', { method: 'DELETE' });
             if (!res.ok) {
-                const body = await res.json();
-                throw new Error(body.error || 'Error al eliminar la cuenta');
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || 'No se pudo eliminar la cuenta');
             }
             await supabase.auth.signOut();
             window.location.href = '/login?deleted=true';
         } catch (error: any) {
+            setDeleteOpen(false);
             setMessage({ type: 'error', text: error.message });
             setLoading(false);
         }
-    };
+    }, [supabase]);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="pb-4 border-b border-surface-light/30">
-                <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-white to-text-secondary bg-clip-text text-transparent">Configuración de Cuenta</h2>
-                <p className="text-xs text-text-secondary">Seguridad y acceso</p>
-            </div>
+        <div className="space-y-4">
+            <StatusBanner message={message} />
 
-            {message && !modalType && (
-                <div className={`p-3 rounded-xl flex items-center gap-3 backdrop-blur-sm border transition-all duration-300 animate-in slide-in-from-top ${message.type === 'success'
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                    : 'bg-red-500/10 text-red-400 border-red-500/20'
-                    }`}>
-                    {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    <span className="text-xs font-medium">{message.text}</span>
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Email Card */}
-                <div className="p-4 bg-gradient-to-br from-surface-light/30 to-surface-light/10 backdrop-blur-sm rounded-2xl border border-surface-light/30">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
-                            <Mail className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-white">Correo Electrónico</h3>
-                            <p className="text-[10px] text-text-secondary">Dirección asociada</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="flex-1 bg-surface-light/30 backdrop-blur-sm border border-surface-light/50 rounded-xl py-2 px-3 text-xs text-white flex justify-between items-center">
-                            <span className="truncate mr-2">{user?.email}</span>
-                            <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-medium whitespace-nowrap">✓ Verificado</span>
-                        </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <p className="text-[10px] text-text-secondary flex items-center gap-1">
-                            <Lock className="w-3 h-3" />
-                            Cambio cada 30 días
-                        </p>
-                        <button
-                            onClick={handleEmailClick}
-                            className="px-3 py-1.5 bg-surface-light/50 hover:bg-surface-hover/50 backdrop-blur-sm border border-surface-light/50 rounded-lg text-xs font-medium transition-all duration-300 hover:scale-105"
-                        >
-                            Editar
-                        </button>
-                    </div>
-                </div>
-
-                {/* Password Card */}
-                <div className="p-4 bg-gradient-to-br from-surface-light/30 to-surface-light/10 backdrop-blur-sm rounded-2xl border border-surface-light/30">
-                    <div className="flex items-center justify-between h-full">
+            <SettingsPanel title="Acceso" description="Cómo entras en tu cuenta.">
+                <SettingRow
+                    icon={AtSign}
+                    label="Correo electrónico"
+                    description={
+                        emailVerified
+                            ? 'Verificado. Solo se puede cambiar una vez cada 30 días.'
+                            : 'Sin verificar. Revisa tu bandeja de entrada.'
+                    }
+                    control={
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
-                                <Lock className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-white text-sm font-semibold">Contraseña</p>
-                                <p className="text-xs text-text-secondary mt-0.5">••••••••••</p>
-                            </div>
+                            <ReadonlyValue>{user?.email ?? '—'}</ReadonlyValue>
+                            <Button onClick={openEmail} disabled={emailCooldownDays > 0}>
+                                {emailCooldownDays > 0 ? `${emailCooldownDays} d` : 'Cambiar'}
+                            </Button>
                         </div>
-                        <button
-                            onClick={() => {
-                                setMessage(null);
-                                setPasswordStep('request');
-                                setOtpToken('');
-                                setModalType('password');
-                            }}
-                            className="px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl text-xs font-medium hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 hover:scale-105"
-                        >
+                    }
+                />
+
+                <SettingRow
+                    icon={KeyRound}
+                    label="Contraseña"
+                    description="Te enviaremos un código al correo para confirmar que eres tú antes de cambiarla."
+                    control={
+                        <Button onClick={() => { setMessage(null); setPasswordOpen(true); }}>
                             Cambiar
-                        </button>
-                    </div>
-                </div>
+                        </Button>
+                    }
+                />
+            </SettingsPanel>
 
-                {/* Devices Section */}
-                <div className="md:col-span-2 p-4 bg-gradient-to-br from-surface-light/30 to-surface-light/10 backdrop-blur-sm rounded-2xl border border-surface-light/30">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                            <Smartphone className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-white">Dispositivos y Sesiones</h3>
-                            <p className="text-[10px] text-text-secondary">Sesiones activas actualmente</p>
-                        </div>
-                    </div>
+            <SettingsPanel title="Zona de riesgo" description="Acciones que no se pueden deshacer.">
+                <SettingRow
+                    icon={Trash2}
+                    danger
+                    label="Eliminar mi cuenta"
+                    description="Borra tu perfil, tus reseñas, tus listas y tu historial de forma permanente."
+                    control={
+                        <Button variant="danger" onClick={() => { setDeleteConfirm(''); setDeleteOpen(true); }}>
+                            Eliminar cuenta
+                        </Button>
+                    }
+                />
+            </SettingsPanel>
 
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-surface-light/20 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-500/10 rounded-lg">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-white">Este dispositivo (Sesión actual)</p>
-                                    <p className="text-[10px] text-text-secondary">Activo ahora</p>
-                                </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">En línea</span>
-                        </div>
-
-                        <p className="text-[10px] text-text-muted text-center italic py-1">
-                            Para cerrar sesión en otros dispositivos, cambia tu contraseña.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Danger Zone */}
-                <div className="md:col-span-2 p-4 border border-red-500/20 bg-gradient-to-br from-red-500/5 to-red-500/10 backdrop-blur-sm rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                            <AlertCircle className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-red-400 text-sm font-semibold">Zona de Peligro</h3>
-                            <p className="text-[10px] text-text-secondary">Eliminar cuenta permanentemente</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setModalType('delete')}
-                        className="px-4 py-2 bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl text-xs font-medium transition-all duration-300 hover:scale-105"
-                    >
-                        Eliminar Cuenta
-                    </button>
-                </div>
-            </div>
-
-            {/* Email Modal */}
-            <Modal
-                isOpen={modalType === 'email'}
-                onClose={() => setModalType(null)}
-                title="Cambiar Correo Electrónico"
-            >
+            {/* ── Cambio de correo ─────────────────────────────────────────── */}
+            <Modal isOpen={emailOpen} onClose={() => setEmailOpen(false)} title="Cambiar correo electrónico">
                 <div className="space-y-4">
-                    {message && (
-                        <div className={`p-3 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span className="text-xs font-medium">{message.text}</span>
-                        </div>
-                    )}
-                    <div>
-                        <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                            Nuevo Correo Electrónico
-                        </label>
-                        <input
-                            type="email"
-                            value={newEmail}
-                            onChange={(e) => setNewEmail(e.target.value)}
-                            className="w-full bg-surface-light border border-surface-light rounded-lg py-2.5 px-4 focus:outline-none focus:border-primary transition-colors text-sm text-white"
-                            autoFocus
-                        />
-                        <p className="text-xs text-text-secondary mt-2">
-                            Te enviaremos un enlace de confirmación a tu nueva dirección.
-                        </p>
-                    </div>
-
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            onClick={() => setModalType(null)}
-                            className="px-4 py-2 bg-transparent hover:bg-surface-light rounded-lg text-sm font-medium transition-colors text-text-secondary hover:text-white"
+                    <p className="text-sm text-on-surface-variant">
+                        Enviaremos un enlace de confirmación a la dirección nueva. Hasta que lo abras, seguirás
+                        entrando con la actual.
+                    </p>
+                    <TextField
+                        id="account-new-email"
+                        type="email"
+                        label="Nueva dirección"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="tu@correo.com"
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setEmailOpen(false)}>Cancelar</Button>
+                        <Button
+                            variant="primary"
+                            loading={loading}
+                            disabled={!newEmail || newEmail === user?.email}
+                            onClick={() => void submitEmail()}
                         >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleUpdateEmail}
-                            disabled={loading || !newEmail || newEmail === user.email}
-                            className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            Actualizar Correo
-                        </button>
+                            Enviar confirmación
+                        </Button>
                     </div>
                 </div>
             </Modal>
 
-            {/* Delete Account Modal */}
+            {/* ── Cambio de contraseña, en tres pasos ──────────────────────── */}
             <Modal
-                isOpen={modalType === 'delete'}
-                onClose={() => setModalType(null)}
-                title="¿Eliminar tu cuenta?"
+                isOpen={passwordOpen}
+                onClose={() => { setPasswordOpen(false); setStep('request'); setOtp(''); }}
+                title="Cambiar contraseña"
             >
                 <div className="space-y-4">
-                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
-                        <p className="text-sm font-medium flex items-center gap-2 mb-2">
-                            <AlertTriangle className="w-5 h-5" />
-                            Esta acción es irreversible
-                        </p>
-                        <p className="text-xs">
-                            Se eliminarán todos tus datos personales, historial de navegación, listas y valoraciones de forma permanente.
-                        </p>
-                    </div>
+                    <StatusBanner message={message} />
 
-                    <div>
-                        <p className="text-sm text-text-secondary mb-3">
-                            Para confirmar, escribe tu correo electrónico: <span className="text-white font-semibold">{user?.email}</span>
-                        </p>
-                        <input
-                            type="email"
-                            value={deleteConfirm}
-                            onChange={(e) => setDeleteConfirm(e.target.value)}
-                            placeholder={user?.email}
-                            className="w-full bg-surface-light border border-surface-light rounded-lg py-2.5 px-4 focus:outline-none focus:border-red-500 transition-colors text-sm text-white"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            onClick={() => setModalType(null)}
-                            className="px-4 py-2 bg-transparent hover:bg-surface-light rounded-lg text-sm font-medium transition-colors text-text-secondary hover:text-white"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleDeleteAccount}
-                            disabled={loading || deleteConfirm !== user?.email}
-                            className="px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            Eliminar Permanentemente
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Password Modal */}
-            <Modal
-                isOpen={modalType === 'password'}
-                onClose={() => setModalType(null)}
-                title={
-                    passwordStep === 'request' ? 'Verificación de Seguridad' :
-                        passwordStep === 'verify' ? 'Ingresar Código' :
-                            'Nueva Contraseña'
-                }
-            >
-                <div className="space-y-4">
-                    {message && (
-                        <div className={`p-3 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span className="text-xs font-medium">{message.text}</span>
-                        </div>
-                    )}
-
-                    {passwordStep === 'request' && (
-                        <div className="text-center py-4">
-                            <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
-                            <p className="text-text-secondary mb-6">
-                                Por seguridad, enviaremos un código de verificación a tu correo electrónico
-                                <span className="text-white font-medium block mt-1">{user?.email}</span>
-                            </p>
-
-                            <button
-                                onClick={handleSendOtp}
-                                disabled={loading}
-                                className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                Enviar Código
-                            </button>
-                        </div>
-                    )}
-
-                    {passwordStep === 'verify' && (
-                        <div>
-                            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                                Código de 8 dígitos
-                            </label>
-                            <input
-                                type="text"
-                                value={otpToken}
-                                onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                                placeholder="00000000"
-                                className="w-full bg-surface-light border border-surface-light rounded-lg py-2.5 px-4 focus:outline-none focus:border-primary transition-colors text-sm text-white text-center tracking-widest text-xl"
-                                autoFocus
-                            />
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button
-                                    onClick={() => setPasswordStep('request')}
-                                    className="px-4 py-2 bg-transparent hover:bg-surface-light rounded-lg text-sm font-medium transition-colors text-text-secondary hover:text-white"
-                                >
-                                    Atrás
-                                </button>
-                                <button
-                                    onClick={handleVerifyOtp}
-                                    disabled={loading || otpToken.length !== 8}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Verificar
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {passwordStep === 'update' && (
+                    {step === 'request' && (
                         <>
-                            <div>
-                                <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                                    Nueva Contraseña
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        value={passwords.new}
-                                        onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                                        className="w-full bg-surface-light border border-surface-light rounded-lg py-2.5 px-4 pr-10 focus:outline-none focus:border-primary transition-colors text-sm text-white"
-                                        autoFocus
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white transition-colors"
-                                    >
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                                {/* Password Requirements Checklist */}
-                                <div className="mt-3 space-y-2">
-                                    <p className="text-xs text-text-secondary mb-2">La contraseña debe contener:</p>
-                                    <div className="grid grid-cols-1 gap-1">
-                                        {[
-                                            { key: 'length', label: 'Mínimo 8 caracteres' },
-                                            { key: 'uppercase', label: 'Al menos una mayúscula' },
-                                            { key: 'lowercase', label: 'Al menos una minúscula' },
-                                            { key: 'number', label: 'Al menos un número' },
-                                            { key: 'special', label: 'Al menos un carácter especial' }
-                                        ].map(req => {
-                                            const isMet = checkPasswordRequirements(passwords.new)[req.key as keyof ReturnType<typeof checkPasswordRequirements>];
-                                            return (
-                                                <div key={req.key} className={`flex items-center gap-2 text-xs ${isMet ? 'text-green-500' : 'text-text-secondary'}`}>
-                                                    {isMet ? <CheckCircle className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-text-secondary/50" />}
-                                                    <span>{req.label}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                            <p className="text-sm text-on-surface-variant">
+                                Enviaremos un código de verificación a <strong className="text-on-surface">{user?.email}</strong>.
+                            </p>
+                            <div className="flex justify-end">
+                                <Button variant="primary" loading={loading} onClick={() => void sendOtp()}>
+                                    Enviar código
+                                </Button>
                             </div>
-                            <div>
-                                <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                                    Confirmar Contraseña
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        value={passwords.confirm}
-                                        onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                                        className="w-full bg-surface-light border border-surface-light rounded-lg py-2.5 px-4 pr-10 focus:outline-none focus:border-primary transition-colors text-sm text-white"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white transition-colors"
-                                    >
-                                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
+                        </>
+                    )}
+
+                    {step === 'verify' && (
+                        <>
+                            <TextField
+                                id="account-otp"
+                                label="Código recibido"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.trim())}
+                                placeholder="12345678"
+                                hint="Revisa también la carpeta de spam."
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" onClick={() => void sendOtp()} disabled={loading}>
+                                    Reenviar
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    loading={loading}
+                                    disabled={otp.length < 6}
+                                    onClick={() => void verifyOtp()}
+                                >
+                                    Verificar
+                                </Button>
+                            </div>
+                        </>
+                    )}
+
+                    {step === 'update' && (
+                        <>
+                            <div className="relative">
+                                <TextField
+                                    id="account-new-password"
+                                    label="Nueva contraseña"
+                                    type={showPassword ? 'text' : 'password'}
+                                    autoComplete="new-password"
+                                    value={passwords.next}
+                                    onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))}
+                                    className="pr-9"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((v) => !v)}
+                                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    className="absolute right-2 top-[26px] rounded p-1 text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
                             </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button
-                                    onClick={() => setModalType(null)}
-                                    className="px-4 py-2 bg-transparent hover:bg-surface-light rounded-lg text-sm font-medium transition-colors text-text-secondary hover:text-white"
+                            <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                                {ruleState.map((r) => (
+                                    <li key={r.id} className="flex items-center gap-1.5 text-xs">
+                                        {r.ok
+                                            ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                                            : <X className="h-3.5 w-3.5 shrink-0 text-on-surface-variant/60" aria-hidden />}
+                                        <span className={r.ok ? 'text-emerald-300' : 'text-on-surface-variant'}>{r.label}</span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <TextField
+                                id="account-confirm-password"
+                                label="Repite la contraseña"
+                                type={showPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
+                                value={passwords.confirm}
+                                onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))}
+                                error={
+                                    passwords.confirm && passwords.confirm !== passwords.next
+                                        ? 'No coincide con la anterior'
+                                        : undefined
+                                }
+                            />
+
+                            <div className="flex justify-end">
+                                <Button
+                                    variant="primary"
+                                    loading={loading}
+                                    disabled={!passwordValid}
+                                    onClick={() => void submitPassword()}
                                 >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleUpdatePassword}
-                                    disabled={loading || !passwords.new || !passwords.confirm}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Actualizar Contraseña
-                                </button>
+                                    Guardar contraseña
+                                </Button>
                             </div>
                         </>
                     )}
                 </div>
             </Modal>
+
+            {/* ── Baja ─────────────────────────────────────────────────────── */}
+            <ConfirmDialog
+                open={deleteOpen}
+                title="Eliminar cuenta"
+                description="Se borrarán tu perfil, tus reseñas, tus listas y tu historial. No hay forma de recuperarlos."
+                confirmLabel="Eliminar definitivamente"
+                loading={loading}
+                confirmDisabled={deleteConfirm !== user?.email}
+                onCancel={() => setDeleteOpen(false)}
+                onConfirm={() => void deleteAccount()}
+            >
+                <TextField
+                    id="account-delete-confirm"
+                    label={`Escribe ${user?.email} para confirmar`}
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    autoComplete="off"
+                />
+            </ConfirmDialog>
         </div>
     );
 }
