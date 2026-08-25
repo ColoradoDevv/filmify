@@ -63,7 +63,7 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
     };
 
     return (
-        <div className="mb-8 tv-row" onFocus={onFocus}>
+        <div className="mb-6 tv-row" onFocus={onFocus}>
             {/* Row header */}
             <div className="flex items-center justify-between mb-3 px-4 sm:px-5">
                 <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
             <div className="relative px-4 sm:px-5">
                 <div
                     ref={scrollContainerRef}
-                    className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
+                    className="flex gap-3 overflow-x-auto overscroll-x-contain scrollbar-hide scroll-smooth px-3 -mx-3 pt-3 pb-5"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                     role="list"
                     aria-label={title}
@@ -120,10 +120,10 @@ export default function HorizontalRow({ title, items, mediaType = 'movie', onFoc
 
                 {/* Edge fade overlays */}
                 {canScrollLeft && (
-                    <div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+                    <div className="absolute left-0 top-3 bottom-5 w-10 bg-gradient-to-r from-background to-transparent pointer-events-none" />
                 )}
                 {canScrollRight && (
-                    <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+                    <div className="absolute right-0 top-3 bottom-5 w-10 bg-gradient-to-l from-background to-transparent pointer-events-none" />
                 )}
             </div>
         </div>

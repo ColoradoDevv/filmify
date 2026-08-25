@@ -204,18 +204,6 @@ export default function MovieHero({
         };
     }, []);
 
-    // Autoplay opcional
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem('filmify_preferences');
-            if (!saved) return;
-            const { autoplay } = JSON.parse(saved);
-            if (autoplay && trailer && !showVideo) {
-                initPlayer();
-            }
-        } catch { /* ignore */ }
-    }, [trailer, showVideo, initPlayer]);
-
     return (
         <div className="relative w-full group overflow-visible">
             <div className="relative min-h-[70vh] md:min-h-[80vh] w-full flex items-center">

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { serializeJsonLd } from '@/lib/json-ld';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -7,19 +8,18 @@ import Sidebar from '@/components/layout/Sidebar';
 import PlatformContent from '@/components/layout/PlatformContent';
 import PlatformHeader from '@/components/layout/PlatformHeader';
 import MobileTabBar from '@/components/layout/MobileTabBar';
-import TrendingScroller from '@/components/features/TrendingScroller';
-import MovieGrid from '@/components/features/MovieGrid';
-import HorizontalRow from '@/components/features/HorizontalRow';
+import ModuleQuickAccess from '@/components/features/ModuleQuickAccess';
+import RecentlyAddedRail from '@/components/features/RecentlyAddedRail';
 import { DonateBanner } from '@/components/ui/DonateButton';
 import { AdSlot } from '@/components/ads';
 import { getTrending, getImageUrl } from '@/server/services/tmdb';
 import { GENRE_PAGES } from '@/lib/genres';
 import {
-  filterAvailableMovies, filterAvailableSeries,
-  getRecentlyAddedMovies, getRecentlyAddedAnimes, getQualityMap,
+  filterAvailableMovies,
+  getRecentlyAddedMovies,
 } from '@/server/services/vimeus';
 import { getOptionalApiKeys } from '@/lib/env';
-import type { Movie, TVShow } from '@/types/tmdb';
+import type { Movie } from '@/types/tmdb';
 
 /**
  * ISR: the homepage is statically generated and revalidated every 30 min.
@@ -71,59 +71,29 @@ export const metadata: Metadata = {
  * in the header — never a blocker.
  */
 export default async function HomePage() {
-  // Fetch trending movies (day for hero/scroller, week for the main grid),
-  // trending series, and the latest titles synced to the streaming provider.
+  // Trending del día para el hero, y los últimos títulos sincronizados con el
+  // proveedor de streaming para la fila de recién añadidas.
   // Cada fetch degrada a vacío si su proveedor (TMDB/Vimeus) falla, para que un
   // fallo puntual de un tercero NO tumbe toda la home (la peor página para caer).
   const emptyMoviePage = { results: [] as Movie[], page: 1, total_pages: 0, total_results: 0 };
-  const emptyTVPage = { results: [] as TVShow[], page: 1, total_pages: 0, total_results: 0 };
-  const [trendingDay, trendingWeek, trendingTV, recentlyAdded, recentAnimes, movieQualityMap, seriesQualityMap] = await Promise.all([
+  const [trendingDay, recentlyAdded] = await Promise.all([
     getTrending('movie', 'day', 1).catch(() => emptyMoviePage),
-    getTrending('movie', 'week', 1).catch(() => emptyMoviePage),
-    getTrending('tv', 'week', 1).catch(() => emptyTVPage),
     getRecentlyAddedMovies(18).catch(() => []),
-    getRecentlyAddedAnimes(30).catch(() => []),
-    getQualityMap('movie', 4).catch(() => new Map<number, string>()),
-    getQualityMap('serie', 4).catch(() => new Map<number, string>()),
   ]);
-  const movieQuality = Object.fromEntries(movieQualityMap);
-  const seriesQuality = Object.fromEntries(seriesQualityMap);
 
   // Only show titles that are actually playable on the streaming provider —
   // we never advertise content the visitor can't watch.
-  // Los animes del listing ya son reproducibles — no necesitan probe individual.
-  const [availableDay, availableWeek, availableTV, availableRecentlyAdded] = await Promise.all([
+  const [availableDay, availableRecentlyAdded] = await Promise.all([
     filterAvailableMovies(trendingDay.results).catch(() => trendingDay.results),
-    filterAvailableMovies(trendingWeek.results).catch(() => trendingWeek.results),
-    filterAvailableSeries(trendingTV.results).catch(() => trendingTV.results),
     filterAvailableMovies(recentlyAdded.map((m) => ({ id: m.tmdb_id } as any))).catch(() => [] as { id: number }[]),
   ]);
 
   const heroMovie = availableDay[0];
-  const scrollerMovies = availableDay.slice(0, 15);
-  const gridMovies = availableWeek;
-  const tvShows = availableTV.slice(0, 15);
-
-  // Mapeamos VimeusAnime a la forma mínima que necesita HorizontalRow/MovieCard.
-  const animeShows = recentAnimes.slice(0, 15).map((a) => ({
-    id: a.tmdb_id,
-    name: a.title ?? '',
-    original_name: a.title ?? '',
-    poster_path: a.poster ?? null,
-    backdrop_path: a.backdrop ?? null,
-    vote_average: 0,
-    vote_count: 0,
-    first_air_date: '',
-    overview: '',
-    genre_ids: [] as number[],
-    adult: false,
-    original_language: 'ja',
-    popularity: 0,
-    origin_country: ['JP'] as string[],
-  } as TVShow));
 
   const availableRecentlyAddedIds = new Set(availableRecentlyAdded.map((x: any) => x.id));
-  const recentlyAddedFiltered = recentlyAdded.filter((m) => availableRecentlyAddedIds.has(m.tmdb_id));
+  const recentlyAddedFiltered = recentlyAdded
+    .filter((m) => availableRecentlyAddedIds.has(m.tmdb_id))
+    .slice(0, 12);
 
 
   const backdropUrl = heroMovie
@@ -162,12 +132,12 @@ export default async function HomePage() {
   const itemListData = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'Películas en tendencia en FilmiFy',
-    itemListElement: gridMovies.slice(0, 10).map((m, i) => ({
+    name: 'Películas recién añadidas en FilmiFy',
+    itemListElement: recentlyAddedFiltered.slice(0, 10).map((m, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       name: m.title,
-      url: `${appUrl}/movie/${m.id}`,
+      url: `${appUrl}/movie/${m.tmdb_id}`,
     })),
   };
 
@@ -177,7 +147,7 @@ export default async function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([structuredData, itemListData]).replace(/</g, '\\u003c')
+          __html: serializeJsonLd([structuredData, itemListData])
         }}
       />
 
@@ -259,117 +229,19 @@ export default async function HomePage() {
               </div>
             </section>
 
+            {/* ── Acceso rápido a todos los módulos ────────────────────── */}
+            <ModuleQuickAccess />
+
             {/* 📢 Banner publicitario — tras el hero, alta visibilidad */}
             <AdSlot className="my-0" />
 
-            {/* ── Trending scroller (tendencias del día) ───────────────── */}
-            <TrendingScroller movies={scrollerMovies} />
-
-            {/* ── Agregadas recientemente (filtradas por disponibilidad) ──── */}
-            {recentlyAddedFiltered.length > 0 && (
-
-              <section aria-label="Películas agregadas recientemente">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    Agregadas recientemente
-                  </h2>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {recentlyAddedFiltered.map((m) => (
-
-                    <Link
-                      key={m.tmdb_id}
-                      href={`/movie/${m.tmdb_id}`}
-                      className="group flex-shrink-0 w-32"
-                    >
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-surface-container border border-white/5 group-hover:border-primary/50 transition-all">
-                        {m.poster ? (
-                          <Image
-                            src={`https://image.tmdb.org/t/p/w342${m.poster}`}
-                            alt={m.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                            sizes="128px"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-text-muted text-xs px-2 text-center">
-                            {m.title}
-                          </div>
-                        )}
-                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-primary text-[9px] font-bold text-white uppercase tracking-wide">
-                          Nuevo
-                        </span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-white mt-1.5 line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-                        {m.title}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ── Series populares (solo disponibles) ──────────────────── */}
-            {tvShows.length > 0 && (
-              <section aria-label="Series populares">
-                {/* No `icon` prop: component refs can't cross the server→client boundary */}
-                <HorizontalRow
-                  title="Series populares"
-                  items={tvShows}
-                  mediaType="tv"
-                  qualityMap={seriesQuality}
-                />
-                <div className="mt-3 text-right">
-                  <Link
-                    href="/browse?category=tv"
-                    className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
-                  >
-                    Ver todas las series →
-                  </Link>
-                </div>
-              </section>
-            )}
-
-            {/* ── Anime destacado ──────────────────────────────────────── */}
-            {animeShows.length > 0 && (
-              <section aria-label="Anime destacado">
-                <HorizontalRow
-                  title="Anime"
-                  items={animeShows}
-                  mediaType="tv"
-                />
-                <div className="mt-3 text-right">
-                  <Link
-                    href="/browse?category=anime"
-                    className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
-                  >
-                    Ver todo el anime →
-                  </Link>
-                </div>
-              </section>
-            )}
+            {/* ── Novedades del catálogo ───────────────────────────────── */}
+            <RecentlyAddedRail items={recentlyAddedFiltered} />
 
             {/* ── Banner de apoyo / donación ───────────────────────────── */}
             <DonateBanner />
 
-            {/* ── Catálogo de películas en tendencia ───────────────────── */}
-            <section aria-label="Películas en tendencia">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                  Películas en tendencia
-                </h2>
-                <Link
-                  href="/browse"
-                  className="text-sm font-medium text-primary hover:text-primary-hover transition-colors"
-                >
-                  Explorar catálogo →
-                </Link>
-              </div>
-              <MovieGrid initialMovies={gridMovies} mediaType="movie" qualityMap={movieQuality} />
-            </section>
-
-            {/* 📢 Segundo banner — página con mucho contenido, antes del footer de géneros */}
+            {/* 📢 Segundo banner — cierra el contenido, antes del footer de géneros */}
             <AdSlot className="my-0" />
 
             {/* ── Géneros: enlazado interno crawlable hacia las landing pages ── */}
