@@ -123,7 +123,13 @@ export default function SettingsPage() {
                 {/* Navegación: fila con scroll en móvil, columna fija en escritorio. */}
                 <nav
                     aria-label="Secciones de ajustes"
-                    className="-mx-1 flex gap-1 overflow-x-auto scrollbar-hide px-1 pb-1 lg:mx-0 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
+                    /* Rejilla en móvil, columna en escritorio.
+                       Era una fila con `overflow-x-auto scrollbar-hide`: las seis
+                       pestañas no caben en 375 px, y sin barra visible las tres
+                       últimas —Preferencias, Notificaciones y Ayuda— quedaban
+                       cortadas sin ninguna pista de que hubiera más. Con dos
+                       columnas se ven todas y no hay nada que desplazar. */
+                    className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:flex lg:w-52 lg:shrink-0 lg:flex-col"
                 >
                     {TABS.map(({ id, label, icon: Icon }) => {
                         const active = activeTab === id;
@@ -134,7 +140,10 @@ export default function SettingsPage() {
                                 onClick={() => selectTab(id)}
                                 aria-current={active ? 'page' : undefined}
                                 className={cn(
-                                    'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                    // `min-w-0` + `truncate`: en dos columnas a 375 px
+                                    // «Notificaciones» va justa, y sin esto empujaría
+                                    // la celda en vez de recortarse.
+                                    'flex min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                                     'tv-focusable lg:w-full',
                                     active
@@ -143,7 +152,7 @@ export default function SettingsPage() {
                                 )}
                             >
                                 <Icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} aria-hidden />
-                                {label}
+                                <span className="truncate">{label}</span>
                             </button>
                         );
                     })}
