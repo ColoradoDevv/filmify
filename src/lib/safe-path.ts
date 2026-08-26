@@ -36,7 +36,28 @@ export function isSafeInternalPath(path: unknown): path is string {
     }
 }
 
-/** La ruta si es segura; si no, `fallback`. */
+/**
+ * Devuelve una ruta interna segura, RECONSTRUIDA a partir de sus componentes.
+ *
+ * No devuelve la cadena de entrada aunque la considere válida: la parsea y la
+ * vuelve a montar desde `pathname`, `search` y `hash`. Eso garantiza que la
+ * salida es una ruta —nunca puede llevar esquema— sea cual sea la entrada, en
+ * lugar de depender de que la comprobación previa haya contemplado todas las
+ * formas de escribir un `javascript:`.
+ *
+ * De paso normaliza: `/a/./b` sale como `/a/b`, y la barra invertida que
+ * algunos navegadores convierten en `/` queda resuelta aquí y no en el cliente.
+ */
 export function safeInternalPath(path: unknown, fallback = '/'): string {
-    return isSafeInternalPath(path) ? path : fallback;
+    if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) {
+        return fallback;
+    }
+
+    try {
+        const url = new URL(path, ORIGIN);
+        if (url.origin !== ORIGIN) return fallback;
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+        return fallback;
+    }
 }
