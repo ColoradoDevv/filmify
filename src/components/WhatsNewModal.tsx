@@ -67,8 +67,20 @@ export default function WhatsNewModal() {
     if (!open) return null;
 
     return (
-        <Modal isOpen={open} onClose={close} title={RELEASE_NOTES.title}>
-            <div className="space-y-3">
+        <Modal
+            isOpen={open}
+            onClose={close}
+            title={RELEASE_NOTES.title}
+            icon={
+                <img
+                    src="/logo-icon.svg"
+                    alt=""
+                    className="h-9 w-9 shrink-0"
+                    aria-hidden
+                />
+            }
+        >
+            <div className="space-y-4">
                 <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
                         <Sparkles className="h-3 w-3" aria-hidden />
@@ -77,14 +89,16 @@ export default function WhatsNewModal() {
                     <span className="text-[11px] text-on-surface-variant">{RELEASE_NOTES.date}</span>
                 </div>
 
-                <ul className="space-y-1.5">
-                    {RELEASE_NOTES.highlights.map(({ icon: Icon, text }) => (
-                        <li key={text} className="flex items-center gap-2.5 text-sm text-on-surface">
-                            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <ol className="divide-y divide-surface-light">
+                    {RELEASE_NOTES.highlights.map(({ text }, index) => (
+                        <li key={text} className="flex items-center gap-3 py-2.5 text-sm text-on-surface">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                                {index + 1}
+                            </span>
                             <span className="min-w-0">{text}</span>
                         </li>
                     ))}
-                </ul>
+                </ol>
 
                 <div className="flex justify-end">
                     <button
