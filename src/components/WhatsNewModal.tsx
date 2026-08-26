@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, Lightbulb, ChevronRight } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { hasDecided, CONSENT_EVENT } from '@/lib/cookie-consent';
 import { registerVisit } from '@/lib/visit-tracking';
@@ -98,6 +99,26 @@ export default function WhatsNewModal() {
                         </li>
                     ))}
                 </ul>
+
+                <Link
+                    href="/contact"
+                    onClick={close}
+                    className="group flex items-center gap-2.5 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5 transition-colors hover:border-primary/50 hover:bg-primary/10"
+                >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-on-surface">
+                            ¿Se te ocurre algo que deberíamos sumar?
+                        </span>
+                        <span className="block text-xs text-on-surface-variant">Cuéntanoslo, nos ayuda a mejorar.</span>
+                    </span>
+                    <ChevronRight
+                        className="h-4 w-4 shrink-0 text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                    />
+                </Link>
 
                 <div className="flex justify-end">
                     <button
