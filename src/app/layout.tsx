@@ -7,6 +7,7 @@ import "./globals.css";
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import ReducedMotionBoot from "@/components/layout/ReducedMotionBoot";
+import WhatsNewModal from "@/components/WhatsNewModal";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
@@ -194,6 +195,7 @@ export default async function RootLayout({
         <GoogleAnalytics gaId={gaId} nonce={nonce} />
         <CookieConsent />
         <ReducedMotionBoot />
+        <WhatsNewModal />
 
         <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
           {`
