@@ -8,9 +8,12 @@ import {
     filterAvailableSeries,
     getSeriesEpisodeMap,
 } from '@/server/services/vimeus';
+import { cache } from 'react';
 import { canonicalAnilistForTmdbIfWarm } from '@/server/services/anime';
 import { getSeriesPlayback } from '@/server/services/dorama';
+
 import SeriesPlayer, { type SeasonEpisodes } from '@/components/features/SeriesPlayer';
+import UnavailableTitleNotice from '@/components/features/UnavailableTitleNotice';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import { AdSlot } from '@/components/ads';
@@ -21,6 +24,28 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import TVDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
+
+/**
+ * Resolución de fuentes, memoizada por petición.
+ *
+ * `generateMetadata` y el cuerpo necesitan LA MISMA respuesta: la metadata para
+ * decidir el noindex y el cuerpo para decidir si monta el reproductor. Sin
+ * memoizar, resolverlo dos veces añadía entre 0,3 y 0,6 s a cada ficha de serie
+ * (medido: la línea base es 0,6-1,3 s). `cache()` de React dedupe dentro de la
+ * misma petición, así que la segunda llamada sale gratis.
+ *
+ * Los argumentos son primitivos a propósito: `cache()` compara por identidad y
+ * un objeto nuevo en cada llamada no acertaría nunca.
+ */
+const resolvePlayback = cache(
+    (tmdbId: number, name: string, originalName: string) =>
+        getSeriesPlayback({
+            tmdbId,
+            season: 1,
+            episode: 1,
+            titles: { name, originalName },
+        }).catch(() => ({ sources: [], hasVerifiedSource: false, subtitleLanguages: [] })),
+);
 
 interface PageProps {
     params: Promise<{
@@ -119,12 +144,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (isNaN(tvId)) return NOT_FOUND_METADATA;
 
     try {
-        // Solo noindex si la serie NO existe en TMDB (404 inequívoco). NO se
-        // acopla al probe de Vimeus: un fallo transitorio des-indexaría una serie
-        // válida. El body sí hace notFound() si no es reproducible.
+        // Dos motivos para no indexar, como en /movie/[id]:
+        //   1. TMDB no la conoce → 404 real.
+        //   2. TMDB sí, pero ningún proveedor la tiene → la ficha se renderiza
+        //      sin reproductor, y esa versión no debe indexarse.
+        // El caso 2 lo cubría el `notFound()` del cuerpo, que inyectaba noindex
+        // por su cuenta; al dejar de hacer 404 hay que declararlo aquí.
         const tvShow = await getTVDetails(tvId);
         if (!tvShow) return NOT_FOUND_METADATA;
-        return buildTvMetadata(tvShow);
+
+        // La condición tiene que ser LA MISMA que la del cuerpo, incluido el
+        // registro de proveedores: mirar solo Vimeus marcaba noindex a series que
+        // sí se reproducen por otra vía —Friends y La Ley y el Orden, entre
+        // otras— y eso las sacaría del índice.
+        const [seriesAvail, animeAvail, playback] = await Promise.all([
+            isSeriesAvailableOnVimeus(tvId).catch(() => false),
+            isAnimeAvailableOnVimeus(tvId).catch(() => false),
+            resolvePlayback(tvId, tvShow.name, tvShow.original_name),
+        ]);
+
+        const metadata = buildTvMetadata(tvShow);
+        return seriesAvail || animeAvail || playback.sources.length > 0
+            ? metadata
+            : { ...metadata, robots: { index: false, follow: true } };
     } catch (error) {
         if (error instanceof TMDBError && error.status === 404) {
             return NOT_FOUND_METADATA;
@@ -178,17 +220,17 @@ export default async function TVDetailsPage({ params }: PageProps) {
         // Registro de proveedores (Vimeus + APIPlayer + KissKH si está activo).
         // Es lo que permite servir títulos que Vimeus no tiene: medido sobre
         // 22 doramas, la cobertura pasa de 6/22 a 11/22.
-        getSeriesPlayback({
-            tmdbId: tvId,
-            season: 1,
-            episode: 1,
-            titles: { name: tvShow.name, originalName: tvShow.original_name },
-        }).catch(() => ({ sources: [], hasVerifiedSource: false, subtitleLanguages: [] })),
+        //
+        // Memoizada: `generateMetadata` ya la pidió en esta misma petición para
+        // decidir el noindex, así que aquí no cuesta nada.
+        resolvePlayback(tvId, tvShow.name, tvShow.original_name),
     ]);
     const isAnime = !seriesAvail && animeAvail;
-    // Antes bastaba con que Vimeus fallara para devolver 404. Ahora la ficha
-    // existe si CUALQUIER proveedor la tiene.
-    if (!seriesAvail && !animeAvail && playback.sources.length === 0) notFound();
+    // Que ningún proveedor la tenga ya NO es un 404: la ficha se renderiza igual
+    // —sinopsis, reparto, tráiler, temporadas, reseñas— y en el hueco del
+    // reproductor va el aviso de «todavía no disponible». Mismo criterio que en
+    // /movie/[id]: 404 es solo lo que TMDB no conoce.
+    const isPlayable = seriesAvail || animeAvail || playback.sources.length > 0;
 
     const backdropUrl = getBackdropUrl(tvShow.backdrop_path);
     const posterUrl = getPosterUrl(tvShow.poster_path);
@@ -336,17 +378,27 @@ export default async function TVDetailsPage({ params }: PageProps) {
                         Volver a series
                     </Link>
 
-                    {/* ── Player (full width, sin grid) ── */}
-                    <SeriesPlayer
-                        tmdbId={tvShow.id}
-                        title={tvShow.name}
-                        backdropUrl={backdropUrl}
-                        trailerKey={trailer?.key ?? null}
-                        seasons={seasons}
-                        isAnime={isAnime}
-                        initialSources={playback.sources}
-                        titles={{ name: tvShow.name, originalName: tvShow.original_name }}
-                    />
+                    {/* ── Player, o el aviso de no disponible en su lugar ── */}
+                    {isPlayable ? (
+                        <SeriesPlayer
+                            tmdbId={tvShow.id}
+                            title={tvShow.name}
+                            backdropUrl={backdropUrl}
+                            trailerKey={trailer?.key ?? null}
+                            seasons={seasons}
+                            isAnime={isAnime}
+                            initialSources={playback.sources}
+                            titles={{ name: tvShow.name, originalName: tvShow.original_name }}
+                        />
+                    ) : (
+                        <UnavailableTitleNotice
+                            title={tvShow.name}
+                            backdropUrl={backdropUrl}
+                            trailerKey={trailer?.key ?? null}
+                            releaseDate={tvShow.first_air_date ?? null}
+                            mediaType="tv"
+                        />
+                    )}
 
                     {/* 📢 Anuncio bajo el reproductor.
                         Es el hueco con más tiempo en pantalla de todo el sitio:

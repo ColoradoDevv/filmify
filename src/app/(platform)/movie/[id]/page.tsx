@@ -3,6 +3,7 @@ import { serializeJsonLd } from '@/lib/json-ld';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/services/vimeus';
 import MoviePlayer from '@/components/features/MoviePlayer';
+import UnavailableTitleNotice from '@/components/features/UnavailableTitleNotice';
 import MovieActions from '@/components/features/MovieActions';
 import ReviewsSection from '@/components/features/ReviewsSection';
 import Image from 'next/image';
@@ -116,15 +117,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (isNaN(movieId)) return NOT_FOUND_METADATA;
 
     try {
-        // Solo marcamos noindex cuando la peli NO existe en TMDB (404 real e
-        // inequívoco). Deliberadamente NO acoplamos el noindex al probe de
-        // disponibilidad de Vimeus: ese probe puede fallar transitoriamente
-        // (timeout/rate-limit) y des-indexaría contenido válido. El body sí hace
-        // notFound() si no es reproducible (404 con noindex vía not-found.tsx),
-        // pero ahí un fallo solo afecta esa request, no la indexación a largo plazo.
-        const movie = await getMovieDetails(movieId);
+        // Dos motivos distintos para no indexar:
+        //
+        //  1. TMDB no la conoce → 404 real e inequívoco.
+        //  2. TMDB sí, pero ningún proveedor la tiene → la página se renderiza
+        //     igual (ficha completa sin reproductor), pero no debe indexarse:
+        //     sería una página sin lo que promete el título, y son miles.
+        //
+        // El caso 2 lo cubría antes el `notFound()` del cuerpo, que inyectaba
+        // noindex por su cuenta. Al dejar de hacer 404 hay que declararlo aquí.
+        //
+        // El probe puede fallar de forma transitoria y marcar noindex a una peli
+        // válida — pero eso ya pasaba, y peor: antes un fallo así devolvía un 404
+        // completo. Un noindex temporal que se corrige al siguiente rastreo es
+        // menos dañino que hacer desaparecer la página.
+        const [movie, isAvailable] = await Promise.all([
+            getMovieDetails(movieId),
+            isMovieAvailableOnVimeus(movieId).catch(() => false),
+        ]);
         if (!movie) return NOT_FOUND_METADATA;
-        return buildMovieMetadata(movie);
+
+        const metadata = buildMovieMetadata(movie);
+        return isAvailable
+            ? metadata
+            : { ...metadata, robots: { index: false, follow: true } };
     } catch (error) {
         if (error instanceof TMDBError && error.status === 404) {
             return NOT_FOUND_METADATA;
@@ -153,7 +169,12 @@ async function fetchMovieData(movieId: number) {
         isMovieAvailableOnVimeus(movieId).catch(() => false),
     ]);
 
-    if (!movie || !isAvailable) return null;
+    // Solo es 404 lo que TMDB no conoce. Que ningún proveedor lo tenga NO lo
+    // convierte en inexistente: antes se devolvía null en ese caso y la página
+    // hacía notFound(), así que una notificación de «Próximamente» —que por
+    // definición apunta a algo sin estrenar— llevaba siempre a un 404. Ahora se
+    // renderiza la ficha completa sin reproductor.
+    if (!movie) return null;
 
     let recommendations: Movie[] = [];
     try {
@@ -164,7 +185,7 @@ async function fetchMovieData(movieId: number) {
         // Mostramos la página sin recomendaciones
     }
 
-    return { movie, recommendations };
+    return { movie, recommendations, isAvailable };
 }
 
 export default async function MovieDetailsPage({ params }: PageProps) {
@@ -175,7 +196,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
     const data = await fetchMovieData(movieId);
     if (!data) notFound();
 
-    const { movie, recommendations } = data;
+    const { movie, recommendations, isAvailable } = data;
 
     const backdropUrl = getBackdropUrl(movie.backdrop_path);
     const posterUrl = getPosterUrl(movie.poster_path);
@@ -346,13 +367,23 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         Volver al catálogo
                     </Link>
 
-                    {/* ── Player (full width, sin grid) ── */}
-                    <MoviePlayer
-                        tmdbId={movie.id}
-                        title={movie.title}
-                        backdropUrl={backdropUrl}
-                        trailerKey={trailer?.key ?? null}
-                    />
+                    {/* ── Player, o el aviso de no disponible en su lugar ── */}
+                    {isAvailable ? (
+                        <MoviePlayer
+                            tmdbId={movie.id}
+                            title={movie.title}
+                            backdropUrl={backdropUrl}
+                            trailerKey={trailer?.key ?? null}
+                        />
+                    ) : (
+                        <UnavailableTitleNotice
+                            title={movie.title}
+                            backdropUrl={backdropUrl}
+                            trailerKey={trailer?.key ?? null}
+                            releaseDate={movie.release_date ?? null}
+                            mediaType="movie"
+                        />
+                    )}
 
                     {/* 📢 Anuncio bajo el reproductor.
                         Es el hueco con más tiempo en pantalla de todo el sitio:

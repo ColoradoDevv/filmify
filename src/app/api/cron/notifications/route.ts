@@ -16,6 +16,7 @@ import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/se
 import { getOptionalApiKeys } from '@/lib/env';
 import { getNowPlaying, getUpcoming, getTrending, getImageUrl } from '@/server/services/tmdb';
 import { normalizePreferences } from '@/lib/user-preferences';
+import { filterAvailableMovies } from '@/server/services/vimeus';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -38,19 +39,42 @@ export async function GET(request: NextRequest) {
             getTrending('movie', 'week', 1),
         ]);
 
-        // Pick top 3 from each source, deduplicated by TMDB id
+        // Solo se notifica lo que se puede VER.
+        //
+        // Antes se cogían los 3 primeros de TMDB sin más, así que el aviso podía
+        // llevar a un título sin fuentes — y /movie/[id] hace notFound() cuando
+        // no es reproducible. El caso peor era "Próximamente": una película sin
+        // estrenar no está en ningún proveedor, así que ese aviso llevaba SIEMPRE
+        // a un 404. Es además lo contrario de lo que hace el resto del sitio,
+        // que no anuncia contenido que el visitante no pueda ver.
+        //
+        // El filtro va ANTES de recortar: si se recorta primero, se descartan
+        // candidatos buenos y quedan huecos. Sondear ~40 títulos es caro, pero
+        // esto corre una vez al día.
         const seen = new Set<number>();
-        const newReleases = [...nowPlaying.results, ...upcoming.results]
+        const releaseCandidates = [...nowPlaying.results, ...upcoming.results]
             .filter((m) => {
                 if (seen.has(m.id)) return false;
                 seen.add(m.id);
                 return true;
-            })
-            .slice(0, 3);
+            });
 
-        const trendingMovies = trending.results
-            .filter((m) => !seen.has(m.id))
-            .slice(0, 2);
+        const trendingCandidates = trending.results.filter((m) => !seen.has(m.id));
+
+        const [playableReleases, playableTrending] = await Promise.all([
+            filterAvailableMovies(releaseCandidates).catch(() => [] as typeof releaseCandidates),
+            filterAvailableMovies(trendingCandidates).catch(() => [] as typeof trendingCandidates),
+        ]);
+
+        const newReleases = playableReleases.slice(0, 3);
+        const trendingMovies = playableTrending.slice(0, 2);
+
+        if (newReleases.length === 0 && trendingMovies.length === 0) {
+            return NextResponse.json({
+                success: true,
+                message: 'No playable titles to notify about',
+            });
+        }
 
         // ── 2. Get all user IDs ──────────────────────────────────────────────
         // Traemos también `preferences`: los interruptores de /settings deciden

@@ -4,86 +4,76 @@
 -- ⚠️  NO APLICAR ANTES DE QUE ESTÉ DESPLEGADO EL CÓDIGO DEL PASO A
 --     (20260825_privacy_gated_content.sql y el código que llama a sus RPC).
 --
--- Esta es la mitad que sí rompe. A partir de aquí, `anon` y `authenticated`
--- dejan de poder leer dos columnas de `profiles`, incluida la fila propia:
+-- `public.profiles` era legible sin sesión. Comprobado contra la BD con la
+-- clave anónima, que viaja en el bundle del navegador y por tanto es pública:
 --
---   preferences  favoritos, amistades y ajustes de privacidad de todo el mundo
---   birthdate    fecha de nacimiento
+--   GET /rest/v1/profiles?select=id,preferences  →  200 con las preferencias
+--                                                   de todos los perfiles
 --
--- Por qué por columna y no cerrando la fila: `ReviewsSection` embebe el perfil
--- del autor (`select('*, profiles:user_id (full_name, username, avatar_url)')`)
--- y un embed respeta la RLS de la tabla embebida — con una política de "solo
--- la fila propia" las reseñas se habrían quedado sin autor. Los permisos por
--- columna no tocan ese embed, que solo pide columnas públicas, ni a Watch
--- Party, que pide username y avatar_url.
+-- Eso expone, de cualquier usuario: sus favoritos, su grafo social completo
+-- (friends, incomingFriendRequests, outgoingFriendRequests) y sus propios
+-- ajustes de privacidad. La tabla además expone `birthdate`.
 --
--- ── Requisito: el código ya NO puede tocar `preferences` por PostgREST ──────
--- Todo acceso pasa por las funciones del paso A. Al cierre de esta migración,
--- en el repo son:
+-- ── Por qué un `revoke` por columna NO sirve ────────────────────────────────
 --
---   src/server/repositories/user-preferences.ts   → get_my_preferences()
---   src/app/actions/settings.ts                   → get_my_preferences()
---                                                   merge_my_preferences()
---   src/lib/supabase/favorites.ts                 → idem (vía server action)
---   src/app/(platform)/profile/page.tsx           → get_my_preferences()
---   src/app/(platform)/profile/[username]/page.tsx→ get_public_profile()
+-- La primera versión de este archivo hacía:
 --
--- ── Por qué `role` e `is_banned` NO se revocan ──────────────────────────────
--- La versión anterior de este archivo también los revocaba, dando por hecho
--- que "/admin y el middleware usan la clave service-role". No es cierto:
+--   revoke select (preferences, birthdate) on public.profiles from anon, ...;
 --
---   src/middleware.ts (~línea 298)   createServerClient + sesión → select('role')
+-- y Postgres la aceptó sin error… sin hacer nada. `anon` y `authenticated`
+-- tenían SELECT y UPDATE a nivel de TABLA, y un permiso de tabla no se puede
+-- recortar columna a columna: la revocación se ignora en silencio. Tras
+-- aplicarla, la consulta anónima de arriba seguía devolviendo 200 filas.
+--
+-- La forma correcta es quitar el permiso de tabla y volver a concederlo columna
+-- a columna, que es lo que hace este archivo. Si alguna vez hay que añadir una
+-- columna a `profiles`, recordar que NO será legible hasta que se añada al
+-- `grant select` de abajo.
+--
+-- Solo se tocan SELECT y UPDATE. INSERT y DELETE se dejan intactos para no
+-- romper el alta de usuarios ni el borrado de cuenta.
+--
+-- ── Por qué `role` e `is_banned` SÍ se conceden ─────────────────────────────
+--
+--   src/middleware.ts (~línea 298)    createServerClient + sesión → select('role')
 --   src/app/admin/layout.tsx (~l. 28) createSupabaseServerClient → select('role')
 --
--- Ambos corren como `authenticated`. Revocar la columna hace fallar el select,
--- y los dos sitios degradan cerrado: redirigen a /browse. Es decir, aplicarlo
--- habría dejado FUERA DE /admin a todo el mundo, super_admin incluido, sin
--- forma de entrar a arreglarlo desde la propia aplicación.
---
--- Esas dos columnas ya están protegidas contra escalada por el trigger de
--- 20251130_security_hardening.sql, que es lo que de verdad importa. Que se
--- pueda leer quién es admin no es la fuga que esta migración viene a cerrar
--- —esa es `preferences`, con los favoritos y las amistades de 561 perfiles—.
---
--- Si más adelante se quieren cerrar igualmente, hay que hacerlo junto a una
--- función `get_my_role()` SECURITY DEFINER y cambiar esos dos llamadores; no
--- basta con revocar.
+-- Ambos corren como `authenticated` y degradan CERRADO: si el select falla,
+-- redirigen a /browse. Dejarlos fuera del grant deja a todo el mundo fuera de
+-- /admin, super_admin incluido, y sin forma de arreglarlo desde la aplicación.
+-- La escalada de privilegios ya la bloquea el trigger de
+-- 20251130_security_hardening.sql, que es lo que de verdad importa.
 --
 -- ── Comprobación ────────────────────────────────────────────────────────────
 -- Con la clave anónima, sin sesión:
---   GET /rest/v1/profiles?select=id,preferences   antes → 200 con 561 filas
---                                                 ahora → 403 permission denied
---   GET /rest/v1/profiles?select=id,username      sigue → 200  (no ha cambiado)
+--   GET /rest/v1/profiles?select=id,preferences   → 42501 permission denied
+--   GET /rest/v1/profiles?select=id,birthdate     → 42501 permission denied
+--   GET /rest/v1/profiles?select=id,username      → 200  (no ha cambiado)
+--   GET /rest/v1/profiles?select=id,role          → 200  (lo necesita /admin)
 --
 -- Y con sesión de admin, /admin tiene que seguir abriéndose.
---
--- Para revertir, el bloque `grant` comentado al final.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-revoke select (preferences, birthdate)
-    on public.profiles from anon, authenticated;
+revoke select, update on public.profiles from anon, authenticated;
 
--- UPDATE de `preferences` también: sin esto, `authenticated` podría seguir
--- escribiendo la columna a mano y saltarse la fusión de
--- `merge_my_preferences`, que es lo que evita que un guardado se lleve por
--- delante favoritos y amistades.
-revoke update (preferences)
-    on public.profiles from anon, authenticated;
+-- Lectura: todo menos `preferences` y `birthdate`.
+grant select (id, username, full_name, avatar_url, bio, role, is_banned, is_stb, updated_at)
+    on public.profiles to anon, authenticated;
 
--- El dueño sigue editando su perfil visible con la política de siempre.
+-- Escritura: solo el perfil visible, y solo con sesión.
 --
--- `birthdate` entra en la lista aunque no se pueda leer: la pantalla de
--- ajustes la escribe (ProfileSection → saveSimple('birthdate', …)) y sin este
--- grant guardarla fallaría. Que solo se pueda fijar una vez es hoy una regla
--- de la interfaz; si se quiere garantizar en la base de datos hace falta un
--- trigger, no un permiso.
+-- `preferences` queda fuera a propósito: toda escritura pasa por
+-- `merge_my_preferences()`, que fusiona dentro de una transacción y evita que
+-- guardar un ajuste se lleve por delante favoritos y amistades.
+--
+-- `birthdate` entra aunque no se pueda leer: la pantalla de ajustes la escribe
+-- (ProfileSection → saveSimple('birthdate', …)). Que solo se pueda fijar una vez
+-- es hoy una regla de la interfaz; garantizarlo en la base de datos requeriría
+-- un trigger, no un permiso.
 grant update (username, full_name, avatar_url, bio, birthdate, updated_at)
     on public.profiles to authenticated;
 
 
 -- ── Rollback (pegar y ejecutar si algo se rompe) ────────────────────────────
 --
--- grant select (preferences, birthdate)
---     on public.profiles to anon, authenticated;
--- grant update (preferences)
---     on public.profiles to authenticated;
+-- grant select, update on public.profiles to anon, authenticated;
