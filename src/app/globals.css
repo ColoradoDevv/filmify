@@ -688,3 +688,21 @@ body.tv-mode .platform-content {
 .reduce-motion {
   scroll-behavior: auto !important;
 }
+
+/* ── Autocompletado del navegador ─────────────────────────────────────────────
+   Chrome/Edge pintan el fondo del autocompletado en blanco e ignoran
+   `background-color`, así que cualquier input con un valor guardado (nombre,
+   email...) rompía el tema oscuro. La única forma de ganarles es un
+   box-shadow inset del tamaño del campo (sí lo respetan) más
+   -webkit-text-fill-color para el texto; el `transition` con delay enorme es
+   el truco estándar para que no se note el fogonazo del color nativo antes de
+   que el navegador aplique el estilo. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface-container) inset !important;
+  -webkit-text-fill-color: var(--color-on-surface) !important;
+  caret-color: var(--color-on-surface);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
