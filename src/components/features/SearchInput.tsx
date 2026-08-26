@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { trackSearch } from '@/lib/analytics';
 import Image from 'next/image';
 import {
@@ -59,8 +59,13 @@ export default function SearchInput({
 }: SearchInputProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
-    const [query, setQuery] = useState('');
+    // Se inicializa ya con la consulta activa, no en un efecto: si no, el
+    // servidor pintaría la caja vacía y se rellenaría al hidratar, con parpadeo.
+    const [query, setQuery] = useState(
+        () => (pathname === '/search' ? (searchParams.get('q') ?? '') : ''),
+    );
     const [suggestions, setSuggestions] = useState<SearchResultItem[]>([]);
     const [history, setHistory] = useState<SearchHistoryItem[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -81,12 +86,14 @@ export default function SearchInput({
         return () => { isMounted.current = false; };
     }, []);
 
-    // Limpiar búsqueda al cambiar de página
+    // Al cambiar de página se limpia la caja... salvo en /search, donde esta
+    // barra ES el buscador de la pantalla: allí muestra la consulta activa para
+    // que se pueda corregir sin volver a escribirla entera.
     useEffect(() => {
-        setQuery('');
+        setQuery(pathname === '/search' ? (searchParams.get('q') ?? '') : '');
         setShowSuggestions(false);
         setActiveIndex(-1);
-    }, [pathname]);
+    }, [pathname, searchParams]);
 
     // Debounced search con AbortController
     useEffect(() => {
@@ -147,7 +154,8 @@ export default function SearchInput({
             router.push(`/search?q=${encodeURIComponent(trimmed)}`);
             setShowSuggestions(false);
             setActiveIndex(-1);
-            setQuery('');
+            // No se vacía la caja: en /search el efecto de arriba la sincroniza
+            // con `?q=`, y limpiarla aquí provocaría un parpadeo.
             inputRef.current?.blur();
         },
         [router]
