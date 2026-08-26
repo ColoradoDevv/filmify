@@ -5,13 +5,13 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { trackSearch } from '@/lib/analytics';
 import Image from 'next/image';
 import {
-    Search, Film, Tv, User, Loader2, Clock, X, CornerDownLeft,
+    Search, Film, Tv, User, Loader2, Clock, X, CornerDownLeft, ArrowLeft,
 } from 'lucide-react';
 import { getPosterUrl, getProfileUrl } from '@/server/services/tmdb';
 import type { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
 import { suggestTitles, type SearchResultItem } from '@/app/actions/search';
 import {
-    addToHistory, getHistory, clearHistory, SearchHistoryItem,
+    addToHistory, getHistory, clearHistory, removeFromHistory, SearchHistoryItem,
 } from '@/lib/supabase/history';
 
 // ── Helpers externos ─────────────────────────────────────────────────
@@ -98,6 +98,14 @@ export default function SearchInput({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
+    /**
+     * Buscador a pantalla completa, solo por debajo de `lg`.
+     *
+     * En móvil el desplegable vivía dentro de una cabecera de 56 px: con seis
+     * sugerencias con póster no cabía nada. Google y YouTube toman la pantalla
+     * entera al enfocar, y aquí se hace igual. En escritorio no cambia nada.
+     */
+    const [expanded, setExpanded] = useState(false);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -168,6 +176,37 @@ export default function SearchInput({
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    /** ¿Estamos en escritorio? El breakpoint `lg` de Tailwind son 1024 px. */
+    const isDesktop = useCallback(
+        () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
+        [],
+    );
+
+    const closeExpanded = useCallback(() => {
+        setExpanded(false);
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+        inputRef.current?.blur();
+    }, []);
+
+    // Con la capa abierta, el fondo no debe desplazarse.
+    useEffect(() => {
+        if (!expanded) return;
+        const previo = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = previo; };
+    }, [expanded]);
+
+    // Al pasar a escritorio con la capa abierta hay que cerrarla, o el layout
+    // se queda con un `fixed` que allí no pinta nada.
+    useEffect(() => {
+        if (!expanded) return;
+        const mql = window.matchMedia('(min-width: 1024px)');
+        const onChange = () => { if (mql.matches) setExpanded(false); };
+        mql.addEventListener('change', onChange);
+        return () => mql.removeEventListener('change', onChange);
+    }, [expanded]);
+
     // ── Funciones de navegación ────────────────────────────────────
     const goToSearch = useCallback(
         async (searchQuery: string) => {
@@ -180,6 +219,7 @@ export default function SearchInput({
                 if (isMounted.current) setHistory(updated);
             } catch {}
             router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+            setExpanded(false);
             setShowSuggestions(false);
             setActiveIndex(-1);
             // No se vacía la caja: en /search el efecto de arriba la sincroniza
@@ -209,6 +249,7 @@ export default function SearchInput({
                 router.push(`/search?q=${encodeURIComponent(name)}`);
             }
 
+            setExpanded(false);
             setShowSuggestions(false);
             setActiveIndex(-1);
             setQuery('');
@@ -255,9 +296,8 @@ export default function SearchInput({
                 goToSearch(query);
             }
         } else if (e.key === 'Escape') {
-            setShowSuggestions(false);
-            setActiveIndex(-1);
-            inputRef.current?.blur();
+            // Cierra también la capa de móvil, no solo el desplegable.
+            closeExpanded();
         }
     };
 
@@ -286,11 +326,32 @@ export default function SearchInput({
     const showDropdown = showSuggestions && (query.trim().length >= 2 || visibleHistory.length > 0);
 
     return (
-        <div ref={wrapperRef} className={`relative ${className}`}>
+        <div
+            ref={wrapperRef}
+            className={
+                expanded
+                    // Capa a pantalla completa — solo por debajo de lg. A partir de
+                    // ahí las utilidades `lg:` devuelven el componente a su sitio en
+                    // la cabecera, así que en escritorio el estado es inocuo.
+                    ? 'fixed inset-0 z-[60] flex flex-col bg-background p-3 lg:static lg:z-auto lg:block lg:bg-transparent lg:p-0'
+                    : `relative ${className}`
+            }
+        >
             {/* Contenedor del input con botón de limpiar y buscar */}
             <div className="relative flex items-center group">
+                {/* Volver — solo con la capa abierta */}
+                {expanded && (
+                    <button
+                        type="button"
+                        onClick={closeExpanded}
+                        aria-label="Cerrar búsqueda"
+                        className="shrink-0 mr-1 p-2 rounded-full text-text-secondary hover:text-white hover:bg-white/10 transition-colors lg:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                )}
                 {/* Icono de búsqueda / loader */}
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <div className={`absolute top-1/2 -translate-y-1/2 pointer-events-none ${expanded ? 'left-[52px] lg:left-3' : 'left-3'}`}>
                     {loading ? (
                         <Loader2 className="h-4 w-4 text-primary animate-spin" />
                     ) : (
@@ -304,14 +365,19 @@ export default function SearchInput({
                     value={query}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => setShowSuggestions(true)}
+                    onFocus={() => {
+                        setShowSuggestions(true);
+                        if (!isDesktop()) setExpanded(true);
+                    }}
                     placeholder={placeholder}
                     role="combobox"
                     aria-expanded={showDropdown}
                     aria-haspopup="listbox"
                     aria-autocomplete="list"
                     aria-controls="search-suggestions"
-                    className="w-full bg-surface-light/30 border border-surface-light/50 text-text-primary text-sm rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary block pl-10 pr-20 py-2.5 transition-all placeholder:text-text-muted hover:bg-surface-light/50 focus:bg-surface-light/50 outline-none tv-focusable"
+                    className={`w-full bg-surface-light/30 border border-surface-light/50 text-text-primary text-sm rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary block pr-20 py-2.5 transition-all placeholder:text-text-muted hover:bg-surface-light/50 focus:bg-surface-light/50 outline-none tv-focusable ${
+                        expanded ? 'pl-11 lg:pl-10' : 'pl-10'
+                    }`}
                 />
 
                 {/* Acciones a la derecha */}
@@ -342,7 +408,13 @@ export default function SearchInput({
                 <ul
                     id="search-suggestions"
                     ref={listRef}
-                    className="absolute top-full left-0 right-0 mt-2 py-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
+                    className={
+                        expanded
+                            // En la capa ocupa el alto que queda y hace scroll
+                            // solo; en escritorio vuelve a flotar bajo el input.
+                            ? 'flex-1 min-h-0 overflow-y-auto mt-2 py-2 bg-transparent lg:absolute lg:top-full lg:left-0 lg:right-0 lg:flex-none lg:max-h-none lg:bg-surface lg:border lg:border-surface-light lg:rounded-xl lg:shadow-xl lg:z-50'
+                            : 'absolute top-full left-0 right-0 mt-2 py-2 bg-surface border border-surface-light rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200'
+                    }
                     role="listbox"
                     aria-label="Sugerencias de búsqueda"
                 >
@@ -372,14 +444,35 @@ export default function SearchInput({
                                 role="option"
                                 aria-selected={activeIndex === idx}
                                 onClick={() => goToSearch(item.query)}
-                                className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
+                                className={`group/hist w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
                                     activeIndex === idx ? 'bg-surface-light/80 ring-1 ring-primary/30' : ''
                                 }`}
                             >
                                 <Clock className="w-4 h-4 text-text-secondary shrink-0" />
-                                <span className="text-sm text-text-primary truncate">
+                                <span className="flex-1 text-sm text-text-primary truncate">
                                     <Highlight text={item.query} match={query} />
                                 </span>
+                                {/* Quitar solo esta. Antes era todo o nada, así que
+                                    borrar una búsqueda incómoda costaba perder el resto. */}
+                                <button
+                                    type="button"
+                                    aria-label={`Quitar "${item.query}" de recientes`}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setHistory((prev) => prev.filter((h) => h.id !== item.id));
+                                        try {
+                                            await removeFromHistory(item.id);
+                                        } catch {
+                                            // Si falla, se recupera del servidor en vez de
+                                            // dejar la lista mintiendo.
+                                            const fresh = await getHistory().catch(() => null);
+                                            if (fresh && isMounted.current) setHistory(fresh);
+                                        }
+                                    }}
+                                    className="shrink-0 p-1 rounded-full text-text-muted opacity-0 group-hover/hist:opacity-100 focus:opacity-100 hover:text-red-400 hover:bg-white/5 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
                             </li>
                         ))}
 
@@ -450,6 +543,27 @@ export default function SearchInput({
                             <li className="px-4 py-8 text-center text-text-muted" role="presentation">
                                 <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
                                 <p className="text-sm">No se encontraron resultados</p>
+                            </li>
+                        )}
+
+                        {/* Buscar el texto literal.
+                            Pulsar Enter ya hacía esto, pero no se veía por ningún
+                            lado: quien no lo sabía se quedaba encerrado en las
+                            sugerencias. Google y YouTube ofrecen siempre esta
+                            salida, y aquí importa más porque las sugerencias no
+                            comprueban disponibilidad — es /search quien filtra. */}
+                        {query.trim().length >= 2 && (
+                            <li
+                                role="option"
+                                aria-selected={false}
+                                onClick={() => goToSearch(query)}
+                                className="w-full px-4 py-2.5 flex items-center gap-3 border-t border-surface-light/60 hover:bg-surface-light/50 transition-colors cursor-pointer focus:outline-none"
+                            >
+                                <Search className="w-4 h-4 text-primary shrink-0" />
+                                <span className="flex-1 text-sm text-text-primary truncate">
+                                    Buscar <span className="font-semibold">«{query.trim()}»</span>
+                                </span>
+                                <CornerDownLeft className="w-3.5 h-3.5 text-text-muted shrink-0" />
                             </li>
                         )}
                 </ul>

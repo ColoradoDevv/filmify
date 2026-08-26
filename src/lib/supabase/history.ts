@@ -54,6 +54,31 @@ export const getHistory = async (limit = 5): Promise<SearchHistoryItem[]> => {
     return data || [];
 };
 
+/**
+ * Borra UNA búsqueda reciente.
+ *
+ * Hasta ahora solo se podía vaciar el historial entero, así que quitar una
+ * búsqueda incómoda obligaba a perder las demás. El filtro por `user_id` es
+ * redundante con la RLS de la tabla, pero deja explícito que nadie puede
+ * borrar el historial de otro aunque adivine el id.
+ */
+export const removeFromHistory = async (id: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('search_history')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error('Error removing history item:', error);
+    }
+};
+
 export const clearHistory = async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
