@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { safeInternalPath } from '@/lib/safe-path';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
@@ -127,14 +128,6 @@ export default async function middleware(request: NextRequest) {
 
     const nonce = generateNonce();
 
-    // React en desarrollo usa eval() para reconstruir stacktraces que cruzan el
-    // límite servidor→cliente. La CSP de nonce lo bloquea y ensucia la consola
-    // en cada carga con un error que no indica ningún fallo real de la app.
-    //
-    // Se permite SOLO en dev: en producción React nunca llama a eval(), y
-    // 'unsafe-eval' ahí reabriría la ejecución de strings arbitrarios que esta
-    // política existe para cerrar. Next inlinea NODE_ENV al compilar, así que el
-    // bundle de producción no contiene ni esta rama.
     // Orígenes de script del documento principal.
     //
     // Antes aquí ponía `https:`, que permite CUALQUIER origen HTTPS y deja el
@@ -161,6 +154,12 @@ export default async function middleware(request: NextRequest) {
     // que cargue ahí no puede tocar el documento que lo contiene.
     const isAdFrame = pathname === '/ads/frame' || pathname.startsWith('/ads/frame/');
 
+    // 'unsafe-eval' SOLO en desarrollo: React lo usa ahí para reconstruir
+    // stacktraces que cruzan el límite servidor→cliente, y sin él la consola se
+    // llena de un error que no indica ningún fallo real. En producción React
+    // nunca llama a eval(), y permitirlo reabriría la ejecución de strings
+    // arbitrarios. Next inlinea NODE_ENV al compilar, así que el bundle de
+    // producción no contiene ni esta rama.
     const scriptSrc = [
         ...(isAdFrame ? [`'self'`, 'https:'] : DOCUMENT_SCRIPT_SRC),
         `'nonce-${nonce}'`,
@@ -316,10 +315,8 @@ export default async function middleware(request: NextRequest) {
 
     if (user && isAuthPage && !pathname.startsWith('/confirm-email') && !pathname.startsWith('/reset-password')) {
         const next = request.nextUrl.searchParams.get('next') ?? '/browse';
-        const isSafe = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') && (() => {
-            try { return new URL(next, 'https://filmify.me').hostname === 'filmify.me'; } catch { return false; }
-        })();
-        return NextResponse.redirect(new URL(isSafe ? next : '/browse', request.url));
+        // SEC-016 — misma regla que en login/actions.ts y MovieCard.
+        return NextResponse.redirect(new URL(safeInternalPath(next, '/browse'), request.url));
     }
 
     return response;

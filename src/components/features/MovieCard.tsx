@@ -12,6 +12,7 @@ import type { Movie, TVShow } from '@/types/tmdb';
 import { useRouter } from 'next/navigation';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { qualityBadge } from '@/components/features/qualityBadge';
+import { safeInternalPath } from '@/lib/safe-path';
 import { toast } from 'sonner';
 
 interface MovieCardProps {
@@ -45,8 +46,16 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
 
     const posterUrl = getPosterUrl(movie.poster_path);
     const badge = qualityBadge(quality);
-    const linkHref = href
-        ?? (mediaType === 'movie' ? `/movie/${movie.id}` : `/tv/${movie.id}`);
+    // `href` es una prop pública del componente y su valor sale de datos de
+    // TMDB/AniList que han pasado por una búsqueda del usuario. Aunque hoy
+    // todos los llamadores construyen la ruta con un prefijo `/…`, meter un
+    // valor externo en un `href` sin comprobarlo es exactamente el hueco por el
+    // que entran `javascript:` (XSS al pulsar) y `//otro-sitio` (redirección
+    // abierta). Se valida aquí, en el punto de uso, y no en cada llamador.
+    const linkHref = safeInternalPath(
+        href ?? (mediaType === 'movie' ? `/movie/${movie.id}` : `/tv/${movie.id}`),
+        '/browse',
+    );
     const typeLabel = mediaType === 'movie' ? 'Película' : mediaType === 'anime' ? 'Anime' : 'Serie';
     const title = 'title' in movie ? movie.title : movie.name;
     const date = 'release_date' in movie ? movie.release_date : movie.first_air_date;
