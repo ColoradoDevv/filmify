@@ -15,8 +15,12 @@ import {
  * ── Al preparar una versión nueva ───────────────────────────────────────────
  *  1. Subir `RELEASE_VERSION` para que coincida con `package.json`.
  *  2. Reescribir `RELEASE_NOTES` con lo que le importa a QUIEN USA el sitio, no
- *     con el changelog entero: tres o cuatro puntos, en su idioma. Que la CSP
- *     ahora tenga lista explícita es relevante en CHANGELOG.md, no aquí.
+ *     con el changelog entero.
+ *
+ * Cada punto es UNA línea que dice qué se hizo, sin explicarlo: esto es un
+ * aviso, no un manual. Quien quiera el detalle lo encuentra usando el sitio, y
+ * un modal largo se cierra sin leer. Máximo cinco líneas; si no cabe en una,
+ * sobra.
  *
  * Cambiar `RELEASE_VERSION` es lo que hace que el modal vuelva a salir: quien ya
  * lo cerró tiene guardada la versión anterior.
@@ -27,8 +31,7 @@ export const RELEASE_VERSION = '2.0.0';
 
 export interface ReleaseHighlight {
     icon: LucideIcon;
-    title: string;
-    description: string;
+    text: string;
 }
 
 export interface ReleaseNotes {
@@ -36,45 +39,18 @@ export interface ReleaseNotes {
     /** Solo para mostrar; formato libre. */
     date: string;
     title: string;
-    intro: string;
     highlights: ReleaseHighlight[];
 }
 
 export const RELEASE_NOTES: ReleaseNotes = {
     version: RELEASE_VERSION,
     date: 'agosto de 2026',
-    title: 'Novedades de FilmiFy',
-    intro: 'Esto es lo que ha cambiado desde la última vez que entraste.',
+    title: 'Novedades',
     highlights: [
-        {
-            icon: Search,
-            title: 'Buscador más rápido y en un solo sitio',
-            description:
-                'Las sugerencias aparecen casi al instante y ahora hay una única barra, la de arriba. En el móvil ocupa la pantalla entera para que se vea bien.',
-        },
-        {
-            icon: LayoutGrid,
-            title: 'Inicio y fichas renovados',
-            description:
-                'La portada tiene acceso directo a todas las secciones. Y si una película todavía no está disponible, ya no te encuentras un error: ves su ficha con sinopsis, reparto y tráiler.',
-        },
-        {
-            icon: SlidersHorizontal,
-            title: 'Ajustes rehechos',
-            description:
-                'Más claros y más compactos. Se fueron los interruptores que no hacían nada y los que quedan funcionan de verdad, incluido el de reducir animaciones.',
-        },
-        {
-            icon: ShieldCheck,
-            title: 'Tu perfil, más privado',
-            description:
-                'Quién puede ver tus favoritos, tu historial y tu perfil se decide ahora en el servidor. Antes esos ajustes no se aplicaban del todo.',
-        },
-        {
-            icon: Info,
-            title: 'TV en vivo y Doramas, en pausa',
-            description:
-                'Sus proveedores dejaron de funcionar de forma fiable, así que las hemos cerrado temporalmente en vez de dejarte enlaces rotos. Volverán.',
-        },
+        { icon: Search, text: 'Buscador más rápido y en un solo sitio' },
+        { icon: LayoutGrid, text: 'Inicio y fichas renovados' },
+        { icon: SlidersHorizontal, text: 'Ajustes rehechos' },
+        { icon: ShieldCheck, text: 'Más control sobre tu privacidad' },
+        { icon: Info, text: 'TV en vivo y Doramas, en pausa' },
     ],
 };

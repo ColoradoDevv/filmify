@@ -68,38 +68,29 @@ export default function WhatsNewModal() {
 
     return (
         <Modal isOpen={open} onClose={close} title={RELEASE_NOTES.title}>
-            <div className="space-y-4">
+            <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                        <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                        Versión {RELEASE_NOTES.version}
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        <Sparkles className="h-3 w-3" aria-hidden />
+                        {RELEASE_NOTES.version}
                     </span>
-                    <span className="text-xs text-on-surface-variant">{RELEASE_NOTES.date}</span>
+                    <span className="text-[11px] text-on-surface-variant">{RELEASE_NOTES.date}</span>
                 </div>
 
-                <p className="text-sm text-on-surface-variant">{RELEASE_NOTES.intro}</p>
-
-                <ul className="space-y-3">
-                    {RELEASE_NOTES.highlights.map(({ icon: Icon, title, description }) => (
-                        <li key={title} className="flex gap-3">
-                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-container-high">
-                                <Icon className="h-4 w-4 text-primary" aria-hidden />
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-on-surface">{title}</span>
-                                <span className="mt-0.5 block text-xs leading-relaxed text-on-surface-variant">
-                                    {description}
-                                </span>
-                            </span>
+                <ul className="space-y-1.5">
+                    {RELEASE_NOTES.highlights.map(({ icon: Icon, text }) => (
+                        <li key={text} className="flex items-center gap-2.5 text-sm text-on-surface">
+                            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                            <span className="min-w-0">{text}</span>
                         </li>
                     ))}
                 </ul>
 
-                <div className="flex justify-end pt-1">
+                <div className="flex justify-end">
                     <button
                         type="button"
                         onClick={close}
-                        className="inline-flex h-9 items-center rounded-full bg-primary px-5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                         Entendido
                     </button>
