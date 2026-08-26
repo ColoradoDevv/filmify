@@ -12,25 +12,36 @@ import type { Movie, TVShow } from '@/types/tmdb';
 import { useRouter } from 'next/navigation';
 import { useTVDetection } from '@/hooks/useTVDetection';
 import { qualityBadge } from '@/components/features/qualityBadge';
-import { safeInternalPath } from '@/lib/safe-path';
 import { toast } from 'sonner';
 
 interface MovieCardProps {
     movie: Movie | TVShow;
-    /** 'anime' pinta la etiqueta correcta; el destino lo fija `href`. */
+    /** 'anime' pinta la etiqueta y, junto a `anilistId`, decide el destino. */
     mediaType?: 'movie' | 'tv' | 'anime';
     priority?: boolean;
     quality?: string;
     /**
-     * Destino explícito. Lo necesita el anime: su ficha vive en
-     * /anime/[anilistId] y la tarjeta solo conoce el id de TMDB, así que quien
-     * la renderiza (que sí tiene el id de AniList) pasa la URL ya construida.
+     * Id de AniList, para el anime: su ficha vive en /anime/[anilistId] y la
+     * tarjeta solo conoce el id de TMDB, así que lo aporta quien la renderiza.
+     *
+     * Es un NÚMERO y no la URL ya montada. Antes esta prop era `href?: string`
+     * y el llamador pasaba la ruta hecha, de modo que una cadena venida de una
+     * API externa acababa dentro de un `href` — el hueco por el que entran
+     * `javascript:` (XSS al pulsar) y `//otro-sitio` (redirección abierta).
+     * Con un número no hay nada que sanear: el destino se compone aquí y solo
+     * puede ser una de tres rutas.
      */
-    href?: string;
+    anilistId?: number;
+}
+
+/** Id positivo y entero, o null. Lo que llega de una API no siempre lo es. */
+function toId(value: unknown): number | null {
+    const n = Number(value);
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
 
-export default function MovieCard({ movie, mediaType = 'movie', priority = false, quality, href }: MovieCardProps) {
+export default function MovieCard({ movie, mediaType = 'movie', priority = false, quality, anilistId }: MovieCardProps) {
     const router = useRouter();
     const { isTV } = useTVDetection();
     const cardRef = useRef<HTMLDivElement>(null);
@@ -46,16 +57,18 @@ export default function MovieCard({ movie, mediaType = 'movie', priority = false
 
     const posterUrl = getPosterUrl(movie.poster_path);
     const badge = qualityBadge(quality);
-    // `href` es una prop pública del componente y su valor sale de datos de
-    // TMDB/AniList que han pasado por una búsqueda del usuario. Aunque hoy
-    // todos los llamadores construyen la ruta con un prefijo `/…`, meter un
-    // valor externo en un `href` sin comprobarlo es exactamente el hueco por el
-    // que entran `javascript:` (XSS al pulsar) y `//otro-sitio` (redirección
-    // abierta). Se valida aquí, en el punto de uso, y no en cada llamador.
-    const linkHref = safeInternalPath(
-        href ?? (mediaType === 'movie' ? `/movie/${movie.id}` : `/tv/${movie.id}`),
-        '/browse',
-    );
+    // El destino se compone con enteros, nunca con una cadena de fuera: solo
+    // puede salir una de estas tres rutas. Un id que no sea entero positivo cae
+    // a /browse en vez de generar `/movie/undefined`.
+    const anilist = toId(anilistId);
+    const tmdbId = toId(movie.id);
+    const linkHref = anilist !== null
+        ? `/anime/${anilist}`
+        : tmdbId === null
+            ? '/browse'
+            : mediaType === 'movie'
+                ? `/movie/${tmdbId}`
+                : `/tv/${tmdbId}`;
     const typeLabel = mediaType === 'movie' ? 'Película' : mediaType === 'anime' ? 'Anime' : 'Serie';
     const title = 'title' in movie ? movie.title : movie.name;
     const date = 'release_date' in movie ? movie.release_date : movie.first_air_date;

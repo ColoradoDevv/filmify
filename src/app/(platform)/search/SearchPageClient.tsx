@@ -180,10 +180,10 @@ export default function SearchPageClient({
                                     mediaType={item.media_type}
                                     // El anime tiene ficha propia en /anime/[anilistId];
                                     // sin id de AniList cae a /tv, que redirige igual.
-                                    href={
-                                        item.media_type === 'anime' && item.anilist_id
-                                            ? `/anime/${item.anilist_id}`
-                                            : undefined
+                                    // Se pasa el id, no la URL: la ruta la compone
+                                    // la tarjeta a partir de un entero.
+                                    anilistId={
+                                        item.media_type === 'anime' ? item.anilist_id : undefined
                                     }
                                 />
                             ))}
