@@ -71,6 +71,7 @@ export default function WhatsNewModal() {
             isOpen={open}
             onClose={close}
             title={RELEASE_NOTES.title}
+            description={RELEASE_NOTES.subtitle}
             icon={
                 <img
                     src="/logo-icon.svg"
@@ -81,17 +82,17 @@ export default function WhatsNewModal() {
             }
         >
             <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                        <Sparkles className="h-3 w-3" aria-hidden />
-                        {RELEASE_NOTES.version}
-                    </span>
-                    <span className="text-[11px] text-on-surface-variant">{RELEASE_NOTES.date}</span>
-                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    <Sparkles className="h-3 w-3" aria-hidden />
+                    Versión {RELEASE_NOTES.version} · {RELEASE_NOTES.date}
+                </span>
 
-                <ol className="divide-y divide-surface-light">
+                <ol className="overflow-hidden rounded-xl border border-surface-light">
                     {RELEASE_NOTES.highlights.map(({ text }, index) => (
-                        <li key={text} className="flex items-center gap-3 py-2.5 text-sm text-on-surface">
+                        <li
+                            key={text}
+                            className="flex items-center gap-3 border-b border-surface-light bg-surface-container-high/40 px-3 py-2.5 text-sm text-on-surface last:border-b-0"
+                        >
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
                                 {index + 1}
                             </span>

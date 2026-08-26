@@ -39,13 +39,16 @@ export interface ReleaseNotes {
     /** Solo para mostrar; formato libre. */
     date: string;
     title: string;
+    /** Una sola línea de contexto para todo el modal, no por punto. */
+    subtitle: string;
     highlights: ReleaseHighlight[];
 }
 
 export const RELEASE_NOTES: ReleaseNotes = {
     version: RELEASE_VERSION,
     date: 'agosto de 2026',
-    title: 'Novedades',
+    title: 'Novedades de FilmiFy',
+    subtitle: 'Esto es lo que ha cambiado desde tu última visita.',
     highlights: [
         { icon: Search, text: 'Buscador más rápido y en un solo sitio' },
         { icon: LayoutGrid, text: 'Inicio y fichas renovados' },
