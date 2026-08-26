@@ -87,19 +87,17 @@ export default function WhatsNewModal() {
                     Versión {RELEASE_NOTES.version} · {RELEASE_NOTES.date}
                 </span>
 
-                <ol className="overflow-hidden rounded-xl border border-surface-light">
-                    {RELEASE_NOTES.highlights.map(({ text }, index) => (
+                <ul className="overflow-hidden rounded-xl border border-surface-light">
+                    {RELEASE_NOTES.highlights.map(({ text }) => (
                         <li
                             key={text}
                             className="flex items-center gap-3 border-b border-surface-light bg-surface-container-high/40 px-3 py-2.5 text-sm text-on-surface last:border-b-0"
                         >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                                {index + 1}
-                            </span>
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
                             <span className="min-w-0">{text}</span>
                         </li>
                     ))}
-                </ol>
+                </ul>
 
                 <div className="flex justify-end">
                     <button
