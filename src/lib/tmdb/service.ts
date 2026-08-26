@@ -78,7 +78,20 @@ const buildUrl = (
     endpoint: string,
     params: Record<string, string | number | undefined> = {},
 ): string => {
+    // El endpoint lo componen los llamadores interpolando ids
+    // (`/movie/${movieId}`), así que aquí se comprueba que sigue siendo una
+    // ruta relativa: sin esquema, sin `//` y sin `..`. Hoy todos los ids pasan
+    // antes por `parseInt`, pero eso depende de cada llamador y esto no.
+    if (!/^\/[A-Za-z0-9._~/-]*$/.test(endpoint) || endpoint.includes('..')) {
+        throw new TMDBError(`Endpoint de TMDB no válido: ${endpoint}`, 0);
+    }
+
     const url = new URL(`${BASE_URL}${endpoint}`);
+    // El host nunca sale de BASE_URL: los valores externos van solo como
+    // parámetros de consulta, que `URLSearchParams` codifica.
+    if (url.origin !== new URL(BASE_URL).origin) {
+        throw new TMDBError('Endpoint de TMDB fuera del host esperado', 0);
+    }
     url.searchParams.append('api_key', getApiKey());
     url.searchParams.append('language', 'es-MX');
 
@@ -125,7 +138,9 @@ async function fetchFromTMDB<T>(
             ...(revalidate !== undefined ? { next: { revalidate } } : {}),
         });
     } catch (err) {
-        if (DEBUG) console.error(`[TMDB] Network error for ${endpoint}:`, err);
+        // El endpoint va como ARGUMENTO, no interpolado: si acabara conteniendo
+        // un `%s`, `console.error` lo trataría como marcador de formato.
+        if (DEBUG) console.error('[TMDB] Network error for %s:', endpoint, err);
         throw new TMDBError('Error de conexión con TMDB', 0);
     }
 
@@ -166,23 +181,38 @@ export async function getTrending<T extends 'movie' | 'tv' | 'all'>(
 export const searchMulti = async (
     query: string,
     page: number = 1,
+    includeAdult: boolean = false,
 ): Promise<PaginatedResponse<MultiSearchResult>> => {
     if (!query.trim()) {
         return { page: 1, results: [], total_pages: 0, total_results: 0 };
     }
     const safePage = Math.max(1, Math.floor(page));
-    return fetchFromTMDB('/search/multi', { query, page: safePage }, TMDB_TTL.search);
+    // TMDB ya excluye el contenido adulto por defecto, así que el parámetro solo
+    // viaja cuando el usuario lo ha activado en sus ajustes. Al formar parte de
+    // la URL entra en la clave de caché: las dos variantes no se pisan.
+    return fetchFromTMDB(
+        '/search/multi',
+        { query, page: safePage, ...(includeAdult ? { include_adult: 'true' } : {}) },
+        TMDB_TTL.search,
+    );
 };
 
 export const searchMovies = async (
     query: string,
     page: number = 1,
+    includeAdult: boolean = false,
 ): Promise<PaginatedResponse<Movie>> => {
     if (!query.trim()) {
         return { page: 1, results: [], total_pages: 0, total_results: 0 };
     }
     const safePage = Math.max(1, Math.floor(page));
-    return fetchFromTMDB('/search/movie', { query, page: safePage }, TMDB_TTL.search);
+    // Mismo criterio que `searchMulti`: el parámetro solo viaja cuando está
+    // activado, así que las dos variantes tienen claves de caché distintas.
+    return fetchFromTMDB(
+        '/search/movie',
+        { query, page: safePage, ...(includeAdult ? { include_adult: 'true' } : {}) },
+        TMDB_TTL.search,
+    );
 };
 
 // ── Details ───────────────────────────────────────────────────────────────────

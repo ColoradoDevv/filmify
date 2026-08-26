@@ -669,3 +669,22 @@ body.tv-mode .platform-content {
 .glow-primary:hover {
   box-shadow: 0 0 36px color-mix(in srgb, var(--color-primary) 60%, transparent);
 }
+
+/* ── Movimiento reducido ──────────────────────────────────────────────────────
+   La clase la pone `lib/reduced-motion.ts` en <html> cuando el usuario activa
+   el ajuste en /settings. Va al final del archivo para ganar en especificidad a
+   las utilidades de animación, y usa !important porque compite con clases de
+   Tailwind aplicadas directamente en los elementos. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+}
+
+.reduce-motion {
+  scroll-behavior: auto !important;
+}

@@ -94,12 +94,19 @@ export default function ProfilePage() {
 
                 setUser(user);
 
-                const [{ data: profileData }, { data: reviewData }] = await Promise.all([
+                // `preferences` va por `get_my_preferences()` y no en el
+                // select: la columna está revocada para `authenticated` (ver
+                // 20260826_close_profiles_read.sql) porque servía los favoritos
+                // y las amistades de todo el mundo a cualquier anónimo. Pedirla
+                // aquí haría fallar la consulta entera, incluidos el nombre y
+                // el avatar.
+                const [{ data: profileData }, { data: preferencesData }, { data: reviewData }] = await Promise.all([
                     supabase
                         .from('profiles')
-                        .select('id, full_name, username, avatar_url, bio, preferences')
+                        .select('id, full_name, username, avatar_url, bio')
                         .eq('id', user.id)
                         .single(),
+                    supabase.rpc('get_my_preferences'),
                     supabase
                         .from('reviews')
                         .select('id, media_id, media_type, rating, content, created_at')
@@ -108,21 +115,27 @@ export default function ProfilePage() {
                 ]);
 
                 if (active && profileData) {
-                    const loadedProfile = profileData as ProfileRecord;
+                    const preferences = (preferencesData ?? null) as ProfilePreferences | null;
+                    const loadedProfile = { ...(profileData as ProfileRecord), preferences };
                     setProfile(loadedProfile);
-                    setProfilePreferences(loadedProfile.preferences ?? null);
+                    setProfilePreferences(preferences);
 
-                    const friendIds = loadedProfile.preferences?.friends ?? [];
-                    const outgoingIds = loadedProfile.preferences?.outgoingFriendRequests ?? [];
-                    const incomingIds = loadedProfile.preferences?.incomingFriendRequests ?? [];
+                    const friendIds = preferences?.friends ?? [];
+                    const outgoingIds = preferences?.outgoingFriendRequests ?? [];
+                    const incomingIds = preferences?.incomingFriendRequests ?? [];
                     const allUserIds = Array.from(new Set([...friendIds, ...outgoingIds, ...incomingIds]));
 
                     if (allUserIds.length > 0) {
+                        // Sin `limit`: el tope de 30 se aplicaba a la SUMA de
+                        // amigos + solicitudes enviadas + recibidas, así que a
+                        // partir de 30 relaciones desaparecían amigos de la
+                        // lista y —peor— solicitudes recibidas que ya no había
+                        // forma de aceptar. La consulta va por clave primaria
+                        // sobre una lista que el propio usuario acota.
                         const { data: relatedProfiles, error: relatedError } = await supabase
                             .from('profiles')
                             .select('id, full_name, username, avatar_url')
-                            .in('id', allUserIds)
-                            .limit(30);
+                            .in('id', allUserIds);
 
                         if (relatedError) {
                             console.error('Error cargando solicitudes de amistad:', relatedError);
@@ -165,13 +178,30 @@ export default function ProfilePage() {
             return;
         }
 
+        // El texto va dentro de la expresión `or=(…)` de PostgREST, donde la
+        // coma separa condiciones y los paréntesis agrupan. Interpolarlo tal
+        // cual hacía que buscar «García, Ana» generase un filtro malformado
+        // —error y cero resultados— y permitía colar condiciones extra.
+        //
+        // Se quedan solo letras, dígitos, espacios y los signos que aparecen de
+        // verdad en un nombre. `%` y `_` también salen: son comodines de ILIKE.
+        const safeTerm = sanitizedQuery
+            .replace(/[^\p{L}\p{N} .'-]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (safeTerm.length < 2) {
+            setFriendResults([]);
+            return;
+        }
+
         const handler = window.setTimeout(async () => {
             setFriendLoading(true);
             try {
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('id, full_name, username, avatar_url')
-                    .or(`username.ilike.%${sanitizedQuery}%,full_name.ilike.%${sanitizedQuery}%`)
+                    .or(`username.ilike.%${safeTerm}%,full_name.ilike.%${safeTerm}%`)
                     .neq('id', user.id)
                     .limit(8);
 

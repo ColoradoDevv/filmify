@@ -9,6 +9,7 @@ import {
     searchMovies,
     searchMulti,
 } from '@/server/services/tmdb';
+import { readUserPreferences } from '@/server/repositories/user-preferences';
 
 /**
  * Devuelve JSON con Cache-Control para que el CDN de Vercel sirva respuestas
@@ -22,6 +23,20 @@ function cachedJson(data: unknown, sMaxAge: number): NextResponse {
         headers: {
             'Cache-Control': `public, s-maxage=${sMaxAge}, stale-while-revalidate=${sMaxAge * 4}`,
         },
+    });
+}
+
+/**
+ * Respuesta que NO puede compartirse entre usuarios.
+ *
+ * Las búsquedas respetan el ajuste +18 del perfil, y una respuesta
+ * personalizada guardada en el CDN acabaría sirviéndose a quien no la pidió.
+ * Solo se usa cuando el ajuste está activado: apagado —el defecto, y lo que ve
+ * cualquier anónimo— la respuesta es idéntica para todos y sigue cacheándose.
+ */
+function privateJson(data: unknown): NextResponse {
+    return NextResponse.json(data, {
+        headers: { 'Cache-Control': 'private, no-store' },
     });
 }
 
@@ -40,12 +55,16 @@ export async function GET(request: Request) {
             case 'search-multi': {
                 const query = url.searchParams.get('query') ?? '';
                 const page = Number(url.searchParams.get('page') ?? '1');
-                return cachedJson(await searchMulti(query, page), CACHE.search);
+                const adult = (await readUserPreferences()).playback.adultContent;
+                const data = await searchMulti(query, page, adult);
+                return adult ? privateJson(data) : cachedJson(data, CACHE.search);
             }
             case 'search-movies': {
                 const query = url.searchParams.get('query') ?? '';
                 const page = Number(url.searchParams.get('page') ?? '1');
-                return cachedJson(await searchMovies(query, page), CACHE.search);
+                const adult = (await readUserPreferences()).playback.adultContent;
+                const data = await searchMovies(query, page, adult);
+                return adult ? privateJson(data) : cachedJson(data, CACHE.search);
             }
             case 'trending': {
                 const mediaType = (url.searchParams.get('mediaType') ?? 'movie') as 'movie' | 'tv' | 'all';

@@ -26,14 +26,24 @@ call in `api/channels/route.ts`, and re-add the nav links (Navbar,
 MobileMenu, Footer, TVSidebar, TVNavBar, FilterBar) once the channel source
 is fixed.
 
-**Doramas is temporarily closed in production** (2026-08-18): the module
-lives at `src/app/(platform)/doramas/` (catalog) and
+**Doramas is closed in every environment** (2026-08-18, tightened
+2026-08-21): the module lives at `src/app/(platform)/doramas/` (catalog) and
 `src/server/services/dorama/` (playback for *all* TV series, not just
 doramas — `/tv/[id]` resolves its sources through this registry, so **never
 disable the service layer**). Only the public route and its nav links are
-closed: `next.config.ts` redirects `/doramas` → `/browse?category=tv` and
-`isDoramasEnabled()` in `src/lib/env.ts` hides the Sidebar/MobileTabBar
-entries. It stays open in development.
+closed: `next.config.ts` redirects `/doramas` → `/browse?category=tv`,
+`isDoramasEnabled()` in `src/lib/env.ts` hides the Sidebar/MobileTabBar and
+`ModuleQuickAccess` entries, and `doramaCatalogAction` returns an empty page
+so the Server Action isn't an open back door to the catalog.
+
+`isDoramasEnabled()` is now strictly opt-in — `NEXT_PUBLIC_DORAMAS_ENABLED`
+must be `1`/`true`, with no per-environment default. It used to default to
+"open" outside production, which meant the module showed up locally but not
+in prod and made the branch look out of date while working on the home page.
+The condition in `next.config.ts` must stay byte-for-byte equivalent: when
+the two drifted, `/doramas` stopped redirecting and answered 200 with the
+"not found" screen — the exact soft-404 the page's `notFound()` avoids.
+To work on it, set `NEXT_PUBLIC_DORAMAS_ENABLED=1` in `.env.local`.
 
 Why: APIPlayer (`apiplayer.ru`), which covered about half the catalog,
 started answering every manifest request with `403 turnstile_required` —
@@ -56,7 +66,8 @@ catalog fills the grid with links to 404s.
 - **State**: Zustand (`src/lib/store/useStore.ts`), persisted to localStorage
 - **Auth/DB**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — Postgres + RLS
 - **Content data**: TMDB (The Movie Database) API
-- **AI**: Groq SDK for recommendations
+- **AI**: Groq SDK (v1.x — zero dependencies, native `fetch`; v0.x pulled in
+  `node-fetch@2` and made Node emit `DEP0169` on every movie page)
 - **Other integrations**: Resend (email), hCaptcha, Vercel Analytics/Speed Insights, Google Analytics
 - **Player**: hls.js + third-party embed providers (Vimeus, SuperEmbed, "Latino" proxy)
 
@@ -104,6 +115,12 @@ src/
 src/middleware.ts              # Auth gating, RBAC, CSP w/ per-request nonce, IP bans, security headers
                                # ⚠️ Must live in src/ — Next looks for it next to `app/`. At the repo
                                # root it is silently ignored from Next 16.3 on (no error, no headers).
+                               # ⚠️ Deprecated in Next 16.0: the convention was renamed to `proxy`.
+                               # Still works, and `next dev` warns on every boot. Migrating is
+                               # `npx @next/codemod@canary middleware-to-proxy .`, but it is NOT a
+                               # plain rename: Proxy defaults to the Node.js runtime while this file
+                               # currently builds to Edge. Do it as its own change and re-verify the
+                               # four things it does (CSP, /admin gate, IP bans, anime 308s).
 supabase/migrations/           # SQL migrations (applied to the Supabase project)
 scripts/                       # check-env, editorial seeding, watch-party test scripts, security verification
 docs/                          # AdSense/ads.txt setup, ad integration guide, public-access migration notes
@@ -148,6 +165,13 @@ This is the **designated single entry point for backend logic** — see
   what changed. `/watch-party` is deliberately **not** middleware-protected;
   the page itself shows an "inicia sesión" prompt to anonymous visitors.
 - API routes, `/auth/*`, and `/_next/*` always pass through middleware untouched.
+- **`notFound()` inside a dynamic page returns HTTP 200, not 404.** Verified
+  against a production build: `/ruta-inventada` → 404, but `/movie/999999999`,
+  `/tv/*`, `/anime/*`, `/editorial/*` and `/genero/*` all answer 200 with the
+  not-found screen. Every one of them does emit `noindex`, so the pages are not
+  indexed and the cost is crawl budget plus "soft 404" reports in Search
+  Console — worth fixing, not urgent. `/doramas` sidesteps it with a real 307
+  from `next.config.ts`.
 
 ## Supabase conventions
 
@@ -167,6 +191,54 @@ This is the **designated single entry point for backend logic** — see
   `YYYYMMDD_description.sql`. RLS policies are the source of truth for write
   authorization — middleware/route checks are defense-in-depth, not a
   replacement.
+
+### `profiles.preferences` — never write the column whole
+
+`preferences` is one JSONB column holding **unrelated things that different
+features own**: the /settings switches (`notifications`, `privacy`,
+`playback`), but also `favorites` (`src/lib/supabase/favorites.ts`) and the
+social graph (`friends`, `incomingFriendRequests`, `outgoingFriendRequests`,
+see `20260702_atomic_friend_action.sql`).
+
+A settings screen used to do `update({ preferences: newSettings })`, which
+replaced the whole column — so flipping one toggle wiped the user's
+favourites, friends and pending requests. **All writes go through
+`merge_my_preferences(p_patch jsonb)`**, which merges at the top level inside
+a single transaction with `for update`, and is reached from TypeScript via
+`patchUserPreferences()` in `src/app/actions/settings.ts`. Send only the
+groups you are changing.
+
+Shape, defaults and normalisation live in `src/lib/user-preferences.ts`
+(`normalizePreferences` tolerates the pre-`playback` layout). Server-side
+reads go through `readUserPreferences()` in
+`src/server/repositories/user-preferences.ts`.
+
+### Columns closed at the permission layer
+
+`20260826_close_profiles_read.sql` revokes `select`/`update` on
+`profiles.preferences` and `select` on `birthdate` from `anon` and
+`authenticated` — the column was serving every user's favourites and social
+graph to anonymous requests. Access is only via `security definer` functions
+from `20260825_privacy_gated_content.sql`:
+
+| Function | Used by |
+| --- | --- |
+| `get_my_preferences()` | settings, profile, search, `/api/tmdb/*` |
+| `merge_my_preferences(jsonb)` | every preferences write |
+| `get_public_profile(text)` | `/profile/[username]` |
+| `get_public_favorites(uuid,int)` | same, gated by `showWatchlist` |
+| `can_view_profile_section(uuid,text)` | `watch_history` RLS |
+
+Column privileges belong to the **role, not the row**, so revoking also locks
+out the owner — that is why these functions exist. `role` and `is_banned` are
+deliberately **not** revoked: `src/middleware.ts` and
+`src/app/admin/layout.tsx` read `profiles.role` with the *session* client, and
+both fail closed by redirecting to `/browse`. Revoking it locks everyone out
+of `/admin`, super_admin included. Escalation is already blocked by the
+trigger in `20251130_security_hardening.sql`.
+
+Watch history lives in `public.watch_history` (RLS-gated by
+`showWatchHistory`), not in localStorage as it used to.
 
 ## TMDB & images
 
@@ -197,6 +269,28 @@ This is the **designated single entry point for backend logic** — see
   the code they document.
 - CSP, security headers, and IP-ban checks live in `src/middleware.ts` — see
   "Routing & access control" above.
+- **JSON-LD must go through `serializeJsonLd()`** (`src/lib/json-ld.ts`), never
+  bare `JSON.stringify`. `stringify` does not escape `<`, so an `</script>`
+  inside any field closes the tag and the rest is parsed as HTML. The movie/TV
+  structured data is built from `title`, `overview`, cast and production
+  company names — all from TMDB, which is **community-editable**, i.e. third
+  party input. Five of the seven blocks were unescaped before this was
+  centralised.
+- **`script-src` has two levels.** The document gets an explicit allow-list
+  (`'self'` + googletagmanager + analytics.filmify.me + nonce); only
+  `/ads/frame` keeps the permissive `https:`, because ad creatives chain
+  scripts across domains that cannot be enumerated — and that route is
+  isolated in a sandboxed, opaque-origin iframe (`components/ads/AdBanner.tsx`).
+  **Do not put `https:` back on the document policy**: with it, the nonce only
+  protects inline scripts and any injected `<script src="https://…">` runs.
+  If the Adsterra *native* format is ever enabled
+  (`NEXT_PUBLIC_ADSTERRA_NATIVE_SRC`, empty today) its script is injected into
+  the main document and its origin must be added to the allow-list.
+- **PostgREST filter injection**: user text interpolated into `.or(...)` is
+  parsed as filter syntax — commas separate conditions, parentheses group. The
+  friend search broke on any name containing a comma and accepted extra
+  conditions. Strip everything except letters, digits, spaces and `.'-`
+  (`%` and `_` are ILIKE wildcards) before building the expression.
 
 ## State management & UI
 
@@ -214,6 +308,27 @@ This is the **designated single entry point for backend logic** — see
   `useTVDetection`, `useSpatialNavigation`, `useKeyboardNavigation`,
   `useFocusManagement`, and `tv-mode` class on `<body>`. Some routes have a
   parallel `page-tv.tsx` for the TV-optimized layout (e.g. `browse`, `search`).
+- **Cards must be real links.** `MovieCard` navigates via an `<a>` overlay
+  (`absolute inset-0`), not `onClick` + `router.push` on a `<div>` — the old
+  version did nothing until hydration, which on content-heavy pages is late
+  enough that clicks were dropped. The overlay sits *beside* the card rather
+  than wrapping it because the favourite button is interactive content and
+  cannot nest inside an `<a>`; decorative layers are `pointer-events-none`.
+- **Horizontal rails clip hover shadows.** `overflow-x-auto` forces
+  `overflow-y: auto`, so a lifted card gets cut off — rails need vertical and
+  lateral padding. And `animate-fade-in-up` uses `fill-mode: both`, leaving a
+  transform in place that creates a stacking context: `hover:z-10` must go on
+  the grid cell, not on the card inside it.
+- **Avoid hidden-scroll UI.** A `overflow-x-auto` + `scrollbar-hide` row has no
+  affordance and a mouse wheel does not scroll it horizontally; the anime genre
+  chips were unreachable that way. Prefer wrapping, with a collapse + "show
+  all" toggle on small screens.
+- **No settings switch without something behind it.** `/settings` used to have
+  eight toggles that only wrote to the DB — the notifications cron ignored them
+  and nothing read `adultContent`, `autoplay` or `language`. If a preference
+  has no consumer, do not ship the switch. Reduced motion is a class on
+  `<html>` (`src/lib/reduced-motion.ts` + `.reduce-motion` in globals.css);
+  `adultContent` drives `include_adult` on TMDB search.
 
 ## Language & content conventions
 
@@ -303,3 +418,13 @@ npm run check-env            # verifies required vars exist in .env.local
   `dev` branch (see commit history: `Merge pull request #N from
   ColoradoDevv/dev`). Commit messages follow conventional-commit-style
   prefixes (`feat:`, `fix:`, `refactor:`).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

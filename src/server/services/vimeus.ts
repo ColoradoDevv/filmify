@@ -432,12 +432,6 @@ export async function filterAvailableAnimes<T extends { id: number }>(
     return probeFilter(items, 'anime');
 }
 
-export async function getRecentlyAddedAnimes(limit = 20): Promise<VimeusAnime[]> {
-    if (!API_KEY) return [];
-    const data = await fetchAnimesPage(1);
-    return (data?.items ?? []).slice(0, limit);
-}
-
 export async function getVimeusAnimeCatalog(limit = 500): Promise<VimeusAnime[]> {
     if (!API_KEY) return [];
     const items: VimeusAnime[] = [];

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { serializeJsonLd } from '@/lib/json-ld';
 
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { CookieConsent } from "@/components/ui/CookieConsent";
+import ReducedMotionBoot from "@/components/layout/ReducedMotionBoot";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
@@ -144,7 +146,7 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
+            __html: serializeJsonLd([
               {
                 '@context': 'https://schema.org',
                 '@type': 'WebSite',
@@ -191,6 +193,7 @@ export default async function RootLayout({
             rechaza sin él. Sin esto GA4 no llegaba a inicializarse. */}
         <GoogleAnalytics gaId={gaId} nonce={nonce} />
         <CookieConsent />
+        <ReducedMotionBoot />
 
         <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
           {`

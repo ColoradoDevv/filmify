@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { serializeJsonLd } from '@/lib/json-ld';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Clock, Tag, Calendar, ArrowRight, BookOpen } from 'lucide-react';
@@ -195,7 +196,7 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
         <>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([articleJsonLd, breadcrumbJsonLd]) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd([articleJsonLd, breadcrumbJsonLd]) }} />
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
                 {/* Back */}

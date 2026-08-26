@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { safeInternalPath } from '@/lib/safe-path';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
@@ -126,9 +127,48 @@ export default async function middleware(request: NextRequest) {
     }
 
     const nonce = generateNonce();
+
+    // Orígenes de script del documento principal.
+    //
+    // Antes aquí ponía `https:`, que permite CUALQUIER origen HTTPS y deja el
+    // nonce sirviendo solo para los scripts inline: bastaba con inyectar
+    // `<script src="https://…">` en el HTML para ejecutarlo. Ahora es una lista
+    // explícita, y solo con lo que el documento carga de verdad:
+    //   - googletagmanager: Google Analytics (además va con nonce).
+    //   - analytics.filmify.me: analítica propia; ese <Script> NO lleva nonce,
+    //     así que depende de que su host esté permitido.
+    //
+    // Los anuncios NO entran aquí: viven en /ads/frame, que tiene su propia
+    // política más abajo. Si algún día se activa el formato «native»
+    // (NEXT_PUBLIC_ADSTERRA_NATIVE_SRC, hoy vacío), su script se inyecta en el
+    // documento principal y habrá que añadir su origen a esta lista.
+    const DOCUMENT_SCRIPT_SRC = [
+        `'self'`,
+        'https://www.googletagmanager.com',
+        'https://analytics.filmify.me',
+    ];
+
+    // El creativo publicitario encadena scripts por varios dominios de la red,
+    // imposibles de enumerar. Se le deja `https:` porque está encerrado en un
+    // iframe con sandbox y origen opaco (ver components/ads/AdBanner.tsx): lo
+    // que cargue ahí no puede tocar el documento que lo contiene.
+    const isAdFrame = pathname === '/ads/frame' || pathname.startsWith('/ads/frame/');
+
+    // 'unsafe-eval' SOLO en desarrollo: React lo usa ahí para reconstruir
+    // stacktraces que cruzan el límite servidor→cliente, y sin él la consola se
+    // llena de un error que no indica ningún fallo real. En producción React
+    // nunca llama a eval(), y permitirlo reabriría la ejecución de strings
+    // arbitrarios. Next inlinea NODE_ENV al compilar, así que el bundle de
+    // producción no contiene ni esta rama.
+    const scriptSrc = [
+        ...(isAdFrame ? [`'self'`, 'https:'] : DOCUMENT_SCRIPT_SRC),
+        `'nonce-${nonce}'`,
+        ...(process.env.NODE_ENV !== 'production' ? [`'unsafe-eval'`] : []),
+    ].join(' ');
+
     const csp = [
         `default-src 'self'`,
-        `script-src 'self' 'nonce-${nonce}' https:`,
+        `script-src ${scriptSrc}`,
         `style-src 'self' 'unsafe-inline' https:`,
         `img-src 'self' data: blob: https:`,
         `media-src 'self' blob: https:`,
@@ -275,10 +315,8 @@ export default async function middleware(request: NextRequest) {
 
     if (user && isAuthPage && !pathname.startsWith('/confirm-email') && !pathname.startsWith('/reset-password')) {
         const next = request.nextUrl.searchParams.get('next') ?? '/browse';
-        const isSafe = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') && (() => {
-            try { return new URL(next, 'https://filmify.me').hostname === 'filmify.me'; } catch { return false; }
-        })();
-        return NextResponse.redirect(new URL(isSafe ? next : '/browse', request.url));
+        // SEC-016 — misma regla que en login/actions.ts y MovieCard.
+        return NextResponse.redirect(new URL(safeInternalPath(next, '/browse'), request.url));
     }
 
     return response;

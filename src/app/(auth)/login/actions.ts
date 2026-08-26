@@ -4,20 +4,9 @@ import { createSupabaseServerClient as createClient, createSupabaseStatelessAdmi
 import { getSupabaseConfig } from '@/lib/env';
 import { redirect } from 'next/navigation';
 
-/**
- * SEC-016: Validates that a redirect path is a safe relative URL.
- */
-function isSafeRedirectPath(path: string): boolean {
-    if (!path || !path.startsWith('/')) return false;
-    if (path.startsWith('//')) return false;
-    if (path.startsWith('/\\')) return false;
-    try {
-        const url = new URL(path, 'https://filmify.me');
-        return url.hostname === 'filmify.me';
-    } catch {
-        return false;
-    }
-}
+// SEC-016: la comprobación vive en `@/lib/safe-path`, compartida con el
+// middleware y con MovieCard. Había tres copias a mano de la misma regla.
+import { safeInternalPath } from '@/lib/safe-path';
 
 export type LoginState = {
     error: string;
@@ -105,6 +94,8 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     }
 
     const next = String(formData.get('next') ?? '').trim();
-    const safePath = isSafeRedirectPath(next) ? next : '/browse';
+    // `safeInternalPath` reconstruye la ruta desde sus componentes en vez de
+    // devolver la entrada: la salida no puede llevar esquema pase lo que pase.
+    const safePath = safeInternalPath(next, '/browse');
     return redirect(safePath);
 }

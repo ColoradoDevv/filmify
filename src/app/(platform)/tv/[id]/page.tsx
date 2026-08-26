@@ -1,4 +1,5 @@
 import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
+import { serializeJsonLd } from '@/lib/json-ld';
 import { getYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
 import {
@@ -303,7 +304,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
         <>
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
             />
 
             {/* ── Cuevana/LaMovie-style layout: player front and center ── */}

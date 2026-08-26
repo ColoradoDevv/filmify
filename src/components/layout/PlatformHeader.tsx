@@ -9,19 +9,43 @@ import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supaba
 import SearchInput from '@/components/features/SearchInput';
 import NotificationCenter from '@/components/layout/navbar/NotificationCenter';
 import useFavoritesSync from '@/hooks/useFavoritesSync';
+import useWatchHistorySync from '@/hooks/useWatchHistorySync';
 
 const supabase = createClient();
+
+/**
+ * Rutas que traen su propio buscador dentro del contenido.
+ *
+ * Solo queda el anime: busca contra el índice de AniList, no contra el catálogo
+ * general, así que son dos cosas distintas y tener las dos a la vista confunde.
+ *
+ * `/search` ya NO está aquí. Antes tenía su propio input y quedaban dos barras
+ * casi idénticas sin forma de saber cuál hacía qué; ahora esa pantalla solo
+ * pinta resultados y la consulta llega por `?q=` desde esta misma barra.
+ *
+ * La coincidencia es EXACTA a propósito: `/anime/[id]` es una ficha y no tiene
+ * buscador propio, así que allí el del navbar es la única forma de buscar.
+ */
+const ROUTES_WITH_OWN_SEARCH = new Set(['/anime']);
+
+function hasOwnSearchBar(pathname: string | null): boolean {
+    if (!pathname) return false;
+    // Normaliza la barra final: '/anime/' y '/anime' son la misma ruta.
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    return ROUTES_WITH_OWN_SEARCH.has(normalized);
+}
 
 export default function PlatformHeader() {
     const router = useRouter();
     const pathname = usePathname();
-    const isSearchPage = pathname?.startsWith('/search') ?? false;
+    const ownSearchBar = hasOwnSearchBar(pathname);
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [searchFocused, setSearchFocused] = useState(false);
 
     useFavoritesSync();
+    useWatchHistorySync();
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -51,17 +75,32 @@ export default function PlatformHeader() {
                 style={{ top: 'var(--announcement-height, 0px)' }}
                 className="sticky z-40 h-14 bg-surface-container-low border-b border-outline-variant px-4 flex items-center justify-between gap-3"
             >
-                {/* Logo móvil — siempre visible (el search está oculto en móvil) */}
+                {/* Logo móvil. Al enfocar el buscador se queda solo el icono: en 375px
+                    la marca escrita se come el ancho que necesita el input. */}
                 <div className="flex items-center gap-2 lg:hidden shrink-0">
                     <Link href="/" className="flex items-center gap-2" aria-label="Inicio">
                         <img src="/logo-icon.svg" alt="FilmiFy" className="h-7 w-7" />
-                        <span className="hidden min-[400px]:inline md3-title-large text-on-surface font-medium">FilmiFy</span>
+                        <span
+                            className={`md3-title-large text-on-surface font-medium ${
+                                searchFocused ? 'hidden' : 'hidden min-[400px]:inline'
+                            }`}
+                        >
+                            FilmiFy
+                        </span>
                     </Link>
                 </div>
 
-                {/* Search — solo visible en desktop (lg+); en móvil se accede desde la pestaña de búsqueda */}
+                {/* Search — visible en TODOS los tamaños: es la única barra del sitio.
+                    Llevaba `hidden lg:block`, así que en móvil no había ninguna y la pestaña
+                    "Buscar" tenía que llevar a una pantalla con su propio input. La animación
+                    de `searchFocused` —que aparta los iconos de acción en móvil para dejarle
+                    sitio— estaba escrita para esto y no llegaba a ejecutarse nunca.
+
+                    El contenedor se pinta siempre, aunque el input no (en /anime): es el
+                    `flex-1` que empuja las acciones al borde derecho. Sin él quedaría un solo
+                    hijo visible y `justify-between` mandaría el botón de sesión a la izquierda. */}
                 <div
-                    className={`flex-1 min-w-0 transition-all duration-300 ease-out hidden lg:block ${isSearchPage ? 'hidden lg:block' : ''} ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
+                    className={`flex-1 min-w-0 transition-all duration-300 ease-out ${searchFocused ? 'max-w-full' : 'max-w-sm'}`}
                     onFocusCapture={() => setSearchFocused(true)}
                     onBlurCapture={(e) => {
                         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -69,7 +108,7 @@ export default function PlatformHeader() {
                         }
                     }}
                 >
-                    <SearchInput className="w-full" placeholder="Buscar…" />
+                    {!ownSearchBar && <SearchInput className="w-full" placeholder="Buscar…" />}
                 </div>
 
                 {/* Actions */}

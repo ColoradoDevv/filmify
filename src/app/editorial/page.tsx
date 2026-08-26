@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { serializeJsonLd } from '@/lib/json-ld';
 import Link from 'next/link';
 import {
     Clock, ArrowRight, ExternalLink, Rss, Film, Flame,
@@ -252,7 +253,7 @@ export default async function EditorialPage() {
                 {/* JSON-LD */}
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify([structuredData, breadcrumbData]) }}
+                dangerouslySetInnerHTML={{ __html: serializeJsonLd([structuredData, breadcrumbData]) }}
             />
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
 

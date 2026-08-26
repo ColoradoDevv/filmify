@@ -135,7 +135,10 @@ export default function MovieGrid({
                 {movies.map((movie, index) => (
                     <div
                         key={`${movie.id}-${index}`}
-                        className="animate-fade-in-up"
+                        // `animate-fade-in-up` deja un transform fijado (fill-mode: both),
+                        // que crea contexto de apilamiento: el `hover:z-10` de la tarjeta
+                        // quedaría atrapado dentro y su sombra, tapada por las vecinas.
+                        className="animate-fade-in-up hover:z-10 focus-within:z-10"
                         style={{ animationDelay: cardAnimationDelay(index) }}
                         role="listitem"
                     >
