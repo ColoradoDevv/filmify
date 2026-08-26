@@ -9,7 +9,11 @@ import {
 } from '@/server/services/vimeus';
 import { anilistFromTmdb } from '@/server/services/anime';
 import { readUserPreferences } from '@/server/repositories/user-preferences';
+import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
 import type { Movie, TVShow, MultiSearchResult } from '@/types/tmdb';
+
+/** tmdb_id → anilist_id. Mapa estático (~57 KB, 4166 entradas), en memoria. */
+const ANIME_BY_TMDB = ANIME_TMDB_REDIRECTS as Record<string, number>;
 
 /**
  * Resultado de búsqueda unificado: película, serie o anime, con su tipo.
@@ -128,4 +132,45 @@ export async function searchTitles(query: string): Promise<SearchResultItem[]> {
             anilist_id: anilistByTmdb.get(r.id),
         } as SearchResultItem;
     });
+}
+
+/**
+ * Sugerencias para el desplegable de la barra de búsqueda.
+ *
+ * Es la versión BARATA de `searchTitles`, y la diferencia es deliberada.
+ * `searchTitles` sondea el proveedor título a título (`filterAvailable*`) y
+ * pide a AniList el id de cada anime: entre 0,7 y 1,6 segundos por consulta,
+ * medido. Eso es asumible al aterrizar en /search, pero no en un desplegable
+ * que se refresca mientras se teclea — ahí Google y YouTube responden por
+ * debajo de 100 ms, y es lo que hace que se sientan instantáneos.
+ *
+ * Aquí solo se consulta TMDB (cacheado 60 s) y se etiqueta el anime con el
+ * mapa estático que ya usa el middleware para sus redirecciones, que está en
+ * memoria y no cuesta nada.
+ *
+ * El precio: una sugerencia puede llevar a un título sin fuentes. Se asume a
+ * propósito. Sugerir es orientar; confirmar es lo que hace /search, que sí
+ * filtra.
+ */
+export async function suggestTitles(query: string, limit = 6): Promise<SearchResultItem[]> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+
+    try {
+        const preferences = await readUserPreferences();
+        const data = await searchMulti(q, 1, preferences.playback.adultContent);
+
+        return (data.results ?? [])
+            .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
+            .slice(0, limit)
+            .map((r) => {
+                if (r.media_type !== 'tv') return r as SearchResultItem;
+                const anilistId = ANIME_BY_TMDB[String(r.id)];
+                if (!anilistId) return r as SearchResultItem;
+                return { ...r, media_type: 'anime', anilist_id: anilistId } as SearchResultItem;
+            });
+    } catch (error) {
+        console.error('[suggestTitles] TMDB search failed:', error);
+        return [];
+    }
 }

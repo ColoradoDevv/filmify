@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { getPosterUrl, getProfileUrl } from '@/server/services/tmdb';
 import type { MultiSearchResult, Movie, TVShow, Person } from '@/types/tmdb';
-import { searchTitles, type SearchResultItem } from '@/app/actions/search';
+import { suggestTitles, type SearchResultItem } from '@/app/actions/search';
 import {
     addToHistory, getHistory, clearHistory, SearchHistoryItem,
 } from '@/lib/supabase/history';
@@ -42,6 +42,33 @@ const getYear = (item: SearchResultItem | MultiSearchResult): string => {
     if (item.media_type === 'tv' || item.media_type === 'anime') return (item as TVShow).first_air_date?.split('-')[0] ?? '';
     return '';
 };
+
+/**
+ * Resalta en negrita el trozo que coincide con lo tecleado.
+ *
+ * Es lo que hace que el desplegable de Google o YouTube se lea de un vistazo:
+ * el ojo salta a la diferencia en vez de leer cada fila entera.
+ */
+function Highlight({ text, match }: { text: string; match: string }) {
+    const needle = match.trim();
+    if (!needle) return <>{text}</>;
+
+    const at = text.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase());
+    if (at === -1) return <>{text}</>;
+
+    return (
+        <>
+            {text.slice(0, at)}
+            <mark className="bg-transparent text-primary font-semibold">
+                {text.slice(at, at + needle.length)}
+            </mark>
+            {text.slice(at + needle.length)}
+        </>
+    );
+}
+
+/** Búsquedas recientes que encajan con lo tecleado. */
+const MAX_HISTORY_WHILE_TYPING = 3;
 
 // ── Tipos para el dropdown ────────────────────────────────────────────
 type DropdownItem =
@@ -103,16 +130,17 @@ export default function SearchInput({
             return;
         }
 
-        // Usa el mismo server action que la página de búsqueda: solo devuelve
-        // títulos reproducibles (películas + series), sin personas ni títulos
-        // no disponibles en el proveedor.
+        // `suggestTitles` y no `searchTitles`: el segundo sondea el proveedor
+        // título a título y tarda entre 0,7 y 1,6 s (medido). Para un desplegable
+        // que se refresca al teclear eso es inaceptable — el filtro de
+        // disponibilidad se aplica al aterrizar en /search.
         let cancelled = false;
         const timer = setTimeout(async () => {
             setLoading(true);
             try {
-                const items = await searchTitles(query.trim());
+                const items = await suggestTitles(query.trim());
                 if (cancelled || !isMounted.current) return;
-                setSuggestions(items.slice(0, 6));
+                setSuggestions(items);
                 setActiveIndex(-1);
             } catch (e) {
                 if (!cancelled) console.error('Search error:', e);
@@ -199,8 +227,11 @@ export default function SearchInput({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (!showSuggestions) return;
 
+        // Sobre `visibleHistory`, no sobre `history`: al teclear solo se pintan
+        // las recientes que coinciden, y usar la lista completa desplazaba el
+        // índice —la flecha abajo seleccionaba filas que no estaban en pantalla.
         const allItems: DropdownItem[] = [
-            ...history.map((h) => ({ type: 'history' as const, item: h })),
+            ...visibleHistory.map((h) => ({ type: 'history' as const, item: h })),
             ...suggestions.map((s) => ({ type: 'suggestion' as const, item: s })),
         ];
         const totalItems = allItems.length;
@@ -236,7 +267,23 @@ export default function SearchInput({
         setActiveIndex(-1);
     };
 
-    const showDropdown = showSuggestions && (query.trim().length >= 2 || history.length > 0);
+    /**
+     * Recientes que se muestran.
+     *
+     * Antes el desplegable era excluyente: historial con menos de 2 caracteres,
+     * sugerencias a partir de ahí. Al empezar a escribir desaparecían tus
+     * búsquedas anteriores, justo cuando más sirven. Google y YouTube las
+     * mantienen arriba filtradas por lo tecleado, y es lo que se hace aquí.
+     */
+    const visibleHistory = (() => {
+        const q = query.trim().toLocaleLowerCase();
+        if (q.length < 2) return history;
+        return history
+            .filter((h) => h.query.toLocaleLowerCase().includes(q) && h.query.toLocaleLowerCase() !== q)
+            .slice(0, MAX_HISTORY_WHILE_TYPING);
+    })();
+
+    const showDropdown = showSuggestions && (query.trim().length >= 2 || visibleHistory.length > 0);
 
     return (
         <div ref={wrapperRef} className={`relative ${className}`}>
@@ -299,8 +346,8 @@ export default function SearchInput({
                     role="listbox"
                     aria-label="Sugerencias de búsqueda"
                 >
-                        {/* Sección de historial */}
-                        {query.trim().length < 2 && history.length > 0 && (
+                        {/* Sección de historial — también mientras se teclea, filtrada */}
+                        {visibleHistory.length > 0 && (
                             <li role="presentation">
                                 <div className="px-4 py-2 flex items-center justify-between">
                                     <span className="text-xs text-text-muted uppercase font-semibold tracking-wider">
@@ -319,23 +366,22 @@ export default function SearchInput({
                                 </div>
                             </li>
                         )}
-                        {query.trim().length < 2 && history.length > 0 &&
-                            history.map((item, idx) => (
-                                <li
-                                    key={item.id}
-                                    role="option"
-                                    aria-selected={activeIndex === idx}
-                                    onClick={() => goToSearch(item.query)}
-                                    className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
-                                        activeIndex === idx ? 'bg-surface-light/80 ring-1 ring-primary/30' : ''
-                                    }`}
-                                >
-                                    <Clock className="w-4 h-4 text-text-secondary" />
-                                    <span className="text-sm text-text-primary">
-                                        {item.query}
-                                    </span>
-                                </li>
-                            ))}
+                        {visibleHistory.map((item, idx) => (
+                            <li
+                                key={item.id}
+                                role="option"
+                                aria-selected={activeIndex === idx}
+                                onClick={() => goToSearch(item.query)}
+                                className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-surface-light/50 transition-colors text-left cursor-pointer tv-focusable focus:bg-surface-light/80 focus:outline-none ${
+                                    activeIndex === idx ? 'bg-surface-light/80 ring-1 ring-primary/30' : ''
+                                }`}
+                            >
+                                <Clock className="w-4 h-4 text-text-secondary shrink-0" />
+                                <span className="text-sm text-text-primary truncate">
+                                    <Highlight text={item.query} match={query} />
+                                </span>
+                            </li>
+                        ))}
 
                         {/* Sección de sugerencias */}
                         {query.trim().length >= 2 && suggestions.length > 0 && (
@@ -347,7 +393,7 @@ export default function SearchInput({
                         )}
                         {query.trim().length >= 2 && suggestions.length > 0 &&
                             suggestions.map((item, idx) => {
-                                    const globalIdx = history.length + idx;
+                                    const globalIdx = visibleHistory.length + idx;
                                     return (
                                         <li
                                             key={`${item.media_type}-${item.id}`}
@@ -376,7 +422,7 @@ export default function SearchInput({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm text-text-primary font-medium truncate">
-                                                        {getTitle(item)}
+                                                        <Highlight text={getTitle(item)} match={query} />
                                                     </span>
                                                     <span className="text-xs text-text-muted flex-shrink-0">
                                                         {getYear(item)}
