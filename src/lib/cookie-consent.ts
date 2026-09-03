@@ -26,14 +26,54 @@ const DEFAULT_OPT_OUT: ConsentState = { analytics: true, marketing: true };
 /**
  * ¿Este visitante necesita dar consentimiento PREVIO?
  *
- * Lo decide el middleware por geo (`cf-ipcountry`) y lo publica en el atributo
- * `data-consent-required` del <html>. Si el atributo no está —render fuera del
- * layout, HTML cacheado antiguo, o el dominio sin proxy de Cloudflare— se
- * asume que sí, que es el lado seguro.
+ * Antes lo decidía el middleware por geo (`cf-ipcountry`) y lo publicaba en
+ * el atributo `data-consent-required` del <html>, leído en el layout raíz
+ * con `headers()`. Esa llamada por sí sola bastaba para que Next marcara
+ * CUALQUIER página como dinámica (nada de ISR), justo lo que le impedía a
+ * Cloudflare cachear cualquier ruta (ver CLAUDE.md, fix de rendimiento
+ * sep-2026). Ahora se resuelve aquí, en cliente, contra `/api/consent-region`
+ * (siempre dinámica, no afecta al resto de páginas).
+ */
+let strictRegion: boolean | null = null;
+let pending: Promise<boolean> | null = null;
+
+function fetchRegion(): Promise<boolean> {
+    if (strictRegion !== null) return Promise.resolve(strictRegion);
+    if (pending) return pending;
+    pending = fetch('/api/consent-region', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => !!d.required)
+        .catch(() => true) // fallo de red: lado seguro (EEE)
+        .then((required) => {
+            strictRegion = required;
+            pending = null;
+            return required;
+        });
+    return pending;
+}
+
+/**
+ * Resuelve si el visitante necesita consentimiento previo. Lanza y memoiza
+ * la consulta a `/api/consent-region` la primera vez que se llama.
+ */
+export async function resolveConsentRequired(): Promise<boolean> {
+    if (typeof document === 'undefined') return true;
+    return fetchRegion();
+}
+
+/**
+ * Versión sincrónica para lecturas que no pueden esperar (`getConsent`,
+ * suscriptores en vivo). Antes de resolver asume el lado estricto (EEE) y
+ * lanza la resolución en segundo plano; si el resultado difiere y todavía no
+ * hay una decisión guardada, avisa a los suscriptores de `onConsentChange`.
  */
 export function isConsentRequired(): boolean {
     if (typeof document === 'undefined') return true;
-    return document.documentElement.dataset.consentRequired !== '0';
+    if (strictRegion !== null) return strictRegion;
+    fetchRegion().then((required) => {
+        if (!required && !hasDecided()) emitConsentChange();
+    });
+    return true;
 }
 
 /** Estado inicial aplicable a este visitante mientras no haya decidido. */

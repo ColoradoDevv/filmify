@@ -5,12 +5,34 @@ import { getSupabaseConfig } from '@/lib/env';
 import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
 
 /** Generate a cryptographically random base64 nonce using the Web Crypto API.
- *  Works in both Edge Runtime and Node.js — no 'crypto' module import needed. */
+ *  Works in both Edge Runtime and Node.js — no 'crypto' module import needed.
+ *  Solo lo usa /ads/frame (ver isAdFrame más abajo): ese endpoint firma
+ *  inline un valor que sí varía por petición (la clave de zona), así que
+ *  necesita un nonce de verdad. */
 function generateNonce(): string {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
     return btoa(String.fromCharCode(...bytes));
 }
+
+// El documento público NO usa nonce en su CSP (ver más abajo, `scriptSrc`).
+//
+// Se probó hash-based CSP para los 3 scripts inline propios (GA, consent
+// mode, registro del SW) — funciona para ESOS, pero Next.js aplica el nonce
+// TAMBIÉN a sus propios scripts internos de hidratación RSC (contenido que
+// cambia en cada render, imposible de hashear con una lista fija). Probado
+// en local: sin nonce, esos scripts internos violan el CSP igual que los
+// nuestros — 8 violaciones distintas en consola, GA y el SW rotos.
+//
+// Y por documentación oficial de Next (content-security-policy.md): "when
+// you use nonces... all pages must be dynamically rendered... Static
+// optimization and ISR are disabled... Pages cannot be cached by CDNs." No
+// hay término medio — con nonce, ISR y caché de CDN quedan descartados de
+// raíz, sea cual sea el resto del código. Dado que el objetivo es que
+// Cloudflare cachee las rutas públicas, se opta por `'unsafe-inline'` en su
+// lugar (recomendado por la propia guía de Next para apps sin ese
+// requisito) — el resto del CSP (orígenes externos, frame-src, object-src
+// 'none', JSON-LD ya escapado vía serializeJsonLd) sigue igual de estricto.
 
 // ── Route classification ──────────────────────────────────────────────────────
 
@@ -54,37 +76,13 @@ function setCachedBan(ip: string, banned: boolean): void {
     ipBanCache.set(ip, { banned, at: Date.now() });
 }
 
-// ── Consentimiento por región ─────────────────────────────────────────────────
-/**
- * Países donde el consentimiento PREVIO es obligatorio: EEE (UE + Islandia,
- * Liechtenstein y Noruega), Reino Unido y Suiza.
- *
- * Fuera de esa lista el sitio usa un modelo de exclusión: la analítica y los
- * anuncios cargan por defecto y el visitante puede rechazarlos desde el mismo
- * banner. Antes el estado inicial era "todo denegado" en el mundo entero, así
- * que quien ignoraba el banner —la mayoría— no veía anuncios nunca.
- */
-const CONSENT_REQUIRED_COUNTRIES = new Set([
-    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
-    'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK',
-    'SI', 'ES', 'SE',
-    'IS', 'LI', 'NO',
-    'GB', 'CH',
-]);
-
-/**
- * ¿Hay que pedir consentimiento previo a este visitante?
- *
- * `cf-ipcountry` la inyecta Cloudflare y SOLO existe si el dominio está
- * proxeado (nube naranja). Sin cabecera no se adivina: se asume que sí hace
- * falta, que es el lado seguro. Es decir, pasar filmify.me a "solo DNS" deja
- * el sitio entero en modo estricto y vuelve a hundir las impresiones.
- */
-function isConsentRequired(request: NextRequest): boolean {
-    const country = request.headers.get('cf-ipcountry')?.toUpperCase();
-    if (!country || country === 'XX' || country === 'T1') return true;
-    return CONSENT_REQUIRED_COUNTRIES.has(country);
-}
+// Nota: el consentimiento por región (EEE/UK/CH) ya no se resuelve aquí.
+// Antes se calculaba por geo (`cf-ipcountry`) y se publicaba como header para
+// que el layout raíz lo leyera con `headers()` — pero esa llamada por sí
+// sola bastaba para que Next tratara CUALQUIER página como dinámica (nada de
+// ISR), justo lo que le impedía a Cloudflare cachear ninguna ruta. Ahora lo
+// resuelve el cliente contra `/api/consent-region` (ver ese route handler y
+// `@/lib/consent-region`), que sigue siendo la misma lista de países.
 
 // ── Security headers ──────────────────────────────────────────────────────────
 const SECURITY_HEADERS: Record<string, string> = {
@@ -126,45 +124,56 @@ export default async function middleware(request: NextRequest) {
         }
     }
 
-    const nonce = generateNonce();
-
-    // Orígenes de script del documento principal.
-    //
-    // Antes aquí ponía `https:`, que permite CUALQUIER origen HTTPS y deja el
-    // nonce sirviendo solo para los scripts inline: bastaba con inyectar
-    // `<script src="https://…">` en el HTML para ejecutarlo. Ahora es una lista
-    // explícita, y solo con lo que el documento carga de verdad:
-    //   - googletagmanager: Google Analytics (además va con nonce).
-    //   - analytics.filmify.me: analítica propia; ese <Script> NO lleva nonce,
-    //     así que depende de que su host esté permitido.
-    //
-    // Los anuncios NO entran aquí: viven en /ads/frame, que tiene su propia
-    // política más abajo. Si algún día se activa el formato «native»
-    // (NEXT_PUBLIC_ADSTERRA_NATIVE_SRC, hoy vacío), su script se inyecta en el
-    // documento principal y habrá que añadir su origen a esta lista.
-    const DOCUMENT_SCRIPT_SRC = [
-        `'self'`,
-        'https://www.googletagmanager.com',
-        'https://analytics.filmify.me',
-    ];
-
     // El creativo publicitario encadena scripts por varios dominios de la red,
     // imposibles de enumerar. Se le deja `https:` porque está encerrado en un
     // iframe con sandbox y origen opaco (ver components/ads/AdBanner.tsx): lo
     // que cargue ahí no puede tocar el documento que lo contiene.
     const isAdFrame = pathname === '/ads/frame' || pathname.startsWith('/ads/frame/');
 
-    // 'unsafe-eval' SOLO en desarrollo: React lo usa ahí para reconstruir
-    // stacktraces que cruzan el límite servidor→cliente, y sin él la consola se
-    // llena de un error que no indica ningún fallo real. En producción React
-    // nunca llama a eval(), y permitirlo reabriría la ejecución de strings
-    // arbitrarios. Next inlinea NODE_ENV al compilar, así que el bundle de
-    // producción no contiene ni esta rama.
-    const scriptSrc = [
-        ...(isAdFrame ? [`'self'`, 'https:'] : DOCUMENT_SCRIPT_SRC),
-        `'nonce-${nonce}'`,
-        ...(process.env.NODE_ENV !== 'production' ? [`'unsafe-eval'`] : []),
-    ].join(' ');
+    // El nonce solo hace falta en /ads/frame: ese endpoint firma inline un
+    // valor que sí varía por petición (la clave de zona). Generarlo siempre
+    // es barato, pero solo se adjunta a la petición (x-nonce) porque esa
+    // ruta lee la cabecera con headers() en su propio route handler — un
+    // Route Handler `force-dynamic`, no una página, así que no afecta a la
+    // estaticidad de ninguna otra ruta.
+    const nonce = generateNonce();
+
+    let scriptSrc: string;
+    if (isAdFrame) {
+        scriptSrc = [`'self'`, 'https:', `'nonce-${nonce}'`].join(' ');
+    } else {
+        // Orígenes de script del documento principal.
+        //
+        // Antes aquí ponía `https:`, que permite CUALQUIER origen HTTPS —
+        // ahora es una lista explícita, y solo con lo que el documento carga
+        // de verdad: googletagmanager (Google Analytics) y analytics.filmify.me
+        // (analítica propia).
+        //
+        // 'unsafe-inline': sin nonce (ver nota arriba de por qué no lo lleva
+        // el documento), es lo único que permite ejecutar los scripts inline
+        // propios (@/lib/inline-scripts) Y los internos de hidratación de
+        // Next/React. Elegido deliberadamente sobre mantener el nonce a
+        // costa de ISR/caché de CDN — decisión explícita, no un descuido.
+        //
+        // Los anuncios NO entran aquí: viven en /ads/frame, arriba (con
+        // nonce de verdad, porque ahí sí varía por petición). Si algún día se
+        // activa el formato «native» (NEXT_PUBLIC_ADSTERRA_NATIVE_SRC, hoy
+        // vacío), su script se inyecta en el documento principal y habrá que
+        // añadir su origen a esta lista.
+        scriptSrc = [
+            `'self'`,
+            `'unsafe-inline'`,
+            'https://www.googletagmanager.com',
+            'https://analytics.filmify.me',
+            // 'unsafe-eval' SOLO en desarrollo: React lo usa ahí para reconstruir
+            // stacktraces que cruzan el límite servidor→cliente, y sin él la
+            // consola se llena de un error que no indica ningún fallo real. En
+            // producción React nunca llama a eval(), y permitirlo reabriría la
+            // ejecución de strings arbitrarios. Next inlinea NODE_ENV al
+            // compilar, así que el bundle de producción no contiene ni esta rama.
+            ...(process.env.NODE_ENV !== 'production' ? [`'unsafe-eval'`] : []),
+        ].join(' ');
+    }
 
     const csp = [
         `default-src 'self'`,
@@ -185,7 +194,6 @@ export default async function middleware(request: NextRequest) {
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-nonce', nonce);
-    requestHeaders.set('x-consent-required', isConsentRequired(request) ? '1' : '0');
 
     let response = NextResponse.next({ request: { headers: requestHeaders } });
     Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
@@ -199,6 +207,14 @@ export default async function middleware(request: NextRequest) {
         if (needsAuth) return NextResponse.redirect(new URL('/', request.url));
         return response;
     }
+
+    // Visitante anónimo: sin cookie `sb-*` no hay sesión que refrescar. Saltarse
+    // auth.getUser() evita que setAll() dispare y recree `response` con
+    // Set-Cookie — eso es lo que hace que Cloudflare (y el propio Cache-Control
+    // que emite Next para una respuesta con cookies de sesión) traten la
+    // petición como no cacheable. El cliente igual se construye: ip_bans se
+    // consulta también para anónimos y esa llamada no toca cookies.
+    const hasSupabaseSessionCookie = request.cookies.getAll().some(({ name }) => name.startsWith('sb-'));
 
     // Create Supabase server client once (guarded)
     let supabase: any = null;
@@ -221,15 +237,17 @@ export default async function middleware(request: NextRequest) {
             },
         });
 
-        try {
-            // Attempt to read current user/session. Not fatal if it errors.
-            const session = await supabase.auth.getUser();
-            user = session?.data?.user ?? null;
-            authError = session?.error ?? null;
-        } catch (err) {
-            console.warn('[middleware] supabase.auth.getUser() failed', err);
-            authError = err;
-            user = null;
+        if (hasSupabaseSessionCookie) {
+            try {
+                // Attempt to read current user/session. Not fatal if it errors.
+                const session = await supabase.auth.getUser();
+                user = session?.data?.user ?? null;
+                authError = session?.error ?? null;
+            } catch (err) {
+                console.warn('[middleware] supabase.auth.getUser() failed', err);
+                authError = err;
+                user = null;
+            }
         }
     } catch (err) {
         console.error('[middleware] failed to create Supabase server client', err);

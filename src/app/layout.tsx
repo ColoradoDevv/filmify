@@ -4,18 +4,17 @@ import { serializeJsonLd } from '@/lib/json-ld';
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
-import { GoogleAnalytics } from '@next/third-parties/google';
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import ReducedMotionBoot from "@/components/layout/ReducedMotionBoot";
+import TVModeBoot from "@/components/layout/TVModeBoot";
 import WhatsNewModal from "@/components/WhatsNewModal";
 import Script from "next/script";
 import { getOptionalApiKeys } from '@/lib/env';
+import { buildGaInitScript, CONSENT_MODE_DEFAULT_SCRIPT, REGISTER_SW_SCRIPT } from '@/lib/inline-scripts';
 import SystemAnnouncement from "@/components/SystemAnnouncement";
 import { DonateFloating } from "@/components/ui/DonateButton";
 
 import { Toaster } from "sonner";
-import { isTVDevice } from "@/lib/device-detection";
-import { headers } from "next/headers";
 
 
 
@@ -108,24 +107,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
-
-  const isTV = await isTVDevice();
-  const headersList = await headers();
-  const nonce = headersList.get('x-nonce') ?? undefined;
-  // Régimen de consentimiento del visitante, resuelto por geo en el middleware.
-  // Viaja al cliente como atributo del <html> para que el banner y los
-  // componentes de anuncios lo lean sin una petición extra ni parpadeo.
-  const consentRequired = headersList.get('x-consent-required') !== '0';
-  const consentDefault = consentRequired ? 'denied' : 'granted';
-
   return (
-    <html lang="es" suppressHydrationWarning data-consent-required={consentRequired ? '1' : '0'}>
+    <html lang="es" suppressHydrationWarning>
       <head>
 
         {/* Apple touch icons. La convención src/app/apple-icon.png ya emite el
@@ -180,46 +168,44 @@ export default async function RootLayout({
       <body
         suppressHydrationWarning
         style={{ paddingTop: 'var(--announcement-height, 0px)' }}
-        className={`${geistSans.variable} ${geistMono.variable} antialiased text-white ${isTV ? 'tv-mode' : ''}`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased text-white`}
       >
         <SystemAnnouncement />
         <Toaster position="top-center" richColors />
         {children}
 
-        {/* Botón flotante de donación — en toda la app excepto modo TV.
-            Persistente, descartable por 7 días (recordado en localStorage). */}
-        {!isTV && <DonateFloating />}
+        {/* Botón flotante de donación. Oculto en modo TV vía CSS
+            (body.tv-mode .donate-floating, globals.css) — la detección de TV
+            corre en cliente (TVModeBoot), no aquí. Persistente, descartable
+            por 7 días (recordado en localStorage). */}
+        <DonateFloating />
 
-        {/* nonce: el componente inyecta un <script> inline y nuestro CSP lo
-            rechaza sin él. Sin esto GA4 no llegaba a inicializarse. */}
-        <GoogleAnalytics gaId={gaId} nonce={nonce} />
+        {/* Analítica de Google. Sin nonce: contenido fijo por despliegue
+            (ver @/lib/inline-scripts), permitido en el CSP por hash. */}
+        <Script id="_next-ga-init" strategy="afterInteractive">
+          {buildGaInitScript(gaId)}
+        </Script>
+        <Script
+          id="_next-ga"
+          src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+          strategy="afterInteractive"
+        />
         <CookieConsent />
         <ReducedMotionBoot />
+        <TVModeBoot />
         <WhatsNewModal />
 
-        <Script id="google-consent-mode" strategy="beforeInteractive" nonce={nonce}>
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('consent', 'default', {
-              'ad_storage': '${consentDefault}',
-              'ad_user_data': '${consentDefault}',
-              'ad_personalization': '${consentDefault}',
-              'analytics_storage': '${consentDefault}'
-            });
-          `}
+        {/* Sin nonce: contenido fijo (ver @/lib/inline-scripts), permitido
+            en el CSP por hash en vez de por nonce por petición. */}
+        <Script id="google-consent-mode" strategy="beforeInteractive">
+          {CONSENT_MODE_DEFAULT_SCRIPT}
         </Script>
 
-        {/* nonce: sin él el CSP bloquea el script y el service worker nunca
-            se registra (la PWA deja de instalarse y de cachear). */}
-        <Script id="register-sw" strategy="afterInteractive" nonce={nonce}>
-          {`
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('Service worker registered:', reg.scope))
-                .catch(err => console.warn('SW registration failed:', err));
-            }
-          `}
+        {/* Sin nonce: mismo motivo. Sin esto el CSP bloquearía el script y
+            el service worker nunca se registraría (la PWA deja de
+            instalarse y de cachear). */}
+        <Script id="register-sw" strategy="afterInteractive">
+          {REGISTER_SW_SCRIPT}
         </Script>
 
         <Script

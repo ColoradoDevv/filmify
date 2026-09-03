@@ -592,7 +592,8 @@ body.tv-mode *:focus {
 /* Hide default layout elements in TV mode */
 body.tv-mode aside:not(.tv-sidebar),
 body.tv-mode header,
-body.tv-mode .platform-content {
+body.tv-mode .platform-content,
+body.tv-mode .donate-floating {
   display: none !important;
 }
 
