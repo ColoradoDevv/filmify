@@ -80,7 +80,7 @@ export function DonateFloating() {
     if (hidden) return null;
 
     return (
-        <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
+        <div className="donate-floating fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
             <div className="relative">
                 <Link
                     {...donateLinkProps()}

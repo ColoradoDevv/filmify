@@ -8,10 +8,12 @@ interface ModalProps {
     onClose: () => void;
     title: string;
     description?: string;
+    /** Icono/logo opcional a la izquierda del título. */
+    icon?: React.ReactNode;
     children: React.ReactNode;
 }
 
-export default function Modal({ isOpen, onClose, title, description, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, description, icon, children }: ModalProps) {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -38,9 +40,12 @@ export default function Modal({ isOpen, onClose, title, description, children }:
             {/* Modal Content */}
             <div className={`relative bg-surface border border-surface-light rounded-2xl w-full max-w-md shadow-2xl transform transition-all duration-300 ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
                 <div className="flex items-center justify-between p-6 border-b border-surface-light">
-                    <div>
-                        <h3 className="text-xl font-bold text-white">{title}</h3>
-                        {description && <p className="text-sm text-gray-400 mt-1">{description}</p>}
+                    <div className="flex items-center gap-3 min-w-0">
+                        {icon}
+                        <div className="min-w-0">
+                            <h3 className="text-xl font-bold text-white">{title}</h3>
+                            {description && <p className="text-sm text-gray-400 mt-1">{description}</p>}
+                        </div>
                     </div>
                     <button
                         onClick={onClose}

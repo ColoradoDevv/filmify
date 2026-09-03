@@ -1,0 +1,135 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Sparkles, Lightbulb, ChevronRight } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+import { hasDecided, CONSENT_EVENT } from '@/lib/cookie-consent';
+import { registerVisit } from '@/lib/visit-tracking';
+import { RELEASE_NOTES, RELEASE_VERSION } from '@/lib/release-notes';
+
+/** Última versión cuyas notas cerró esta persona. */
+const SEEN_KEY = 'filmify_release_notes_seen';
+
+/** Visitas necesarias para considerar a alguien recurrente. */
+const MIN_VISITS = 2;
+
+/**
+ * Modal de «qué hay de nuevo».
+ *
+ * Se muestra UNA sola vez por persona y por versión, y solo a quien ya había
+ * entrado antes: a quien llega por primera vez no se le cuenta lo que ha
+ * cambiado, porque no conoció lo anterior. Cerrarlo guarda la versión; el modal
+ * no vuelve hasta que `RELEASE_VERSION` cambie.
+ *
+ * No sustituye a `AnnouncementBanner`, que sigue igual para los avisos
+ * operativos del panel de administración. Este componente solo añade el modal.
+ *
+ * Espera a que se haya respondido al banner de cookies: apilar dos capas
+ * modales sobre alguien que acaba de entrar es la forma más rápida de que
+ * despache las dos sin leer ninguna.
+ */
+export default function WhatsNewModal() {
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        const visits = registerVisit();
+        if (visits < MIN_VISITS) return;
+
+        let seen: string | null = null;
+        try {
+            seen = localStorage.getItem(SEEN_KEY);
+        } catch {
+            // Sin almacenamiento no se puede recordar que ya se cerró, así que
+            // no se enseña: mejor callar que repetirse en cada carga.
+            return;
+        }
+        if (seen === RELEASE_VERSION) return;
+
+        // Si el banner de cookies sigue pendiente, se espera a que decida.
+        if (!hasDecided()) {
+            const onDecision = () => setOpen(true);
+            window.addEventListener(CONSENT_EVENT, onDecision, { once: true });
+            return () => window.removeEventListener(CONSENT_EVENT, onDecision);
+        }
+
+        setOpen(true);
+    }, []);
+
+    const close = () => {
+        setOpen(false);
+        try {
+            localStorage.setItem(SEEN_KEY, RELEASE_VERSION);
+        } catch {
+            /* Si no se puede guardar, volverá a salir. No es grave. */
+        }
+    };
+
+    if (!open) return null;
+
+    return (
+        <Modal
+            isOpen={open}
+            onClose={close}
+            title={RELEASE_NOTES.title}
+            description={RELEASE_NOTES.subtitle}
+            icon={
+                <img
+                    src="/logo-icon.svg"
+                    alt=""
+                    className="h-9 w-9 shrink-0"
+                    aria-hidden
+                />
+            }
+        >
+            <div className="space-y-4">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    <Sparkles className="h-3 w-3" aria-hidden />
+                    Versión {RELEASE_NOTES.version} · {RELEASE_NOTES.date}
+                </span>
+
+                <ul className="overflow-hidden rounded-xl border border-surface-light">
+                    {RELEASE_NOTES.highlights.map(({ text }) => (
+                        <li
+                            key={text}
+                            className="flex items-center gap-3 border-b border-surface-light bg-surface-container-high/40 px-3 py-2.5 text-sm text-on-surface last:border-b-0"
+                        >
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                            <span className="min-w-0">{text}</span>
+                        </li>
+                    ))}
+                </ul>
+
+                <Link
+                    href="/contact"
+                    onClick={close}
+                    className="group flex items-center gap-2.5 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5 transition-colors hover:border-primary/50 hover:bg-primary/10"
+                >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-on-surface">
+                            ¿Se te ocurre algo que deberíamos sumar?
+                        </span>
+                        <span className="block text-xs text-on-surface-variant">Cuéntanoslo, nos ayuda a mejorar.</span>
+                    </span>
+                    <ChevronRight
+                        className="h-4 w-4 shrink-0 text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                    />
+                </Link>
+
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={close}
+                        className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Cookie, X, ChevronRight, Shield, BarChart3, Megaphone, Check, ChevronLeft } from 'lucide-react';
-import { emitConsentChange, isConsentRequired } from '@/lib/cookie-consent';
+import { emitConsentChange, resolveConsentRequired } from '@/lib/cookie-consent';
 
 type ConsentState = {
     analytics: boolean;
@@ -85,44 +85,62 @@ export const CookieConsent = () => {
     };
 
     useEffect(() => {
-        try {
-            const strict = isConsentRequired();
-            setIsStrict(strict);
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
 
+        try {
             const storedLocal = localStorage.getItem('cookie_consent');
             const storedCookie = getCookie('cookie_consent');
             const stored = storedLocal || storedCookie;
 
-            if (!stored) {
-                // Fuera del EEE el estado por defecto ya es "concedido" (ver
-                // `@/lib/cookie-consent`); se refleja en gtag y en los toggles
-                // para que el banner no mienta sobre lo que está pasando.
-                if (!strict) {
-                    setPreferences({ analytics: true, marketing: true });
-                    applyConsent({ analytics: true, marketing: true });
+            if (stored) {
+                // Ya hay una decisión guardada: no hace falta saber la región,
+                // así que nos ahorramos la consulta a /api/consent-region.
+                try {
+                    const parsed = JSON.parse(stored);
+                    if (typeof parsed === 'string') {
+                        applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
+                    } else {
+                        applyConsent(parsed);
+                    }
+                    if (!storedLocal) localStorage.setItem('cookie_consent', stored);
+                    if (!storedCookie) setCookie('cookie_consent', stored, 365);
+                } catch {
+                    if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
+                    else applyConsent({ analytics: false, marketing: false });
                 }
-                const timer = setTimeout(() => setIsVisible(true), 1000);
-                return () => clearTimeout(timer);
-            }
-
-            try {
-                const parsed = JSON.parse(stored);
-                if (typeof parsed === 'string') {
-                    applyConsent({ analytics: parsed === 'granted', marketing: parsed === 'granted' });
-                } else {
-                    applyConsent(parsed);
-                }
-                if (!storedLocal) localStorage.setItem('cookie_consent', stored);
-                if (!storedCookie) setCookie('cookie_consent', stored, 365);
-            } catch {
-                if (stored === 'granted') applyConsent({ analytics: true, marketing: true });
-                else applyConsent({ analytics: false, marketing: false });
+            } else {
+                // Sin decisión guardada: hace falta saber si la región exige
+                // consentimiento previo para fijar el estado inicial correcto.
+                (async () => {
+                    try {
+                        const strict = await resolveConsentRequired();
+                        if (cancelled) return;
+                        setIsStrict(strict);
+                        // Fuera del EEE el estado por defecto ya es "concedido"
+                        // (ver `@/lib/cookie-consent`); se refleja en gtag y en
+                        // los toggles para que el banner no mienta sobre lo que
+                        // está pasando.
+                        if (!strict) {
+                            setPreferences({ analytics: true, marketing: true });
+                            applyConsent({ analytics: true, marketing: true });
+                        }
+                        timer = setTimeout(() => { if (!cancelled) setIsVisible(true); }, 1000);
+                    } catch (e) {
+                        console.error('Error checking cookie consent:', e);
+                        if (!cancelled) setIsVisible(true);
+                    }
+                })();
             }
         } catch (e) {
             console.error('Error checking cookie consent:', e);
             setIsVisible(true);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+        };
     }, []);
 
     if (!isVisible) return null;
