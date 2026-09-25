@@ -362,10 +362,13 @@ async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' | 'anime' = 'm
             }
         }
     } catch {
-        // Timeout, error de red, etc. → fail-closed.
-        // El listing garantiza que el título existe; si la sonda no responde
-        // preferimos ocultarlo antes que mostrar algo que nunca carga.
-        return false;
+        // Timeout, error de red, etc. → fail-OPEN.
+        // Si Vimeus está caído no podemos saber si el título existe, así que
+        // lo mostramos y la cascada de reproducción (Vimeus → VidAPI →
+        // VidCore → VidSrc → …) decide el proveedor sano por título
+        // (ver src/app/actions/playback.ts). Las señales explícitas de
+        // "no disponible" de más arriba siguen siendo fail-closed.
+        return true;
     }
 }
 

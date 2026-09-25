@@ -67,6 +67,30 @@ export class SmartScraper {
 
         // ── Tier 1: TMDB-native providers (no IMDB ID needed) ────────────────
 
+        // VidAPI — misma familia funcional que Vimeus (movie+TV por TMDB,
+        // ds_lang para subtítulos ES). Segundo en la cascada de reproducción.
+        candidates.push({
+            url: isMovie
+                ? `https://vaplayer.ru/embed/movie/${tmdbId}?ds_lang=es`
+                : `https://vaplayer.ru/embed/tv/${tmdbId}/${season}/${episode}?ds_lang=es`,
+            server: 'VidAPI',
+            lang: 'es',
+            priority: 240,
+            quality: '1080p',
+        });
+
+        // VidCore — embed API para devs (movie+TV+anime, HLS hasta 4K,
+        // ?lang=es, sin anuncios). Tercero en la cascada.
+        candidates.push({
+            url: isMovie
+                ? `https://vidcore.org/embed/movie/${tmdbId}?lang=es`
+                : `https://vidcore.org/embed/tv/${tmdbId}/${season}/${episode}?lang=es`,
+            server: 'VidCore',
+            lang: 'es',
+            priority: 230,
+            quality: '4K/1080p',
+        });
+
         // VidSrc.xyz — most reliable multi-source aggregator. Has Spanish
         // audio/subs picker inside the player.
         candidates.push({
@@ -87,6 +111,18 @@ export class SmartScraper {
             server: 'VidSrc.to (Subs ES)',
             lang: 'es',
             priority: 210,
+            quality: '1080p',
+        });
+
+        // VidSrc SU — mirror activo de la familia VidSrc (vidsrc.com está
+        // caído). Cuarto en la cascada de reproducción.
+        candidates.push({
+            url: isMovie
+                ? `https://vsembed.su/embed/movie/${tmdbId}?ds_lang=es`
+                : `https://vsembed.su/embed/tv/${tmdbId}/${season}/${episode}?ds_lang=es`,
+            server: 'VidSrc SU (Subs ES)',
+            lang: 'es',
+            priority: 205,
             quality: '1080p',
         });
 

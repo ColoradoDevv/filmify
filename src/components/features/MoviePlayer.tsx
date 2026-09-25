@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Play, Loader2, AlertCircle, RefreshCw, Clapperboard, Youtube, Maximize } from 'lucide-react';
 import { trackPlay, trackTrailer } from '@/lib/analytics';
+import { usePlaybackCascade } from '@/hooks/usePlaybackCascade';
+import PlaybackServerTabs from '@/components/features/PlaybackServerTabs';
 
 interface MoviePlayerProps {
     tmdbId: number;
@@ -12,8 +14,6 @@ interface MoviePlayerProps {
     trailerKey?: string | null;
 }
 
-const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
-const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autoplay=1';
 const LOAD_TIMEOUT_MS = 20_000;
 
 type Mode = 'idle' | 'movie' | 'trailer';
@@ -37,8 +37,9 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
     const playButtonRef = useRef<HTMLButtonElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // URLs
-    const embedUrl = `https://vimeus.com/e/movie?tmdb=${tmdbId}&view_key=${VIMEUS_VIEW_KEY}&${VIMEUS_STYLE}`;
+    // URLs (cascada: Vimeus → VidAPI → VidCore → VidSrc → …)
+    const cascade = usePlaybackCascade({ tmdbId, mediaType: 'movie' });
+    const embedUrl = cascade.active.url;
     const trailerUrl = trailerKey
         ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`
         : null;
@@ -62,29 +63,58 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
         setReloadKey((k) => k + 1);
     }, [trailerUrl]);
 
+    // Si el proveedor actual no carga, avanza al siguiente de la cascada.
+    // Solo muestra error cuando se agota la lista completa.
+    const failOver = useCallback(() => {
+        if (cascade.next()) {
+            setIsLoading(true);
+            setError(false);
+            setReloadKey((k) => k + 1);
+        } else {
+            setError(true);
+            setIsLoading(false);
+        }
+    }, [cascade]);
+
+    // Cambio manual de servidor desde el selector.
+    const switchServer = useCallback((index: number) => {
+        cascade.goTo(index);
+        setMode('movie');
+        setIsLoading(true);
+        setError(false);
+        setReloadKey((k) => k + 1);
+    }, [cascade]);
+
     // Reintento contextual según el modo actual
     const retryCurrent = useCallback(() => {
         if (mode === 'movie') {
+            // Reintento completo: vuelve a Vimeus y deja que la cascada avance.
+            cascade.reset();
             startMovie();
         } else if (mode === 'trailer') {
             startTrailer();
         }
-    }, [mode, startMovie, startTrailer]);
+    }, [mode, startMovie, startTrailer, cascade]);
 
-    // Timeout unificado para cualquier modo de carga (película o tráiler)
+    // Timeout unificado para cualquier modo de carga (película o tráiler).
+    // En modo película, el timeout avanza la cascada en vez de fallar directo.
     useEffect(() => {
         if (!isLoading) return;
 
         timeoutRef.current = setTimeout(() => {
-            // Solo marcar error si seguimos cargando después del timeout
-            setError(true);
-            setIsLoading(false);
+            if (mode === 'movie') {
+                failOver();
+            } else {
+                // Solo marcar error si seguimos cargando después del timeout
+                setError(true);
+                setIsLoading(false);
+            }
         }, LOAD_TIMEOUT_MS);
 
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [isLoading, reloadKey]); // reloadKey reinicia el timer en cada reintento
+    }, [isLoading, reloadKey, mode, failOver, cascade.activeIndex]); // reloadKey y activeIndex reinician el timer
 
     // Limpieza final del timeout al desmontar
     useEffect(() => {
@@ -161,6 +191,17 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
                 </button>
             </div>
 
+            {/* Selector de servidor (cascada) — solo en modo película */}
+            {mode === 'movie' && !error && (
+                <PlaybackServerTabs
+                    sources={cascade.sources}
+                    activeIndex={cascade.activeIndex}
+                    probing={cascade.probing}
+                    degraded={cascade.degraded}
+                    onSelect={switchServer}
+                />
+            )}
+
             {/* Superficie del reproductor (16:9) */}
             <div
                 ref={containerRef}
@@ -236,11 +277,12 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
                 {/* === Iframe de la película === */}
                 {mode === 'movie' && !error && (
                     <iframe
-                        key={`movie-${reloadKey}`}
+                        key={`movie-${cascade.active.id}-${reloadKey}`}
                         src={embedUrl}
-                        title={`Reproductor: ${title}`}
+                        title={`Reproductor: ${title} (${cascade.active.label})`}
                         className="absolute inset-0 w-full h-full border-0"
                         onLoad={handleLoad}
+                        onError={failOver}
                         referrerPolicy="origin"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"
                         allowFullScreen

@@ -22,6 +22,7 @@
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { watchPartyClient } from '@/lib/watch-party';
+import { isProviderOrigin } from '@/lib/playback-providers';
 import type { Party } from '@/types/watch-party';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -250,19 +251,22 @@ export type HostActions = ReturnType<typeof makeHostActions>;
 // ── Posición del host (best-effort desde el iframe de Vimeus) ───────────────
 
 /**
- * Escucha postMessage del embed de Vimeus buscando eventos de tiempo.
+ * Escucha postMessage del embed buscando eventos de tiempo (cualquier
+ * proveedor de la cascada: Vimeus, VidCore —que emite `vidcore:*` con
+ * `player_progress`—, etc.).
  * Si el proveedor no emite nada reconocible, simplemente nunca llama a `cb`.
  * Devuelve cleanup.
  */
 export function listenVimeusTime(cb: (seconds: number) => void): () => void {
     const handler = (e: MessageEvent) => {
-        if (typeof e.origin !== 'string' || !e.origin.includes('vimeus.com')) return;
+        if (typeof e.origin !== 'string' || !isProviderOrigin(e.origin)) return;
         const d = e.data as Record<string, unknown> | string;
         if (!d || typeof d === 'string') return;
         const candidates = [
             (d as Record<string, unknown>).currentTime,
             (d as Record<string, unknown>).time,
             (d as Record<string, unknown>).position,
+            (d as Record<string, unknown>).player_progress,
             ((d as Record<string, unknown>).data as Record<string, unknown> | undefined)?.currentTime,
         ];
         for (const c of candidates) {

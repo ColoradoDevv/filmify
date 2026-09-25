@@ -15,8 +15,8 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Loader2, Pause, Clock, Maximize, Minimize, Film, Play } from 'lucide-react';
-import { buildVimeusUrl } from '@/lib/vimeus-embed';
+import { Loader2, Pause, Clock, Maximize, Minimize, Film, Play, RefreshCw } from 'lucide-react';
+import { usePlaybackCascade } from '@/hooks/usePlaybackCascade';
 import type { PlaybackPhase } from '@/lib/watch-party-sync';
 
 export interface ReactionBubble {
@@ -105,16 +105,45 @@ export default function PartyPlayer({
 }: Props) {
     const [iframeLoading, setIframeLoading] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [failed, setFailed] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
+    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Cascada compartida: Vimeus → VidAPI → VidCore → VidSrc → …
+    // Todos los clientes resuelven la misma lista ordenada, así que convergen
+    // al mismo proveedor sano sin necesidad de sincronizar la elección.
+    const cascade = usePlaybackCascade({ tmdbId, mediaType, season, episode });
 
     // El iframe vive en 'playing'. Cambiar de episodio/película cambia la key
     // → remontaje limpio.
-    const embedUrl = buildVimeusUrl(tmdbId, mediaType, season, episode);
-    const showIframe = phase === 'playing';
+    const embedUrl = cascade.active.url;
+    const showIframe = phase === 'playing' && !failed;
 
     useEffect(() => {
-        if (showIframe) setIframeLoading(true);
-    }, [showIframe, embedUrl]);
+        if (showIframe) {
+            setIframeLoading(true);
+            setFailed(false);
+        }
+    }, [showIframe, embedUrl, reloadKey]);
+
+    // Timeout de carga con failover: si el proveedor no carga en 20s, se
+    // avanza al siguiente de la cascada en vez de quedarse en negro.
+    useEffect(() => {
+        if (phase !== 'playing' || failed) return;
+        if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = setTimeout(() => {
+            if (cascade.activeIndex < cascade.sources.length - 1) {
+                cascade.next();
+            } else {
+                setFailed(true);
+            }
+        }, 20_000);
+        return () => {
+            if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase, failed, embedUrl, reloadKey]);
 
     // Track de fullscreen (el usuario puede salir con Esc).
     useEffect(() => {
@@ -229,26 +258,74 @@ export default function PartyPlayer({
                 </div>
             )}
 
-            {/* ── playing (iframe) ── */}
-            {showIframe && (
+            {/* ── playing (iframe en cascada) ── */}
+            {phase === 'playing' && !failed && (
                 <>
                     {iframeLoading && (
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black">
                             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                            <p className="md3-body-small text-white/40">Cargando reproductor...</p>
+                            <p className="md3-body-small text-white/40">
+                                Cargando reproductor ({cascade.probing ? 'detectando servidor…' : cascade.active.label})...
+                            </p>
                         </div>
                     )}
                     <iframe
-                        key={embedUrl}
+                        key={`${cascade.active.id}-${embedUrl}-${reloadKey}`}
                         src={embedUrl}
-                        title={`Watch Party: ${title}`}
+                        title={`Watch Party: ${title} (${cascade.active.label})`}
                         className="absolute inset-0 w-full h-full border-0"
-                        onLoad={() => setIframeLoading(false)}
+                        onLoad={() => {
+                            if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+                            setIframeLoading(false);
+                        }}
                         referrerPolicy="origin"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"
                         allowFullScreen
                     />
+                    {/* Selector de servidor para el host (los invitados convergen solos) */}
+                    {isHost && cascade.sources.length > 1 && (
+                        <div className="absolute bottom-3 left-3 z-40 flex items-center gap-1.5">
+                            <label htmlFor="wp-server" className="sr-only">Servidor de reproducción</label>
+                            <select
+                                id="wp-server"
+                                value={cascade.activeIndex}
+                                onChange={(e) => {
+                                    cascade.goTo(Number(e.target.value));
+                                    setIframeLoading(true);
+                                }}
+                                className="h-8 px-2 rounded-lg bg-black/60 border border-white/15 text-white text-xs font-semibold backdrop-blur-sm cursor-pointer"
+                            >
+                                {cascade.sources.map((s, idx) => (
+                                    <option key={s.id} value={idx} className="bg-surface text-white">
+                                        {s.label} · {s.lang}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </>
+            )}
+
+            {/* ── error: cascada agotada ── */}
+            {phase === 'playing' && failed && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 p-6 text-center bg-black">
+                    <p className="md3-title-medium text-white">Ningún servidor responde</p>
+                    <p className="md3-body-small text-white/60 max-w-sm">
+                        Todos los proveedores están caídos en este momento. Inténtalo de nuevo en unos minutos.
+                    </p>
+                    <button
+                        onClick={() => {
+                            cascade.reset();
+                            setFailed(false);
+                            setIframeLoading(true);
+                            setReloadKey((k) => k + 1);
+                        }}
+                        className="flex items-center gap-2 h-10 px-5 rounded-full bg-primary text-on-primary text-sm font-bold"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Reintentar
+                    </button>
+                </div>
             )}
 
             {/* ── Reacciones flotantes ── */}
