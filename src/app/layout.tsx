@@ -130,6 +130,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cyiifumieluunoujaxbs.supabase.co" />
         {/* Player embeds — connect early so playback starts faster */}
         <link rel="preconnect" href="https://vimeus.com" />
+        <link rel="preconnect" href="https://vaplayer.ru" />
+        <link rel="preconnect" href="https://vidcore.org" />
+        <link rel="preconnect" href="https://vsembed.su" />
         {/* Site-wide structured data: WebSite (enables Google sitelinks search
             box) + Organization (brand knowledge panel). */}
         <script

@@ -9,6 +9,9 @@ import {
 import { trackPlay, trackTrailer } from '@/lib/analytics';
 import { getSeriesSourcesAction } from '@/app/actions/series';
 import type { DoramaSource } from '@/server/services/dorama';
+import { usePlaybackCascade } from '@/hooks/usePlaybackCascade';
+import PlaybackServerTabs from '@/components/features/PlaybackServerTabs';
+import { isProviderOrigin } from '@/lib/playback-providers';
 
 export interface SeasonEpisodes {
     season: number;
@@ -38,9 +41,6 @@ interface SeriesPlayerProps {
     titles?: { name?: string | null; originalName?: string | null };
 }
 
-const VIMEUS_VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
-// Player customization (per Vimeus docs): theme + brand color (FilmiFy cyan).
-const VIMEUS_STYLE = 'title=Filmify&theme=vimeus&primary_color=00c2ff&fs=1&autoplay=1';
 const LOAD_TIMEOUT_MS = 20_000;
 const NEXT_UP_SECONDS = 5;
 
@@ -117,15 +117,24 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         }
     }, [seasons, season]);
 
+    const cascade = usePlaybackCascade({
+        tmdbId,
+        mediaType: isAnime ? 'anime' : 'tv',
+        season,
+        episode,
+    });
+
     const embedUrl = useMemo(() => {
-        // Con selector de servidor manda la fuente elegida; si no hay ninguna
-        // (o el servidor no devolvió nada) se conserva el embed de Vimeus.
+        // 1) Fuente elegida del registro de proveedores (resuelta por episodio).
+        //    Un índice fuera de rango significa "modo cascada".
         const picked = sources[activeSourceIdx];
         if (picked) return picked.url;
-        const endpoint = isAnime ? 'anime' : 'serie';
-        const base = `https://vimeus.com/e/${endpoint}?tmdb=${tmdbId}&view_key=${VIMEUS_VIEW_KEY}&${VIMEUS_STYLE}`;
-        return seasons.length > 0 ? `${base}&se=${season}&ep=${episode}` : base;
-    }, [sources, activeSourceIdx, tmdbId, isAnime, seasons.length, season, episode]);
+        // 2) Cascada general (Vimeus → VidAPI → VidCore → VidSrc → …).
+        return cascade.active.url;
+    }, [sources, activeSourceIdx, cascade.active.url]);
+
+    /** Etiqueta del servidor en uso (registro o cascada). */
+    const activeLabel = sources[activeSourceIdx]?.label ?? cascade.active.label;
 
     const trailerUrl = trailerKey
         ? `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0`
@@ -190,21 +199,66 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         if (prevEpisode) loadSerie(prevEpisode.season, prevEpisode.episode);
     }, [prevEpisode, loadSerie]);
 
+    // Si el proveedor actual no carga, avanza: primero las fuentes del
+    // registro y al agotarlas la cascada general. Un índice fuera de rango
+    // (>= sources.length) significa "modo cascada". Error solo al agotar ambas.
+    const failOver = useCallback(() => {
+        const reload = () => {
+            setIsLoading(true);
+            setError(false);
+            setShowNextUp(false);
+            setReloadKey((k) => k + 1);
+        };
+        if (activeSourceIdx < sources.length - 1) {
+            setActiveSourceIdx(activeSourceIdx + 1);
+            reload();
+        } else if (activeSourceIdx === sources.length - 1) {
+            // Se agota el registro → modo cascada (usa su índice ya sondeado).
+            setActiveSourceIdx(sources.length);
+            reload();
+        } else if (cascade.next()) {
+            reload();
+        } else {
+            setError(true);
+            setIsLoading(false);
+        }
+    }, [cascade, sources.length, activeSourceIdx]);
+
+    // Cambio manual de servidor desde el selector de la cascada.
+    const switchServer = useCallback((index: number) => {
+        cascade.goTo(index);
+        // Modo cascada: ignora el registro hasta que se elija otra fuente.
+        setActiveSourceIdx(sources.length);
+        setMode('serie');
+        setIsLoading(true);
+        setError(false);
+        setShowNextUp(false);
+        setReloadKey((k) => k + 1);
+    }, [cascade, sources.length]);
+
     // Reintento contextual según el modo actual (serie o tráiler).
     const retryCurrent = useCallback(() => {
-        if (mode === 'serie') startSerie();
+        if (mode === 'serie') {
+            // Reintento completo: vuelve a Vimeus y deja que la cascada avance.
+            cascade.reset();
+            startSerie();
+        }
         else if (mode === 'trailer') startTrailer();
-    }, [mode, startSerie, startTrailer]);
+    }, [mode, startSerie, startTrailer, cascade]);
 
     // Timeout unificado para cualquier modo de carga (serie o tráiler).
+    // En modo serie, el timeout avanza la cascada en vez de fallar directo.
     useEffect(() => {
         if (!isLoading) return;
         timeoutRef.current = setTimeout(() => {
-            setError(true);
-            setIsLoading(false);
+            if (mode === 'serie') failOver();
+            else {
+                setError(true);
+                setIsLoading(false);
+            }
         }, LOAD_TIMEOUT_MS);
         return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
-    }, [isLoading, reloadKey]);
+    }, [isLoading, reloadKey, mode, failOver, cascade.activeIndex, activeSourceIdx]);
 
     // Limpieza del timeout al desmontar.
     useEffect(() => {
@@ -231,17 +285,18 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         if (mode === 'idle') playButtonRef.current?.focus();
     }, [mode]);
 
-    // Detecta el fin del episodio vía postMessage del embed (best-effort:
-    // depende de que Vimeus emita un evento de tipo "ended"/"finish").
+    // Detecta el fin del episodio vía postMessage del embed (best-effort).
+    // Acepta eventos de cualquier proveedor de la cascada (Vimeus emite
+    // "ended"/"finish"; VidCore emite "vidcore:ended").
     useEffect(() => {
         if (mode !== 'serie' || !nextEpisode) return;
         const handler = (e: MessageEvent) => {
-            if (!e.origin.includes('vimeus.com')) return;
+            if (typeof e.origin !== 'string' || !isProviderOrigin(e.origin)) return;
             const data = e.data;
             const signal = typeof data === 'string'
                 ? data
                 : String((data as Record<string, unknown>)?.event ?? (data as Record<string, unknown>)?.type ?? (data as Record<string, unknown>)?.action ?? (data as Record<string, unknown>)?.state ?? '');
-            if (/ended|finish|complete/i.test(signal)) {
+            if (/ended|finish|complete|vidcore:ended/i.test(signal)) {
                 setShowNextUp(true);
             }
         };
@@ -347,6 +402,17 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                 </button>
             </div>
 
+            {/* Selector de servidor (cascada) */}
+            {mode === 'serie' && !error && (
+                <PlaybackServerTabs
+                    sources={cascade.sources}
+                    activeIndex={cascade.activeIndex}
+                    probing={cascade.probing}
+                    degraded={cascade.degraded}
+                    onSelect={switchServer}
+                />
+            )}
+
             {/* Player surface — 16:9 */}
             <div
                 ref={containerRef}
@@ -420,11 +486,12 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                 {/* === Iframe de la serie === */}
                 {mode === 'serie' && !error && (
                     <iframe
-                        key={`serie-${reloadKey}`}
+                        key={`serie-${embedUrl}-${reloadKey}`}
                         src={embedUrl}
-                        title={`Reproductor: ${title}`}
+                        title={`Reproductor: ${title} (${activeLabel})`}
                         className="absolute inset-0 w-full h-full border-0"
                         onLoad={handleLoad}
+                        onError={failOver}
                         referrerPolicy="origin"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"
                         allowFullScreen

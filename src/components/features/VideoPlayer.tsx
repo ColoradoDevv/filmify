@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useStore } from '@/lib/store/useStore';
-import { buildVimeusUrl } from '@/lib/vimeus-embed';
+import { usePlaybackCascade } from '@/hooks/usePlaybackCascade';
 import type { Movie, TVShow } from '@/types/tmdb';
 
 interface VideoPlayerProps {
@@ -103,7 +103,8 @@ export default function VideoPlayer({
         };
     }, [showControls]);
 
-    const embedUrl = buildVimeusUrl(mediaId, mediaType, season, episode);
+    const cascade = usePlaybackCascade({ tmdbId: mediaId, mediaType, season, episode });
+    const embedUrl = cascade.active.url;
 
     // -- Lock body scroll --
     useEffect(() => {
@@ -121,7 +122,9 @@ export default function VideoPlayer({
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    // -- Load timeout con bandera para evitar que onLoad la pise --
+    // -- Load timeout con cascada: si el proveedor actual no carga, se avanza
+    // -- al siguiente (Vimeus → VidAPI → VidCore → …). Solo hay error final
+    // -- cuando se agota la lista completa.
     useEffect(() => {
         isMounted.current = true;
         timeoutFired.current = false; // reiniciar al montar / cambiar de fuente
@@ -129,7 +132,12 @@ export default function VideoPlayer({
         setError(false);
 
         loadTimeoutRef.current = setTimeout(() => {
-            if (isMounted.current) {
+            if (!isMounted.current) return;
+            if (cascade.activeIndex < cascade.sources.length - 1) {
+                // Avanzar de proveedor: el cambio de URL reinicia este efecto.
+                timeoutFired.current = false;
+                cascade.next();
+            } else {
                 timeoutFired.current = true; // marcar que el timeout se disparó
                 setIsLoading(false);
                 setError(true);
@@ -140,6 +148,7 @@ export default function VideoPlayer({
             isMounted.current = false;
             if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [embedUrl, reloadKey]);
 
     // -- Marcar como visto después de 5s --
@@ -174,8 +183,9 @@ export default function VideoPlayer({
     }, []);
 
     const handleRetry = () => {
-        // Reiniciamos todo para el nuevo intento
+        // Reiniciamos todo para el nuevo intento (vuelve a Vimeus y re-cascada)
         timeoutFired.current = false;
+        cascade.reset();
         setIsLoading(true);
         setError(false);
         setReloadKey((k) => k + 1);
@@ -202,6 +212,9 @@ export default function VideoPlayer({
                     {mediaType === 'tv' && (
                         <p className="text-xs text-white/50">T{season} · E{episode}</p>
                     )}
+                    <p className="text-[11px] text-white/40">
+                        Servidor: {cascade.probing ? 'detectando…' : cascade.active.label}
+                    </p>
                 </div>
             </div>
 
@@ -251,12 +264,12 @@ export default function VideoPlayer({
                     </div>
                 )}
 
-                {/* Iframe (key incluye reloadKey para forzar remontaje en retry) */}
+                {/* Iframe (key incluye proveedor + reloadKey para forzar remontaje) */}
                 <iframe
                     ref={iframeRef}
-                    key={`${embedUrl}#${reloadKey}`}
+                    key={`${cascade.active.id}-${embedUrl}#${reloadKey}`}
                     src={embedUrl}
-                    title={`Reproductor: ${title}`}
+                    title={`Reproductor: ${title} (${cascade.active.label})`}
                     className="w-full h-full border-0"
                     onLoad={handleLoad}
                     referrerPolicy="origin"

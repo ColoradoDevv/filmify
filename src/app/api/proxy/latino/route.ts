@@ -11,6 +11,12 @@ export const runtime = 'nodejs';
  */
 const ALLOWED_EMBED_HOSTS = new Set([
     'unlimplay.com',
+    'vaplayer.ru',
+    'vidcore.org',
+    'vsembed.su',
+    'vidsrcme.su',
+    'vid-src.top',
+    'vidsrc.tw',
     'vidsrc.xyz',
     'vidsrc.to',
     'vidsrc.in',
