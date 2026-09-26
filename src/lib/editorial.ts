@@ -14,52 +14,83 @@ export { CATEGORIES };
  * generateStaticParams (error "couldn't be rendered statically because it
  * used cookies"). El service role lee igual sin depender de la sesión.
  */
+
+/**
+ * Sin SUPABASE_SERVICE_ROLE_KEY (p. ej. builds de verificación sin secrets),
+ * las lecturas PÚBLICAS degradan a vacío en vez de tumbar el prerender.
+ * Solo cubre la falta de clave; los errores reales de DB se propagan y las
+ * funciones de admin ni se tocan (ahí fallar es lo correcto).
+ */
+function isMissingServiceKey(err: unknown): boolean {
+    return err instanceof Error && err.message.includes('SUPABASE_SERVICE_ROLE_KEY is required');
+}
+
 export async function getPublishedArticles(limit = 20): Promise<Article[]> {
-    const supabase = createServiceRoleClient();
-    const { data, error } = await supabase
-        .from('editorial_articles')
-        .select('*')
-        .eq('status', 'published')
-        .order('published_at', { ascending: false })
-        .limit(limit);
-    if (error) { console.error('[editorial]', error); return []; }
-    return (data ?? []) as Article[];
+    try {
+        const supabase = createServiceRoleClient();
+        const { data, error } = await supabase
+            .from('editorial_articles')
+            .select('*')
+            .eq('status', 'published')
+            .order('published_at', { ascending: false })
+            .limit(limit);
+        if (error) { console.error('[editorial]', error); return []; }
+        return (data ?? []) as Article[];
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return [];
+    }
 }
 
 export async function getFeaturedArticle(): Promise<Article | null> {
-    const supabase = createServiceRoleClient();
-    const { data } = await supabase
-        .from('editorial_articles')
-        .select('*')
-        .eq('status', 'published')
-        .eq('featured', true)
-        .order('published_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    return (data as Article | null);
+    try {
+        const supabase = createServiceRoleClient();
+        const { data } = await supabase
+            .from('editorial_articles')
+            .select('*')
+            .eq('status', 'published')
+            .eq('featured', true)
+            .order('published_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        return (data as Article | null);
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return null;
+    }
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-    const supabase = createServiceRoleClient();
-    const { data } = await supabase
-        .from('editorial_articles')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .maybeSingle();
-    return (data as Article | null);
+    try {
+        const supabase = createServiceRoleClient();
+        const { data } = await supabase
+            .from('editorial_articles')
+            .select('*')
+            .eq('slug', slug)
+            .eq('status', 'published')
+            .maybeSingle();
+        return (data as Article | null);
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return null;
+    }
 }
 
 export async function getArticlesByCategory(category: string, limit = 10): Promise<Article[]> {
-    const supabase = createServiceRoleClient();
-    const { data } = await supabase
-        .from('editorial_articles')
-        .select('*')
-        .eq('status', 'published')
-        .eq('category', category)
-        .order('published_at', { ascending: false })
-        .limit(limit);
-    return (data ?? []) as Article[];
+    try {
+        const supabase = createServiceRoleClient();
+        const { data } = await supabase
+            .from('editorial_articles')
+            .select('*')
+            .eq('status', 'published')
+            .eq('category', category)
+            .order('published_at', { ascending: false })
+            .limit(limit);
+        return (data ?? []) as Article[];
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return [];
+    }
 }
 
 // ── Admin functions (service role) ──────────────────────────────────────────
@@ -100,24 +131,34 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
 // ── News feed (external RSS) ─────────────────────────────────────────────────
 
 export async function getLatestNews(limit = 30): Promise<NewsItem[]> {
-    const supabase = createServiceRoleClient();
-    const { data } = await supabase
-        .from('news_feed')
-        .select('*')
-        .order('published_at', { ascending: false, nullsFirst: false })
-        .limit(limit);
-    return (data ?? []) as NewsItem[];
+    try {
+        const supabase = createServiceRoleClient();
+        const { data } = await supabase
+            .from('news_feed')
+            .select('*')
+            .order('published_at', { ascending: false, nullsFirst: false })
+            .limit(limit);
+        return (data ?? []) as NewsItem[];
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return [];
+    }
 }
 
 export async function getNewsByCategory(category: string, limit = 20): Promise<NewsItem[]> {
-    const supabase = createServiceRoleClient();
-    const { data } = await supabase
-        .from('news_feed')
-        .select('*')
-        .eq('category', category)
-        .order('published_at', { ascending: false, nullsFirst: false })
-        .limit(limit);
-    return (data ?? []) as NewsItem[];
+    try {
+        const supabase = createServiceRoleClient();
+        const { data } = await supabase
+            .from('news_feed')
+            .select('*')
+            .eq('category', category)
+            .order('published_at', { ascending: false, nullsFirst: false })
+            .limit(limit);
+        return (data ?? []) as NewsItem[];
+    } catch (err) {
+        if (!isMissingServiceKey(err)) throw err;
+        return [];
+    }
 }
 
 export async function getArticlesAndNewsByCategory(category: string): Promise<{
