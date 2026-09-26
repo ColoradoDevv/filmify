@@ -55,6 +55,10 @@ const VIMEUS_EMPTY_SIGNALS = [
 ];
 
 // Páginas de parking/venta de dominios o caídas genéricas (resto de proveedores).
+// OJO: aquí NO va 'cloudflare' a secas — casi todos los players legítimos
+// cargan scripts de cdnjs.cloudflare.com o el beacon de Cloudflare, y esa
+// subcadena marcaba como caídos a proveedores sanos. Solo señales de error
+// inequívocas.
 const DOWN_SIGNALS = [
     'domain may be for sale',
     'this domain is for sale',
@@ -66,7 +70,6 @@ const DOWN_SIGNALS = [
     'sedo.com',
     'afternic.com',
     'hugedomains.com',
-    'cloudflare',
     'origin is unreachable',
     'error code: 522',
     'error code: 523',
@@ -75,7 +78,24 @@ const DOWN_SIGNALS = [
 
 // Caché en proceso (5 min) para no sondear al mismo título en cada render.
 const CACHE_TTL_MS = 5 * 60 * 1000;
+/** Tope del caché: las entradas caducadas no se auto-evictan solas. */
+const CACHE_MAX_ENTRIES = 5_000;
 const _cache = new Map<string, { providerId: PlaybackProviderId; url: string; at: number }>();
+
+function cacheSet(key: string, value: { providerId: PlaybackProviderId; url: string; at: number }): void {
+    if (_cache.size >= CACHE_MAX_ENTRIES) {
+        // Poda: primero las caducadas; si sigue lleno, las más viejas.
+        const now = Date.now();
+        for (const [k, v] of _cache) {
+            if (now - v.at >= CACHE_TTL_MS) _cache.delete(k);
+        }
+        if (_cache.size >= CACHE_MAX_ENTRIES) {
+            const oldest = [..._cache.keys()].slice(0, 1_000);
+            oldest.forEach((k) => _cache.delete(k));
+        }
+    }
+    _cache.set(key, value);
+}
 
 function cacheKey(input: ProbeInput): string {
     return `${input.tmdbId}:${input.mediaType}:${input.season ?? 1}:${input.episode ?? 1}`;
@@ -169,7 +189,7 @@ export async function resolveAvailableProvider(input: ProbeInput): Promise<Resol
     const firstOk = sources.findIndex((_, idx) => results[idx]);
     if (firstOk !== -1) {
         const winner = sources[firstOk];
-        _cache.set(key, { providerId: winner.id, url: winner.url, at: Date.now() });
+        cacheSet(key, { providerId: winner.id, url: winner.url, at: Date.now() });
         return { providerId: winner.id, url: winner.url, degraded: false };
     }
 

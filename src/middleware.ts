@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { safeInternalPath } from '@/lib/safe-path';
+import { getClientIp } from '@/lib/rate-limit';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig } from '@/lib/env';
 import ANIME_TMDB_REDIRECTS from '@/lib/anime-tmdb-redirects.json';
@@ -196,12 +197,19 @@ export default async function middleware(request: NextRequest) {
         `default-src 'self'`,
         `script-src ${scriptSrc}`,
         `style-src 'self' 'unsafe-inline' https:`,
-        `img-src 'self' data: blob: https:`,
+        // Imágenes: espejo de next.config.ts remotePatterns + avatares de
+        // Google (OAuth) + badge del footer. Antes `https:` genérico permitía
+        // exfiltrar vía píxeles.
+        `img-src 'self' data: blob: https://image.tmdb.org https://*.supabase.co https://images.unsplash.com https://s4.anilist.co https://lh3.googleusercontent.com https://img.shields.io`,
         `media-src 'self' blob: https:`,
         `connect-src 'self' https: wss:`,
         `font-src 'self' data: https:`,
         // 'self': el iframe aislado de publicidad (/ads/frame) es same-origin.
-        `frame-src 'self' https:`,
+        // Embeds: proveedores de reproducción conocidos (cascada general +
+        // registro dorama/anime) + YouTube sin cookies (tráilers). Antes
+        // `https:` genérico: cualquier iframe externo valía, incluido uno
+        // inyectado. Al añadir un proveedor nuevo, su host va aquí.
+        `frame-src 'self' https://vimeus.com https://vaplayer.ru https://vidcore.org https://vsembed.su https://vidsrcme.su https://vid-src.top https://vidsrc.tw https://vidsrc.xyz https://vidsrc.to https://vidsrc.in https://vidlink.pro https://embed.su https://multiembed.mov https://www.2embed.cc https://2embed.cc https://autoembed.co https://watch.rivestream.app https://unlimplay.com https://megavid.buzz https://megaplay.buzz https://apiplayer.ru https://kisskh.megaplay.su https://www.youtube-nocookie.com`,
         `frame-ancestors 'self'`,
         `object-src 'none'`,
         `base-uri 'self'`,
@@ -286,10 +294,10 @@ export default async function middleware(request: NextRequest) {
     }
 
     // ── IP ban check ──────────────────────────────────────────────────────────
-    const ip =
-        request.headers.get('x-real-ip') ||
-        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        '127.0.0.1';
+    // Misma IP que el resto del sistema (cf-connecting-ip > x-real-ip >
+    // primer forwarded): si cada sitio identifica distinto, los baneos y los
+    // rate-limits se evaden con la misma petición.
+    const ip = getClientIp(request.headers);
 
     try {
         const cached = getCachedBan(ip);

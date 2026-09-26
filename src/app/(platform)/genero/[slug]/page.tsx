@@ -50,7 +50,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 /**
  * Landing page de género — página permanente, indexable y con contenido
  * único, pensada para búsquedas long-tail ("películas de acción online").
+ *
+ * ISR 1 h: el grid depende de disponibilidad (sondas por título) y sin esto
+ * cada visita pagaba ~20 sondas. El filtro ya tolera 1 h de ranciedad.
  */
+export const revalidate = 3600;
+
 export default async function GenrePage({ params }: PageProps) {
     const { slug } = await params;
     const genre = getGenreBySlug(slug);

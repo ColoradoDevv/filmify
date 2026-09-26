@@ -1,7 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import {
-    Search, SlidersHorizontal, ShieldCheck, LayoutGrid, Info,
-} from 'lucide-react';
+import { Play, Server, Zap, Heart, Bug } from 'lucide-react';
 
 /**
  * Novedades que se enseñan en el modal de «qué hay de nuevo».
@@ -27,7 +25,7 @@ import {
  */
 
 /** Debe coincidir con `version` de package.json y con CHANGELOG.md. */
-export const RELEASE_VERSION = '2.0.0';
+export const RELEASE_VERSION = '2.1.0';
 
 export interface ReleaseHighlight {
     icon: LucideIcon;
@@ -46,14 +44,14 @@ export interface ReleaseNotes {
 
 export const RELEASE_NOTES: ReleaseNotes = {
     version: RELEASE_VERSION,
-    date: 'agosto de 2026',
+    date: 'septiembre de 2026',
     title: 'Novedades de FilmiFy',
     subtitle: 'Esto es lo que ha cambiado desde tu última visita.',
     highlights: [
-        { icon: Search, text: 'Buscador más rápido y en un solo sitio' },
-        { icon: LayoutGrid, text: 'Inicio y fichas renovados' },
-        { icon: SlidersHorizontal, text: 'Ajustes rehechos' },
-        { icon: ShieldCheck, text: 'Más control sobre tu privacidad' },
-        { icon: Info, text: 'TV en vivo y Doramas, en pausa' },
+        { icon: Play, text: 'Las películas y series vuelven a reproducirse con normalidad' },
+        { icon: Server, text: 'Si un servidor falla, la reproducción cambia sola a otro' },
+        { icon: Zap, text: 'El catálogo y las fichas cargan más rápido' },
+        { icon: Heart, text: 'Tus favoritos se conservan al cerrar sesión' },
+        { icon: Bug, text: 'Se corrigieron errores de reproducción' },
     ],
 };

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Calendar, Clapperboard, Layers, ChevronLeft, Play, Info } from 'lucide-react';
@@ -11,10 +12,16 @@ import { AdSlot } from '@/components/ads';
 
 interface Props { params: Promise<{ id: string }> }
 
+/**
+ * Ficha pedida por metadata Y cuerpo: sin memoizar eran 2× GraphQL por
+ * visita (mismo patrón que /movie y /tv ya resolvían con cache()).
+ */
+const getAnime = cache((anilistId: number) => getAnimeById(anilistId));
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { id } = await params;
     if (!/^\d+$/.test(id)) return { robots: { index: false, follow: false } };
-    const anime = await getAnimeById(Number(id)).catch(() => null);
+    const anime = await getAnime(Number(id)).catch(() => null);
     // Soft-404: si AniList no lo tiene, no indexar (Next inyecta noindex en notFound()).
     if (!anime) return { robots: { index: false, follow: false } };
     const card = toAnimeCard(anime);
@@ -67,7 +74,7 @@ export default async function AnimeDetailPage({ params }: Props) {
     const anilistId = parseAnilistId(id);
     if (anilistId === null) notFound();
 
-    const anime = await getAnimeById(anilistId).catch(() => null);
+    const anime = await getAnime(anilistId).catch(() => null);
     if (!anime) notFound();
 
     const card = toAnimeCard(anime);

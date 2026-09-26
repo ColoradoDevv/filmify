@@ -47,7 +47,13 @@ interface Props { code: string; }
 
 const REACTION_EMOJIS = ['😂', '🔥', '😍', '😱', '👏', '💀'];
 const HEARTBEAT_MS = 20_000;
-const HOST_MISSING_CLAIM_MS = 45_000;
+/**
+ * El botón "tomar control" sale cuando Presence pierde al host. El servidor
+ * solo acepta el reclamo a los 90 s sin latido (HOST_STALE_MS en
+ * claim-host/route.ts): con menos, el botón promete lo que el POST niega
+ * (409) siempre que Realtime caiga pero el heartbeat siga vivo.
+ */
+const HOST_MISSING_CLAIM_MS = 90_000;
 /** Distancia (px) al fondo del chat bajo la cual seguimos auto-scrolleando. */
 const CHAT_STICK_PX = 96;
 const TYPING_TTL_MS = 3_500;
@@ -336,6 +342,9 @@ export default function WatchPartyRoom({ code }: Props) {
     const hostMissingSinceRef = useRef<number | null>(null);
     const tempIdRef = useRef(0);
     const chatAtBottomRef = useRef(true);
+    // Instante de entrada a la sala: los mensajes con timestamp anterior son
+    // historial, no "no leídos" (margen 30 s por skew servidor-cliente).
+    const sessionStartRef = useRef(Date.now());
 
     const isHost = !!party && party.host_id === me;
 
@@ -533,12 +542,38 @@ export default function WatchPartyRoom({ code }: Props) {
     useEffect(() => {
         if (!party?.id || !me) return;
         const ping = () => {
+            // Pestaña oculta: no quemar red/batería. El reclamo de host exige
+            // 90 s sin latido, así que un ocultamiento breve no transfiere nada.
+            if (document.visibilityState === 'hidden') return;
             void fetch(`/api/watch-party/${code}/heartbeat`, { method: 'POST' });
         };
         ping();
         const interval = setInterval(ping, HEARTBEAT_MS);
-        return () => clearInterval(interval);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') ping();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, [party?.id, me, code]);
+
+    // ── Salida real (cerrar pestaña/navegar): baja de miembros al instante ──
+    // Sin esto quien cierra queda "miembro fantasma" (y un host caído deja la
+    // sala sin control) hasta que Presence caduca. `persisted` = bfcache: ahí
+    // NO se sale, la página puede volver con "atrás".
+    useEffect(() => {
+        const leave = (e: PageTransitionEvent) => {
+            if (e.persisted) return;
+            void fetch(`/api/watch-party/${code}`, {
+                method: 'DELETE',
+                keepalive: true,
+            }).catch(() => {});
+        };
+        window.addEventListener('pagehide', leave);
+        return () => window.removeEventListener('pagehide', leave);
+    }, [code]);
 
     // ── Posición del host: escuchar el embed y emitir (best-effort) ──────────
     useEffect(() => {
@@ -579,7 +614,13 @@ export default function WatchPartyRoom({ code }: Props) {
             // Los propios mensajes siempre bajan el scroll (los envié yo).
             if (last?.user_id === meRef.current && last?.type !== 'system') {
                 scrollChatToBottom();
-            } else {
+            } else if (
+                last &&
+                last.user_id !== meRef.current &&
+                new Date(last.timestamp).getTime() >= sessionStartRef.current - 30_000
+            ) {
+                // Solo mensajes en vivo: el lote inicial (historial) tiene
+                // timestamp anterior a la sesión y no suma no-leídos.
                 setUnreadCount(c => c + 1);
             }
         }
@@ -686,11 +727,12 @@ export default function WatchPartyRoom({ code }: Props) {
     }, []);
 
     const onCountdownEnd = useCallback(() => {
+        // Solo el host confirma 'playing': los espectadores esperan su
+        // broadcast en vez de transicionar con su propio reloj (los relojes
+        // dispares montaban el iframe segundos antes/después). Si el
+        // broadcast se pierde, `effectivePhase` rescata a los 15 s.
         if (partyRef.current?.host_id === meRef.current) {
             hostActionsRef.current?.confirmPlaying();
-        } else {
-            // Transición local del espectador; el broadcast del host la confirma.
-            setPlayback(prev => prev.phase === 'countdown' ? { ...prev, phase: 'playing' } : prev);
         }
     }, []);
 
@@ -757,7 +799,10 @@ export default function WatchPartyRoom({ code }: Props) {
     }, []);
 
     const copyCode = () => {
-        navigator.clipboard.writeText(window.location.origin + '/watch-party/' + code);
+        // El .catch evita el rechazo no capturado en HTTP o sin permiso.
+        navigator.clipboard
+            .writeText(window.location.origin + '/watch-party/' + code)
+            .catch(() => setCopied(false));
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };

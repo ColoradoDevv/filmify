@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, Mail, MessageSquare, Send, User } from 'lucide-react';
 
 export default function ContactPage() {
@@ -13,9 +13,19 @@ export default function ContactPage() {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    // Ref síncrona: `loading` tarda un render en deshabilitar el botón y un
+    // doble Enter/clic disparaba dos POST (el 2º chocaba con el rate-limit).
+    const submittingRef = useRef(false);
+    const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => () => {
+        if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
         setError('');
 
@@ -39,11 +49,13 @@ export default function ContactPage() {
 
             setSubmitted(true);
             setFormData({ name: '', email: '', message: '' });
-            setTimeout(() => setSubmitted(false), 5000);
+            if (successTimerRef.current) clearTimeout(successTimerRef.current);
+            successTimerRef.current = setTimeout(() => setSubmitted(false), 5000);
         } catch (err) {
             const message = err instanceof Error ? err.message : undefined;
             setError(message || 'Hubo un error al enviar tu mensaje. Por favor intenta de nuevo.');
         } finally {
+            submittingRef.current = false;
             setLoading(false);
         }
     };

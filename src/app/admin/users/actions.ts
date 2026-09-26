@@ -23,7 +23,10 @@ export async function getUsers(page = 1, pageSize = 10, search = '') {
         // Note: Filtering by email on 'profiles' won't work if email isn't there.
         // We'll search by 'full_name' instead which exists in profiles.
         if (search) {
-            query = query.ilike('full_name', `%${search}%`);
+            // `%` y `_` del input son comodines ILIKE: se escapan para que
+            // busquen literales (si no, over-match + escaneos caros).
+            const escaped = search.replace(/[\\%_]/g, (m) => `\\${m}`);
+            query = query.ilike('full_name', `%${escaped}%`);
         }
 
         const { data: profiles, count, error } = await query;

@@ -81,11 +81,15 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
         if (error) {
             const msg = (error.message || '').toLowerCase();
             if (msg.includes('email not confirmed') || msg.includes('email not verified')) {
-                console.warn('[login] email not confirmed:', { email });
-                return redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
+                // Sin redirect ni email en la URL: confirmar a qué dirección le
+                // falta la confirmación es un oráculo de enumeración (y PII en
+                // historial/logs). Mismo error genérico que credenciales malas;
+                // el flujo de registro ya muestra la pantalla de confirmación.
+                console.warn('[login] email not confirmed (oculto al cliente)');
+                return { error: LOGIN_INVALID_CREDENTIALS };
             }
 
-            console.warn('[login] signInWithPassword returned error', { email, error });
+            console.warn('[login] signInWithPassword returned error');
             return { error: LOGIN_INVALID_CREDENTIALS };
         }
     } catch (err) {

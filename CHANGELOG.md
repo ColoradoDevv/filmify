@@ -7,6 +7,34 @@ y el versionado, [SemVer](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.0] — 2026-09-26
+
+### ✨ Nuevo
+
+- **Reproductor con servidores de respaldo.** Si el servidor en uso falla,
+  la reproducción cambia sola al siguiente (cascada Vimeus → VidAPI →
+  VidCore → VidSrc → …), con selector manual en películas, series y
+  Watch Party.
+- **Fichas con caché de 1 hora** (`/movie`, `/tv`): visitas repetidas y
+  prefetch instantáneos; el reproductor sigue resolviendo en vivo.
+- **Tráiler alternativo cacheado** 30 días: solo el primer visitante paga la
+  búsqueda con IA.
+
+### ⚡ Rendimiento
+
+- **Circuit breaker por proveedor** (`provider-health.ts`): 3 fallos de
+  red/5xx abren el circuito 3 minutos con fail-open inmediato, en vez de
+  quemar el timeout en cada sonda.
+- Sondas más cortas y 12 recomendaciones sondeadas por ficha en vez de 18.
+- Hero de la home en `w1280` en vez de `original`.
+- `auth.getUser()` del middleware, cacheado 60 s por token.
+
+### 🐞 Corregido
+
+- Se solucionaron errores de reproducción: el avance automático de servidor
+  fallaba al primer intento, la sonda descartaba proveedores sanos detrás
+  de Cloudflare y el caché de sondas crecía sin tope.
+
 ## [2.0.0] — 2026-08-25
 
 > ### ⚠️ Antes de desplegar: el orden importa

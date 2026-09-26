@@ -65,12 +65,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'daily',
             priority: 0.8,
         },
-        {
-            url: `${BASE_URL}/browse?category=anime`,
-            lastModified: currentDate,
-            changeFrequency: 'daily',
-            priority: 0.8,
-        },
         ...Object.keys(CATEGORIES).map((cat) => ({
             url: `${BASE_URL}/editorial/categoria/${cat}`,
             lastModified: currentDate,

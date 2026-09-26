@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateOutboundUrl } from '@/lib/ssrf-guard';
+import { validateOutboundUrl, resolveAndValidate } from '@/lib/ssrf-guard';
+import { getClientIp, checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
+
+export const runtime = 'nodejs';
 
 // Timeout del fetch al origen. Antes no había timeout: orígenes IPTV caídos
 // colgaban ~10s+ y devolvían 500, contaminando los logs y bloqueando al
@@ -23,6 +26,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Stream URL is required' }, { status: 400 });
     }
 
+    // Throttle por IP: cada segmento .ts pasa por aquí (un viewer ≈ 10/min).
+    const rl = checkRateLimit(`stream:${getClientIp(request.headers)}`, 120, 60_000);
+    if (!rl.ok) return rateLimitedResponse(rl.retryAfterSec);
+
     // 2. SSRF guard — reject private IPs, non-HTTP(S) schemes, internal hosts.
     const decodedUrl = decodeURIComponent(streamUrl);
     const guard = validateOutboundUrl(decodedUrl);
@@ -30,21 +37,60 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: guard.reason }, { status: 400 });
     }
 
+    // Para logs: solo el host, nunca la URL completa (puede llevar tokens).
+    let logHost = 'invalid-url';
     try {
-        const response = await fetch(decodedUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'identity',
-                'Connection': 'keep-alive',
-            },
-            cache: 'no-store',
-            signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        });
+        logHost = new URL(decodedUrl).hostname;
+    } catch {
+        // ya validada arriba; imposible, pero no romper por loguear
+    }
+
+    try {
+        // Redirects seguidos a mano (máx. 3) con SSRF guard + DNS por salto:
+        // con `redirect: 'follow'` un origen podría redirigir a una IP interna
+        // después de pasar la validación inicial. Sin allowlist a propósito:
+        // este proxy sirve HLS arbitrarios (anime, IPTV), no solo embeds.
+        let currentUrl = decodedUrl;
+        let response: Response | null = null;
+        for (let hop = 0; hop <= 3; hop++) {
+            const hopGuard = await resolveAndValidate(currentUrl);
+            if (!hopGuard.ok) {
+                return NextResponse.json({ error: hopGuard.reason }, { status: 400 });
+            }
+            const hopRes = await fetch(currentUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'identity',
+                    'Connection': 'keep-alive',
+                },
+                cache: 'no-store',
+                redirect: 'manual',
+                signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+            });
+            if (hopRes.status >= 300 && hopRes.status < 400) {
+                const location = hopRes.headers.get('location');
+                await hopRes.arrayBuffer().catch(() => {});
+                if (!location || hop === 3) {
+                    return NextResponse.json({ error: 'Too many redirects' }, { status: 502 });
+                }
+                try {
+                    currentUrl = new URL(location, currentUrl).toString();
+                } catch {
+                    return NextResponse.json({ error: 'Invalid redirect' }, { status: 502 });
+                }
+                continue;
+            }
+            response = hopRes;
+            break;
+        }
+        if (!response) {
+            return NextResponse.json({ error: 'Too many redirects' }, { status: 502 });
+        }
 
         if (!response.ok) {
-            console.error(`Proxy fetch failed: ${response.status} for ${decodedUrl}`);
+            console.error(`Proxy fetch failed: ${response.status} for ${logHost}`);
             // 502 Bad Gateway: el origen respondió con error. Diferencia un
             // fallo del stream remoto de un bug nuestro (5xx propio).
             return NextResponse.json(
@@ -105,7 +151,7 @@ export async function GET(request: NextRequest) {
             error instanceof Error &&
             (error.name === 'TimeoutError' || error.name === 'AbortError');
         const status = isTimeout ? 504 : 502;
-        console.error(`Proxy error (${status}) for ${decodedUrl}:`, error);
+        console.error(`Proxy error (${status}) for ${logHost}:`, error);
         return NextResponse.json(
             { error: isTimeout ? 'Stream timed out' : 'Failed to fetch stream' },
             { status }

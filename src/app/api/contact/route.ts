@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createSupabaseServiceRoleClient as createServiceRoleClient } from '@/server/repositories/supabase';
 import { getOptionalApiKeys } from '@/lib/env';
+import { getClientIp } from '@/lib/rate-limit';
 
 // Escape HTML so user-supplied values can't inject markup/links into the
 // email we send to the admin inbox (stored-HTML-injection / phishing vector).
@@ -34,13 +35,9 @@ export async function POST(request: Request) {
 
     const resend = new Resend(resendApiKey);
 
-    // SEC-009: prefer the real IP set by the trusted reverse proxy (x-real-ip)
-    // over x-forwarded-for which is client-controlled and trivially spoofable.
-    const ip =
-        request.headers.get('x-real-ip') ||
-        request.headers.get('cf-connecting-ip') ||
-        request.headers.get('x-forwarded-for')?.split(',').pop()?.trim() ||
-        'unknown';
+    // SEC-009: IP unificada (cf-connecting-ip > x-real-ip > primer
+    // x-forwarded-for). El ÚLTIMO forwarded es lo que el atacante controla.
+    const ip = getClientIp(request.headers);
     const supabase = createServiceRoleClient();
 
     // Check rate limit (5 requests per hour per IP)

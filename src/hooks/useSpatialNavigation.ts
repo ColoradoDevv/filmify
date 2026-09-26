@@ -117,6 +117,13 @@ export function useSpatialNavigation(
 ) {
     const { enabled = true, focusOnMount = false, onNavigate } = options;
 
+    // El callback vive en ref: con el inline de cada render en deps, el
+    // listener se desmontaba y remontaba en cada render (foco perdido en TV).
+    const onNavigateRef = useRef(onNavigate);
+    useEffect(() => {
+        onNavigateRef.current = onNavigate;
+    }, [onNavigate]);
+
     useEffect(() => {
         if (!enabled || !containerRef.current) return;
 
@@ -160,13 +167,13 @@ export function useSpatialNavigation(
                     nextElement.focus();
                 }
 
-                onNavigate?.(direction);
+                onNavigateRef.current?.(direction);
             }
         };
 
         container.addEventListener('keydown', handleKeyDown);
         return () => container.removeEventListener('keydown', handleKeyDown);
-    }, [enabled, containerRef, focusOnMount, onNavigate]);
+    }, [enabled, containerRef, focusOnMount]);
 }
 
 /**

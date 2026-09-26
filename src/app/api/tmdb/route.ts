@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getClientIp, checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 import type { SearchFilters } from '@/types/tmdb';
 import {
     discoverMovies,
@@ -43,6 +44,10 @@ function privateJson(data: unknown): NextResponse {
 const CACHE = { list: 3600, details: 21600, discover: 3600, search: 60 } as const;
 
 export async function GET(request: Request) {
+    // El CDN absorbe casi todo (s-maxage); esto frena el abuso directo.
+    const rl = checkRateLimit(`tmdb:${getClientIp(request.headers)}`, 120, 60_000);
+    if (!rl.ok) return rateLimitedResponse(rl.retryAfterSec);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
 
