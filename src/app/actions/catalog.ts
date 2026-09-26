@@ -27,6 +27,8 @@ const VALID_SORT_OPTIONS = ['popularity.desc', 'vote_average.desc', 'primary_rel
 const MIN_RESULTS = 20;
 /** Tope de páginas TMDB a escanear por carga (evita bucles si hay pocas). */
 const MAX_SCAN_PAGES = 6;
+/** Páginas TMDB pedidas en paralelo por iteración. */
+const PAGE_BATCH = 3;
 /** Límite duro de TMDB. */
 const MAX_TMDB_PAGE = 500;
 
@@ -60,6 +62,10 @@ async function filterAvailable(items: (Movie | TVShow)[], isTV: boolean): Promis
  * menos MIN_RESULTS (o agotar el tope de escaneo). Como el filtro de
  * disponibilidad descarta ~half de cada página de TMDB, una sola página deja
  * muy pocos resultados; esto garantiza un grid lleno (≥20 por carga).
+ *
+ * Las páginas TMDB se piden en lotes paralelos y el filtro de
+ * disponibilidad corre UNA vez sobre el agregado: el clic de "cargar más"
+ * paga la latencia de la página más lenta, no la suma de todas.
  */
 export async function loadMoreMovies(opts: LoadMoreOptions): Promise<LoadMoreResult> {
     const isTV = opts.mediaType === 'tv';
@@ -71,27 +77,50 @@ export async function loadMoreMovies(opts: LoadMoreOptions): Promise<LoadMoreRes
     let exhausted = false;
 
     while (acc.length < MIN_RESULTS && scanned < MAX_SCAN_PAGES) {
-        let raw: (Movie | TVShow)[] = [];
-        try {
-            raw = await fetchRawPage(opts, page);
-        } catch (error) {
-            console.error('[loadMoreMovies] TMDB fetch error:', error);
+        const batchPages: number[] = [];
+        while (
+            batchPages.length < PAGE_BATCH &&
+            scanned + batchPages.length < MAX_SCAN_PAGES &&
+            page + batchPages.length <= MAX_TMDB_PAGE
+        ) {
+            batchPages.push(page + batchPages.length);
+        }
+        if (batchPages.length === 0) {
+            exhausted = true;
+            break;
+        }
+        const moved = batchPages.length;
+        scanned += moved;
+        page += moved;
+
+        const settled = await Promise.all(
+            batchPages.map((p) =>
+                fetchRawPage(opts, p).then(
+                    (raw) => ({ ok: true as const, raw }),
+                    (error: unknown) => ({ ok: false as const, error }),
+                ),
+            ),
+        );
+        const failed = settled.filter((s) => !s.ok);
+        failed.forEach((s) => console.error('[loadMoreMovies] TMDB fetch error:', (s as { error: unknown }).error));
+        if (failed.length === settled.length) {
+            // Ninguna página del lote respondió: como antes, se agota.
             exhausted = true;
             break;
         }
 
-        if (raw.length === 0) {
+        const raws = settled.flatMap((s) => (s.ok ? s.raw : []));
+        if (raws.length === 0) {
             exhausted = true;
-            page += 1;
             break;
         }
 
         let available: (Movie | TVShow)[] = [];
         try {
-            available = await filterAvailable(raw, isTV);
+            available = await filterAvailable(raws, isTV);
         } catch (error) {
             console.error('[loadMoreMovies] availability filter error:', error);
-            available = raw; // fail-open
+            available = raws; // fail-open
         }
 
         for (const item of available) {
@@ -100,9 +129,6 @@ export async function loadMoreMovies(opts: LoadMoreOptions): Promise<LoadMoreRes
                 acc.push(item);
             }
         }
-
-        scanned += 1;
-        page += 1;
 
         if (page > MAX_TMDB_PAGE) {
             exhausted = true;

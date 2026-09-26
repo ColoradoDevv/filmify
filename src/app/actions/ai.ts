@@ -8,6 +8,8 @@
 
 import { getSettings } from '@/lib/admin-settings';
 import { getOptionalApiKeys } from '@/lib/env';
+import { getClientIp, checkRateLimit } from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 import { assertMovieRecommendationPromptSafe } from '@/lib/ai-prompt-safety';
 import { GROQ_MODEL, GROQ_REASONING_OPTS } from '@/server/services/ai-model';
 
@@ -77,6 +79,12 @@ export async function getAIRecommendations(prompt: string): Promise<MovieRecomme
     const settings = await getSettings();
     if (!settings.enableAi) {
         return { ok: false, error: 'Las recomendaciones por IA están desactivadas.' };
+    }
+
+    // 2b. Throttle: cada llamada quema cuota de Groq (con reintentos).
+    const rl = checkRateLimit(`ai:${getClientIp(await headers())}`, 30, 24 * 3600_000);
+    if (!rl.ok) {
+        return { ok: false, error: 'Límite diario de recomendaciones alcanzado. Vuelve mañana.' };
     }
 
     // 3. API key — initialize inside the function to avoid top-level module issues

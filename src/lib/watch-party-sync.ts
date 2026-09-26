@@ -110,9 +110,13 @@ export function encodePlayback(state: PlaybackState): string {
 }
 
 /** Si una cuenta atrás persistida ya venció (p. ej. para quien entra tarde),
- *  la fase efectiva es 'playing'. */
-export function effectivePhase(state: PlaybackState): PlaybackPhase {
-    if (state.phase === 'countdown' && (state.countdownEndsAt ?? 0) <= Date.now()) {
+ *  la fase efectiva es 'playing'. Con margen de gracia: los espectadores
+ *  esperan el broadcast del host (no su propio reloj) y esto solo rescata si
+ *  el broadcast se perdió — montar el iframe segundos antes que el host es
+ *  peor que esperar.
+ */
+export function effectivePhase(state: PlaybackState, graceMs = 15_000): PlaybackPhase {
+    if (state.phase === 'countdown' && (state.countdownEndsAt ?? 0) + graceMs <= Date.now()) {
         return 'playing';
     }
     return state.phase;

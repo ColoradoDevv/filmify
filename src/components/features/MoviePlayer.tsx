@@ -130,6 +130,13 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
         setError(false);
     }, []);
 
+    // Solo la película fija el proveedor: a partir de aquí la sonda tardía
+    // ya no reubica (el tráiler no cuenta).
+    const handleMovieLoad = useCallback(() => {
+        cascade.markSettled();
+        handleLoad();
+    }, [cascade, handleLoad]);
+
     // Pantalla completa
     const handleFullscreen = () => {
         const el = containerRef.current;
@@ -281,7 +288,7 @@ export default function MoviePlayer({ tmdbId, title, backdropUrl, trailerKey }: 
                         src={embedUrl}
                         title={`Reproductor: ${title} (${cascade.active.label})`}
                         className="absolute inset-0 w-full h-full border-0"
-                        onLoad={handleLoad}
+                        onLoad={handleMovieLoad}
                         onError={failOver}
                         referrerPolicy="origin"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"

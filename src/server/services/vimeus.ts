@@ -343,10 +343,14 @@ async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' | 'anime' = 'm
             },
         );
 
-        // Cualquier respuesta no-2xx es definitivamente no disponible.
-        // 5xx además cuenta como fallo del host para el breaker.
+        // Respuesta no-2xx: un 5xx o un 429 significa "el host está mal",
+        // no "el título no existe" → fail-open (no se oculta) y cuenta para
+        // el breaker. Solo un 4xx (típicamente 404 del endpoint) descarta.
         if (!res.ok) {
-            if (res.status >= 500) recordProviderFailure(VIMEUS_HOST);
+            if (res.status >= 500 || res.status === 429) {
+                recordProviderFailure(VIMEUS_HOST);
+                return true;
+            }
             return false;
         }
 

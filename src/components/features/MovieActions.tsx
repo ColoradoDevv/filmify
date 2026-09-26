@@ -16,8 +16,11 @@ interface MovieActionsProps {
 
 export default function MovieActions({ movie }: MovieActionsProps) {
     const router = useRouter();
-    const currentFavorites = useStore((state) => state.user.favorites);
-    const isFavorite = currentFavorites.some((fav) => fav.id === movie.id);
+    // Solo el booleano: suscribirse al array entero re-renderiza este
+    // componente (y con él la ficha) cada vez que cambia CUALQUIER favorito.
+    const isFavorite = useStore((state) =>
+        state.user.favorites.some((fav) => fav.id === movie.id),
+    );
     const addFavorite = useStore((state) => state.addFavorite);
     const removeFavorite = useStore((state) => state.removeFavorite);
 
@@ -37,9 +40,11 @@ export default function MovieActions({ movie }: MovieActionsProps) {
 
         setFavLoading(true);
 
+        // Lectura puntual (sin suscripción) para construir la lista a guardar.
+        const storedFavorites = useStore.getState().user.favorites;
         const nextFavorites = isFavorite
-            ? currentFavorites.filter((fav) => fav.id !== movie.id)
-            : [...currentFavorites, movie as Movie];
+            ? storedFavorites.filter((fav) => fav.id !== movie.id)
+            : [...storedFavorites, movie as Movie];
 
         // Actualizar estado local optimista
         if (isFavorite) {
@@ -66,7 +71,7 @@ export default function MovieActions({ movie }: MovieActionsProps) {
         } finally {
             setFavLoading(false);
         }
-    }, [isFavorite, currentFavorites, movie, addFavorite, removeFavorite, favLoading]);
+    }, [isFavorite, movie, addFavorite, removeFavorite, favLoading]);
 
     const handleShare = useCallback(async () => {
         const url = window.location.href;

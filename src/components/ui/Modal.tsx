@@ -1,7 +1,8 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from '@/hooks/useSpatialNavigation';
 
 interface ModalProps {
     isOpen: boolean;
@@ -15,17 +16,47 @@ interface ModalProps {
 
 export default function Modal({ isOpen, onClose, title, description, icon, children }: ModalProps) {
     const [isVisible, setIsVisible] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    // Valor de overflow previo: se restaura al cerrar (no 'unset', que
+    // rompía modales anidados o valores puestos por otro componente).
+    const prevOverflowRef = useRef<string | null>(null);
+
+    // Trampa de foco + devuelve el foco al cerrar.
+    useFocusTrap(containerRef, isOpen);
 
     useEffect(() => {
         if (isOpen) {
             setIsVisible(true);
+            if (prevOverflowRef.current === null) {
+                prevOverflowRef.current = document.body.style.overflow;
+            }
             document.body.style.overflow = 'hidden';
         } else {
             const timer = setTimeout(() => setIsVisible(false), 300);
-            document.body.style.overflow = 'unset';
+            if (prevOverflowRef.current !== null) {
+                document.body.style.overflow = prevOverflowRef.current;
+                prevOverflowRef.current = null;
+            }
             return () => clearTimeout(timer);
         }
     }, [isOpen]);
+
+    // Si se desmonta abierto (cambio de ruta), no dejar el scroll bloqueado.
+    useEffect(() => () => {
+        if (prevOverflowRef.current !== null) {
+            document.body.style.overflow = prevOverflowRef.current;
+        }
+    }, []);
+
+    // Escape cierra.
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
 
     if (!isVisible && !isOpen) return null;
 
@@ -38,7 +69,7 @@ export default function Modal({ isOpen, onClose, title, description, icon, child
             />
 
             {/* Modal Content */}
-            <div className={`relative bg-surface border border-surface-light rounded-2xl w-full max-w-md shadow-2xl transform transition-all duration-300 ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+            <div ref={containerRef} role="dialog" aria-modal="true" aria-label={title} className={`relative bg-surface border border-surface-light rounded-2xl w-full max-w-md shadow-2xl transform transition-all duration-300 ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
                 <div className="flex items-center justify-between p-6 border-b border-surface-light">
                     <div className="flex items-center gap-3 min-w-0">
                         {icon}
@@ -49,6 +80,7 @@ export default function Modal({ isOpen, onClose, title, description, icon, child
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Cerrar"
                         className="p-2 hover:bg-surface-light rounded-lg transition-colors text-text-secondary hover:text-white"
                     >
                         <X className="w-5 h-5" />

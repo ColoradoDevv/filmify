@@ -64,6 +64,8 @@ export default function SearchPageClient({
     }, [initialQuery, initialResults, pedirCorreccion]);
 
     const applyCorrection = (text: string) => {
+        // Misma consulta: no hay navegación y el spinner se quedaría colgado.
+        if (text === initialQuery) return;
         setNavigating(true);
         router.push(`/search?q=${encodeURIComponent(text)}`);
     };

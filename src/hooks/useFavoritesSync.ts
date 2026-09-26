@@ -8,7 +8,6 @@ import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 export default function useFavoritesSync() {
     const setFavorites = useStore((state) => state.setFavorites);
-    const clearFavorites = useStore((state) => state.clearFavorites);
     const favorites = useStore((state) => state.user.favorites);
     const favoritesRef = useRef(favorites);
 
@@ -41,14 +40,15 @@ export default function useFavoritesSync() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             if (session?.user) {
                 syncFavorites();
-            } else {
-                clearFavorites();
             }
+            // Al cerrar sesión NO se limpian: la lista local (persistida)
+            // es del dispositivo, no de la cuenta — vaciarla borraba los
+            // favoritos anónimos. Solo se deja de sincronizar.
         });
 
         return () => {
             mounted = false;
             subscription.unsubscribe();
         };
-    }, [clearFavorites, setFavorites]);
+    }, [setFavorites]);
 }

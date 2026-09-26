@@ -1,6 +1,6 @@
 {
   "name": "filmify",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "overrides": {
     "postcss": "8.5.25",
     "undici": "^7.29.0",

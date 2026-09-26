@@ -212,12 +212,18 @@ export default async function TVDetailsPage({ params }: PageProps) {
     //
     // Nota: `permanentRedirect` emite 308, que Google trata igual que un 301 y
     // es lo mismo que producen los redirects de next.config.ts.
-    const animeMatch = await canonicalAnilistForTmdbIfWarm(tvId).catch(() => null);
-    if (animeMatch) permanentRedirect(`/anime/${animeMatch.anilistId}`);
-
     let tvShow;
     try {
-        tvShow = await getTVDetails(tvId);
+        // El chequeo anime y la ficha TMDB son independientes: en paralelo.
+        const [animeMatch, details] = await Promise.all([
+            canonicalAnilistForTmdbIfWarm(tvId).catch(() => null),
+            getTVDetails(tvId).catch((error) => {
+                if (error instanceof TMDBError && error.status === 404) return null;
+                throw error;
+            }),
+        ]);
+        if (animeMatch) permanentRedirect(`/anime/${animeMatch.anilistId}`);
+        tvShow = details;
         if (!tvShow) notFound();
     } catch (error) {
         console.error('Error fetching TV details:', error);
@@ -230,6 +236,19 @@ export default async function TVDetailsPage({ params }: PageProps) {
     // Availability gate + datos de Vimeus en paralelo.
     // Algunos títulos están en Vimeus solo como anime (/e/anime), no como serie
     // (/e/serie) — si el probe de serie falla, intentamos el de anime.
+    //
+    // El fallback IA del tráiler solo necesita nombre/año: se lanza YA para
+    // que corra en paralelo con las sondas en vez de esperarlas.
+    const tmdbTrailer = tvShow.videos?.results.find(
+        (video) => video.type === 'Trailer' && video.site === 'YouTube'
+    );
+    const aiTrailerPromise = tmdbTrailer
+        ? null
+        : getCachedYouTubeTrailerId(
+            tvShow.name,
+            tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear().toString() : '',
+            'tv',
+        ).catch(() => null);
     const [[seriesAvail, animeAvail], episodeMap, recommendations, playback] = await Promise.all([
         // Memoizada: `generateMetadata` ya la pidió en esta misma petición.
         resolveSeriesAvailability(tvId),
@@ -255,18 +274,12 @@ export default async function TVDetailsPage({ params }: PageProps) {
     const posterUrl = getPosterUrl(tvShow.poster_path);
     const firstAirYear = tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : null;
 
-    // Get trailer
-    let trailer = tvShow.videos?.results.find(
-        (video) => video.type === 'Trailer' && video.site === 'YouTube'
-    );
+    // Get trailer (el TMDB viene con la ficha; el IA ya corría en paralelo).
+    let trailer = tmdbTrailer;
 
     // AI Fallback for trailer
-    if (!trailer) {
-        const aiTrailerId = await getCachedYouTubeTrailerId(
-            tvShow.name,
-            tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear().toString() : '',
-            'tv'
-        );
+    if (!trailer && aiTrailerPromise) {
+        const aiTrailerId = await aiTrailerPromise;
 
         if (aiTrailerId) {
             trailer = {

@@ -271,6 +271,12 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
         setError(false);
     }, []);
 
+    // Solo la serie fija el proveedor (el tráiler no cuenta).
+    const handleSerieLoad = useCallback(() => {
+        cascade.markSettled();
+        handleLoad();
+    }, [cascade, handleLoad]);
+
     const handleFullscreen = () => {
         const el = containerRef.current;
         if (!el) return;
@@ -490,7 +496,7 @@ export default function SeriesPlayer({ tmdbId, title, backdropUrl, trailerKey, s
                         src={embedUrl}
                         title={`Reproductor: ${title} (${activeLabel})`}
                         className="absolute inset-0 w-full h-full border-0"
-                        onLoad={handleLoad}
+                        onLoad={handleSerieLoad}
                         onError={failOver}
                         referrerPolicy="origin"
                         allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"

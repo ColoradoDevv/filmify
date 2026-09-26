@@ -178,9 +178,11 @@ export default function VideoPlayer({
     const handleLoad = useCallback(() => {
         if (timeoutFired.current) return; // ignorar carga tardía si ya mostramos error
         if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+        // El proveedor actual reproduce: la sonda tardía ya no reubica.
+        cascade.markSettled();
         setIsLoading(false);
         setError(false);
-    }, []);
+    }, [cascade]);
 
     const handleRetry = () => {
         // Reiniciamos todo para el nuevo intento (vuelve a Vimeus y re-cascada)

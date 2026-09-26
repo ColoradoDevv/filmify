@@ -238,9 +238,9 @@ export default function PartyPlayer({
                 </div>
             )}
 
-            {/* ── countdown ── */}
+            {/* ── countdown (key por fin: una nueva cuenta es un ciclo nuevo) ── */}
             {phase === 'countdown' && countdownEndsAt && (
-                <CountdownOverlay endsAt={countdownEndsAt} onEnd={onCountdownEnd} />
+                <CountdownOverlay key={countdownEndsAt} endsAt={countdownEndsAt} onEnd={onCountdownEnd} />
             )}
 
             {/* ── paused (telón) ── */}
@@ -276,6 +276,7 @@ export default function PartyPlayer({
                         className="absolute inset-0 w-full h-full border-0"
                         onLoad={() => {
                             if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+                            cascade.markSettled();
                             setIframeLoading(false);
                         }}
                         referrerPolicy="origin"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SmartScraper } from '@/lib/scraper';
+import { getClientIp, checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 
 /**
  * FilmiFy Scraper API
@@ -9,6 +10,9 @@ import { SmartScraper } from '@/lib/scraper';
  * load timeouts, which is more accurate anyway (HTTP 200 ≠ iframe-loadable).
  */
 export async function GET(request: NextRequest) {
+    const rl = checkRateLimit(`scrape:${getClientIp(request.headers)}`, 60, 60_000);
+    if (!rl.ok) return rateLimitedResponse(rl.retryAfterSec);
+
     const { searchParams } = new URL(request.url);
     const tmdbId = searchParams.get('tmdbId');
     const mediaType = searchParams.get('mediaType') as 'movie' | 'tv' | null;

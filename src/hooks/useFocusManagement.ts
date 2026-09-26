@@ -154,26 +154,31 @@ export function useFocusVisible() {
 /**
  * Hook to scroll element into view when focused
  */
+const DEFAULT_SCROLL_OPTIONS: ScrollIntoViewOptions = {
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'nearest',
+};
+
 export function useScrollIntoView<T extends HTMLElement>(
-    options: ScrollIntoViewOptions = {
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'nearest'
-    }
+    options: ScrollIntoViewOptions = DEFAULT_SCROLL_OPTIONS,
 ): RefObject<T | null> {
     const ref = useRef<T | null>(null);
+    // Sin esto, el objeto por defecto (nuevo por render) re-registraba el
+    // listener 'focus' en cada render.
+    const { behavior, block, inline } = { ...DEFAULT_SCROLL_OPTIONS, ...options };
 
     useEffect(() => {
         const element = ref.current;
         if (!element) return;
 
         const handleFocus = () => {
-            element.scrollIntoView(options);
+            element.scrollIntoView({ behavior, block, inline });
         };
 
         element.addEventListener('focus', handleFocus);
         return () => element.removeEventListener('focus', handleFocus);
-    }, [options]);
+    }, [behavior, block, inline]);
 
     return ref;
 }

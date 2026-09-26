@@ -29,10 +29,22 @@ function stripDiacritics(s: string): string {
 
 function normalizeForScan(input: string): string {
     let s = stripDiacritics(input.toLowerCase());
-    s = s.replace(/[_\-./\\|]+/g, ' ');
-    s = s.replace(/\s+/g, ' ').trim();
-    // Leetspeak común
-    s = s.replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+    // Leetspeak común, ampliado (@ $ ! + 8): sin esto `p0rn`, `p@rn` o
+    // `porn!` pasaban el filtro tal cual.
+    s = s
+        .replace(/@/g, 'a')
+        .replace(/\$/g, 's')
+        .replace(/!/g, 'i')
+        .replace(/\+/g, 't')
+        .replace(/8/g, 'b')
+        .replace(/0/g, 'o')
+        .replace(/1/g, 'i')
+        .replace(/3/g, 'e')
+        .replace(/4/g, 'a')
+        .replace(/5/g, 's')
+        .replace(/7/g, 't');
+    // Todo lo que no sea letra/dígito es separador (`p.o.r.n.o`, `p,o,r,n,o`…).
+    s = s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
     return ` ${s} `;
 }
 
@@ -50,9 +62,17 @@ export function assertMovieRecommendationPromptSafe(raw: string): MoviePromptSaf
     }
 
     const haystack = normalizeForScan(trimmed);
+    // Versión sin espacios para cazar el deletreo (`p o r n o`): solo agujas
+    // de 5+ letras para no marcar palabras inocentes que contengan runs
+    // cortos (p. ej. `cum` en `document`).
+    const haystackFlat = haystack.replace(/\s+/g, '');
     for (const word of BLOCKED_SUBSTRINGS) {
         const needle = normalizeForScan(word);
         if (needle.length >= 2 && haystack.includes(needle)) {
+            return { ok: false, message: BLOCKED_MESSAGE };
+        }
+        const needleFlat = needle.replace(/\s+/g, '');
+        if (needleFlat.length >= 5 && haystackFlat.includes(needleFlat)) {
             return { ok: false, message: BLOCKED_MESSAGE };
         }
     }
