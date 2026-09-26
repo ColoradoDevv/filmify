@@ -96,8 +96,10 @@ export default async function HomePage() {
     .slice(0, 12);
 
 
+  // w1280 en vez de 'original': el hero se muestra a ~1000px de ancho y el
+  // original pesa 2-6 MB (LCP). A esta resolución la diferencia es invisible.
   const backdropUrl = heroMovie
-    ? getImageUrl(heroMovie.backdrop_path, 'original')
+    ? getImageUrl(heroMovie.backdrop_path, 'w1280')
     : null;
 
   // JSON-LD Structured Data for SEO.

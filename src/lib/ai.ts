@@ -393,3 +393,18 @@ export async function getYouTubeTrailerId(title: string, year: string, type: 'mo
         return null;
     }
 }
+
+/**
+ * Tráiler IA con caché persistente (30 días).
+ *
+ * El ID del tráiler oficial de un título no cambia nunca, así que solo el
+ * primer visitante paga la llamada a Groq (segundos, en el critical path de
+ * la ficha); el resto sale del Data Cache. Si la IA está desactivada o falla,
+ * se cachea `null` igual: reintentar en cada visita no va a cambiar nada.
+ */
+export const getCachedYouTubeTrailerId = unstable_cache(
+    async (title: string, year: string, type: 'movie' | 'tv'): Promise<string | null> =>
+        getYouTubeTrailerId(title, year, type),
+    ['youtube-trailer-id'],
+    { revalidate: 30 * 24 * 3600 },
+);

@@ -2,6 +2,11 @@
 
 import { validateOutboundUrl } from '@/lib/ssrf-guard';
 import {
+    isCircuitOpen,
+    recordProviderSuccess,
+    recordProviderFailure,
+} from '@/server/services/provider-health';
+import {
     buildPlaybackSources,
     PROVIDER_HOSTS,
     type PlaybackContext,
@@ -23,7 +28,7 @@ import {
  * la UI muestre el selector manual en lugar de una pantalla vacía.
  */
 
-const FETCH_TIMEOUT_MS = 9_000;
+const FETCH_TIMEOUT_MS = 4_500;
 
 /** Hosts que esta sonda tiene permitido verificar (allowlist estricta). */
 const ALLOWED_PROBE_HOSTS = new Set<string>([
@@ -90,6 +95,9 @@ async function probeUrl(url: string, providerId: PlaybackProviderId): Promise<bo
     }
     if (!ALLOWED_PROBE_HOSTS.has(hostname)) return false;
 
+    // Circuito abierto (host caído): ni se intenta, fail rápido.
+    if (isCircuitOpen(hostname)) return false;
+
     // 3. Sonda HTTP con timeout corto.
     let html: string;
     try {
@@ -101,10 +109,15 @@ async function probeUrl(url: string, providerId: PlaybackProviderId): Promise<bo
                 Accept: 'text/html,application/xhtml+xml',
             },
         });
-        if (!res.ok) return false;
+        if (!res.ok) {
+            if (res.status >= 500) recordProviderFailure(hostname);
+            return false;
+        }
         html = await res.text();
+        recordProviderSuccess(hostname);
     } catch {
         // Timeout o error de red → proveedor caído → siguiente en la cascada.
+        recordProviderFailure(hostname);
         return false;
     }
 

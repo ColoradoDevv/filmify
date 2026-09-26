@@ -1,6 +1,6 @@
 import { getMovieDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
 import { serializeJsonLd } from '@/lib/json-ld';
-import { getYouTubeTrailerId } from '@/lib/ai';
+import { getCachedYouTubeTrailerId } from '@/lib/ai';
 import { isMovieAvailableOnVimeus, filterAvailableMovies } from '@/server/services/vimeus';
 import MoviePlayer from '@/components/features/MoviePlayer';
 import UnavailableTitleNotice from '@/components/features/UnavailableTitleNotice';
@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Movie } from '@/types/tmdb';
+import { cache } from 'react';
 import MovieDetailsPageTV from './page-tv';
 import TVBodySwitch from '@/components/layout/TVBodySwitch';
 import { AdSlot } from '@/components/ads';
@@ -24,6 +25,25 @@ interface PageProps {
     }>;
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
+
+/**
+ * ISR 1 h: la ficha es idéntica para todos los visitantes (favoritos,
+ * reseñas y player son componentes de cliente). Las visitas repetidas salen
+ * del caché y el prefetch de Next las deja instantáneas.
+ *
+ * Compromiso: el binomio player/aviso y el noindex pueden tardar hasta 1 h
+ * en reflejar un cambio de disponibilidad; la cascada del player resuelve en
+ * vivo de todos modos, así que el riesgo es solo cosmético.
+ */
+export const revalidate = 3600;
+
+/**
+ * Disponibilidad memoizada por petición: `generateMetadata` y el cuerpo
+ * piden LO MISMO y sin esto sondeaban dos veces por visita.
+ */
+const resolveMovieAvailability = cache((movieId: number) =>
+    isMovieAvailableOnVimeus(movieId).catch(() => false),
+);
 
 function buildMovieMetadata(movie: Awaited<ReturnType<typeof getMovieDetails>>): Metadata {
     const canonical = `/movie/${movie.id}`;
@@ -133,7 +153,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         // menos dañino que hacer desaparecer la página.
         const [movie, isAvailable] = await Promise.all([
             getMovieDetails(movieId),
-            isMovieAvailableOnVimeus(movieId).catch(() => false),
+            resolveMovieAvailability(movieId),
         ]);
         if (!movie) return NOT_FOUND_METADATA;
 
@@ -166,7 +186,7 @@ async function fetchMovieData(movieId: number) {
             if (error instanceof TMDBError && error.status === 404) return null;
             throw error;
         }),
-        isMovieAvailableOnVimeus(movieId).catch(() => false),
+        resolveMovieAvailability(movieId),
     ]);
 
     // Solo es 404 lo que TMDB no conoce. Que ningún proveedor lo tenga NO lo
@@ -178,8 +198,9 @@ async function fetchMovieData(movieId: number) {
 
     let recommendations: Movie[] = [];
     try {
+        // Solo se renderizan 12: no se sondean 18.
         recommendations = await filterAvailableMovies(
-            (movie.recommendations?.results ?? []).slice(0, 18)
+            (movie.recommendations?.results ?? []).slice(0, 12)
         );
     } catch {
         // Mostramos la página sin recomendaciones
@@ -210,7 +231,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
     );
     if (!trailer) {
         try {
-            const aiTrailerId = await getYouTubeTrailerId(
+            const aiTrailerId = await getCachedYouTubeTrailerId(
                 movie.title,
                 releaseYear?.toString() ?? '',
                 'movie'
