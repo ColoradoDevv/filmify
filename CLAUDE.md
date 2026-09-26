@@ -59,6 +59,17 @@ Note the dorama availability filter degrades **closed**, unlike anime's:
 `/tv/[id]` calls `notFound()` when no provider has a title, so an optimistic
 catalog fills the grid with links to 404s.
 
+**Reproducción en cascada con fail-fast** (2026-09-26): los players ya no
+dependen solo de Vimeus — `src/lib/playback-providers.ts` define el orden
+(Vimeus → VidAPI → VidCore → VidSrc → …), `src/app/actions/playback.ts`
+sondea en paralelo y `usePlaybackCascade` avanza solo ante timeouts. Y para
+que un proveedor caído no congele el catálogo ni las fichas (cada sonda
+quemaba su timeout y los fallos de red no se cachean),
+`src/server/services/provider-health.ts` implementa un circuit breaker por
+host: 3 fallos de red/5xx seguidos lo abren 3 min (fail-open inmediato),
+luego deja pasar una sonda de prueba. Solo cuenta red/5xx — un 4xx o un
+"sin contenido" significa que el host vive y cierra el circuito.
+
 ## Tech stack
 
 - **Framework**: Next.js 16.3 (App Router), Turbopack, React 19, TypeScript (strict)

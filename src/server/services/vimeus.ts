@@ -9,12 +9,21 @@
  *  5. Transient errors fail OPEN (catalog never blanks).
  */
 
+import {
+    isCircuitOpen,
+    recordProviderSuccess,
+    recordProviderFailure,
+} from '@/server/services/provider-health';
+
 const API_KEY = process.env.VIMEUS_API_KEY ?? '';
 const VIEW_KEY = process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY ?? '';
 const BASE_URL = 'https://vimeus.com';
+const VIMEUS_HOST = 'vimeus.com';
 
 const PAGE_REVALIDATE_S = 3_600;       // Next Data Cache TTL per page
-const FETCH_TIMEOUT_MS = 8_000;
+// Sondas cortas: con Vimeus sano responden en <1 s; si está caído, el
+// circuit breaker evita pagar el timeout en cada título (ver abajo).
+const FETCH_TIMEOUT_MS = 4_000;
 const MAX_PAGES = 200;                 // safety bound al recorrer el catálogo
 const MAX_PROBE_CONCURRENCY = 8;       // workers for embed probes (fail-closed, no saturar Vimeus)
 const MAX_EPISODE_PAGES = 10;
@@ -98,6 +107,8 @@ interface ListingPage<I> {
 
 async function fetchListing<I>(path: string): Promise<ListingPage<I> | null> {
     if (!API_KEY) return null;
+    // Circuito abierto (host caído): fallar rápido sin quemar el timeout.
+    if (isCircuitOpen(VIMEUS_HOST)) return null;
     try {
         const res = await fetch(`${BASE_URL}${path}`, {
             headers: { 'X-API-Key': API_KEY, Accept: 'application/json' },
@@ -106,9 +117,12 @@ async function fetchListing<I>(path: string): Promise<ListingPage<I> | null> {
         });
         if (!res.ok) {
             if (DEBUG) console.warn(`[Vimeus] HTTP ${res.status} for ${path}`);
+            // 5xx = backend caído; 4xx = petición mala (el host está vivo).
+            if (res.status >= 500) recordProviderFailure(VIMEUS_HOST);
             return null;
         }
         const json = (await res.json()) as ListingEnvelope<I>;
+        recordProviderSuccess(VIMEUS_HOST);
         if (json.error || !json.data) {
             if (DEBUG) console.warn(`[Vimeus] API error: ${json.message}`);
             return null;
@@ -120,6 +134,8 @@ async function fetchListing<I>(path: string): Promise<ListingPage<I> | null> {
         return { items, pages };
     } catch (err) {
         if (DEBUG) console.error(`[Vimeus] Fetch error for ${path}:`, err);
+        // Timeout/DNS/conexión: el host no responde → acerca el breaker.
+        recordProviderFailure(VIMEUS_HOST);
         return null;
     }
 }
@@ -309,6 +325,9 @@ async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' | 'anime' = 'm
     // Sin view key no podemos verificar; mostramos solo lo que tenga API_KEY
     // validado por el listing (acepta el riesgo conscientemente).
     if (!VIEW_KEY) return true;
+    // Circuito abierto (Vimeus caído): fail-open inmediato, sin quemar el
+    // timeout. La cascada de reproducción decide el proveedor sano.
+    if (isCircuitOpen(VIMEUS_HOST)) return true;
     try {
         const res = await fetch(
             `${BASE_URL}/e/${kind}?tmdb=${tmdbId}&view_key=${VIEW_KEY}`,
@@ -325,9 +344,15 @@ async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' | 'anime' = 'm
         );
 
         // Cualquier respuesta no-2xx es definitivamente no disponible.
-        if (!res.ok) return false;
+        // 5xx además cuenta como fallo del host para el breaker.
+        if (!res.ok) {
+            if (res.status >= 500) recordProviderFailure(VIMEUS_HOST);
+            return false;
+        }
 
         const html = await res.text();
+        // El host respondió: está vivo, aunque el contenido falte.
+        recordProviderSuccess(VIMEUS_HOST);
 
         // Paso 1 — señales de no disponibilidad (rápido, orden importa).
         for (const signal of UNAVAILABLE_SIGNALS) {
@@ -362,12 +387,13 @@ async function probeEmbed(tmdbId: number, kind: 'movie' | 'serie' | 'anime' = 'm
             }
         }
     } catch {
-        // Timeout, error de red, etc. → fail-OPEN.
+        // Timeout, error de red, etc. → fail-OPEN + acerca el breaker.
         // Si Vimeus está caído no podemos saber si el título existe, así que
         // lo mostramos y la cascada de reproducción (Vimeus → VidAPI →
         // VidCore → VidSrc → …) decide el proveedor sano por título
         // (ver src/app/actions/playback.ts). Las señales explícitas de
         // "no disponible" de más arriba siguen siendo fail-closed.
+        recordProviderFailure(VIMEUS_HOST);
         return true;
     }
 }

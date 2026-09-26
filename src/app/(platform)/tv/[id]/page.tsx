@@ -1,6 +1,6 @@
 import { getTVDetails, getBackdropUrl, getPosterUrl, getProfileUrl, TMDBError } from '@/server/services/tmdb';
 import { serializeJsonLd } from '@/lib/json-ld';
-import { getYouTubeTrailerId } from '@/lib/ai';
+import { getCachedYouTubeTrailerId } from '@/lib/ai';
 import { getOptionalApiKeys } from '@/lib/env';
 import {
     isSeriesAvailableOnVimeus,
@@ -45,6 +45,25 @@ const resolvePlayback = cache(
             episode: 1,
             titles: { name, originalName },
         }).catch(() => ({ sources: [], hasVerifiedSource: false, subtitleLanguages: [] })),
+);
+
+/**
+ * ISR 1 h, mismo criterio que /movie/[id]: la ficha es igual para todos
+ * (lo personalizado vive en componentes de cliente) y la cascada del player
+ * resuelve disponibilidad en vivo aunque la página cacheada tarde 1 h en
+ * reflejarla.
+ */
+export const revalidate = 3600;
+
+/**
+ * Sondas Vimeus memoizadas por petición: metadata y cuerpo pedían las DOS
+ * cada uno (4 sondas por visita). Devuelve [serie, anime].
+ */
+const resolveSeriesAvailability = cache((tmdbId: number) =>
+    Promise.all([
+        isSeriesAvailableOnVimeus(tmdbId).catch(() => false),
+        isAnimeAvailableOnVimeus(tmdbId).catch(() => false),
+    ]),
 );
 
 interface PageProps {
@@ -157,9 +176,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         // registro de proveedores: mirar solo Vimeus marcaba noindex a series que
         // sí se reproducen por otra vía —Friends y La Ley y el Orden, entre
         // otras— y eso las sacaría del índice.
-        const [seriesAvail, animeAvail, playback] = await Promise.all([
-            isSeriesAvailableOnVimeus(tvId).catch(() => false),
-            isAnimeAvailableOnVimeus(tvId).catch(() => false),
+        const [[seriesAvail, animeAvail], playback] = await Promise.all([
+            resolveSeriesAvailability(tvId),
             resolvePlayback(tvId, tvShow.name, tvShow.original_name),
         ]);
 
@@ -212,11 +230,12 @@ export default async function TVDetailsPage({ params }: PageProps) {
     // Availability gate + datos de Vimeus en paralelo.
     // Algunos títulos están en Vimeus solo como anime (/e/anime), no como serie
     // (/e/serie) — si el probe de serie falla, intentamos el de anime.
-    const [seriesAvail, animeAvail, episodeMap, recommendations, playback] = await Promise.all([
-        isSeriesAvailableOnVimeus(tvId),
-        isAnimeAvailableOnVimeus(tvId),
+    const [[seriesAvail, animeAvail], episodeMap, recommendations, playback] = await Promise.all([
+        // Memoizada: `generateMetadata` ya la pidió en esta misma petición.
+        resolveSeriesAvailability(tvId),
         getSeriesEpisodeMap(tvId),
-        filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 18)),
+        // Solo se renderizan 12: no se sondean 18.
+        filterAvailableSeries((tvShow.recommendations?.results ?? []).slice(0, 12)),
         // Registro de proveedores (Vimeus + APIPlayer + KissKH si está activo).
         // Es lo que permite servir títulos que Vimeus no tiene: medido sobre
         // 22 doramas, la cobertura pasa de 6/22 a 11/22.
@@ -243,7 +262,7 @@ export default async function TVDetailsPage({ params }: PageProps) {
 
     // AI Fallback for trailer
     if (!trailer) {
-        const aiTrailerId = await getYouTubeTrailerId(
+        const aiTrailerId = await getCachedYouTubeTrailerId(
             tvShow.name,
             tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear().toString() : '',
             'tv'

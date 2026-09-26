@@ -76,6 +76,23 @@ function setCachedBan(ip: string, banned: boolean): void {
     ipBanCache.set(ip, { banned, at: Date.now() });
 }
 
+// ── getUser cache ───────────────────────────────────────────────────────────
+// `auth.getUser()` valida el JWT contra Supabase (ida y vuelta de red) en
+// CADA navegación de un usuario logueado. Se cachea 60 s por token: el login
+// / logout cambian las cookies → miss garantizado, sin sesiones rancias.
+// Solo se cachean éxitos; un fallo transitorio nunca deja a nadie 60 s fuera.
+const GET_USER_TTL_MS = 60_000;
+const getUserCache = new Map<string, { user: any; at: number }>();
+/** FNV-1a: no se guarda el JWT en memoria, solo su hash como clave. */
+function hashToken(s: string): string {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(36);
+}
+
 // Nota: el consentimiento por región (EEE/UK/CH) ya no se resuelve aquí.
 // Antes se calculaba por geo (`cf-ipcountry`) y se publicaba como header para
 // que el layout raíz lo leyera con `headers()` — pero esa llamada por sí
@@ -238,15 +255,28 @@ export default async function middleware(request: NextRequest) {
         });
 
         if (hasSupabaseSessionCookie) {
-            try {
-                // Attempt to read current user/session. Not fatal if it errors.
-                const session = await supabase.auth.getUser();
-                user = session?.data?.user ?? null;
-                authError = session?.error ?? null;
-            } catch (err) {
-                console.warn('[middleware] supabase.auth.getUser() failed', err);
-                authError = err;
-                user = null;
+            const accessToken = request.cookies.getAll().find(
+                ({ name }) => name.endsWith('-auth-token'),
+            )?.value ?? '';
+            const userKey = accessToken ? hashToken(accessToken) : null;
+            const cachedUser = userKey ? getUserCache.get(userKey) : undefined;
+            if (cachedUser && Date.now() - cachedUser.at < GET_USER_TTL_MS) {
+                user = cachedUser.user;
+            } else {
+                try {
+                    // Attempt to read current user/session. Not fatal if it errors.
+                    const session = await supabase.auth.getUser();
+                    user = session?.data?.user ?? null;
+                    authError = session?.error ?? null;
+                    if (userKey && user && !authError) {
+                        if (getUserCache.size > 5_000) getUserCache.clear();
+                        getUserCache.set(userKey, { user, at: Date.now() });
+                    }
+                } catch (err) {
+                    console.warn('[middleware] supabase.auth.getUser() failed', err);
+                    authError = err;
+                    user = null;
+                }
             }
         }
     } catch (err) {
